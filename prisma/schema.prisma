@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  phoneNumber       String   @unique
+  password          String
+  isEmailVerified   Boolean  @default(false)
+  isPhoneVerified   Boolean  @default(false)
+  role              UserRole @default(PASSENGER)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Passenger specific fields
+  passenger         Passenger?
+  
+  // Verification codes
+  verificationCodes VerificationCode[]
+
+  @@map("users")
+}
+
+model Passenger {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  firstName       String?
+  lastName        String?
+  biometricData   String? // Encrypted biometric template
+  transactionPin  String?
+  walletBalance   Decimal @default(0) @db.Decimal(10, 2)
+  
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("passengers")
+}
+
+model VerificationCode {
+  id        String            @id @default(cuid())
+  userId    String
+  code      String
+  type      VerificationType
+  expiresAt DateTime
+  isUsed    Boolean           @default(false)
+  createdAt DateTime          @default(now())
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("verification_codes")
+}
+
+enum UserRole {
+  PASSENGER
+  DRIVER
+  AGENT
+  PARK_MANAGER
+}
+
+enum VerificationType {
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+  PASSWORD_RESET
+}
