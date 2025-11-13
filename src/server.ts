@@ -21,7 +21,12 @@ const limiter = rateLimit({
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://t-yap-d0rj.onrender.com'] 
+    : ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true
+}));
 app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 
@@ -29,6 +34,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // Routes
+app.get('/', (req, res) => {
+  res.redirect('/api-docs');
+});
+
 app.use('/api/auth', authRoutes);
 
 // Health check

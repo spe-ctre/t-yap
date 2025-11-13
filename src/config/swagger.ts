@@ -8,7 +8,10 @@ const options = {
       version: '1.0.0',
       description: 'Digital Transport Payment Solution API'
     },
-    servers: [{ url: 'http://localhost:3000' }],
+    servers: [
+      { url: 'https://t-yap-d0rj.onrender.com', description: 'Production server' },
+      { url: 'http://localhost:3000', description: 'Development server' }
+    ],
     components: {
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
