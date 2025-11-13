@@ -1,10 +1,8 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { createError } from '../middleware/error.middleware';
 import { EmailService } from './email.service';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
 
 export class AuthService {
   private emailService: EmailService;
@@ -116,8 +114,10 @@ export class AuthService {
   }
 
   private generateToken(userId: string): string {
-    return jwt.sign({ userId }, process.env.JWT_SECRET!, {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-    });
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET is not defined');
+    }
+    return jwt.sign({ userId }, secret, { expiresIn: '7d' } as any);
   }
 }
