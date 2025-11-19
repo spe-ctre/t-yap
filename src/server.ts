@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/auth.routes';
+import walletRoutes from './routes/wallet.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 
@@ -39,6 +40,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

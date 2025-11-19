@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// USER & AUTHENTICATION MODELS
+// ============================================
+
 model User {
   id                String   @id @default(cuid())
   email             String   @unique
@@ -18,11 +22,19 @@ model User {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  // Passenger specific fields
+  // Relations
   passenger         Passenger?
-  
-  // Verification codes
+  driver            Driver?
+  agent             Agent?
+  parkManager       ParkManager?
   verificationCodes VerificationCode[]
+  transactions      Transaction[]
+  bankAccounts      BankAccount[]
+  beneficiaries     Beneficiary[]
+  notifications     Notification[]
+  userSettings      UserSettings?
+  trips             Trip[] // As passenger
+  driverTrips       Trip[] @relation("TripDriver") // As driver
 
   @@map("users")
 }
@@ -35,13 +47,75 @@ model Passenger {
   biometricData   String? // Encrypted biometric template
   transactionPin  String?
   walletBalance   Decimal @default(0) @db.Decimal(10, 2)
+  profilePicture String?
   
   user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@index([userId])
   @@map("passengers")
+}
+
+model Driver {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  firstName       String
+  lastName        String
+  licenseNumber   String   @unique
+  licenseExpiry   DateTime
+  isVerified      Boolean  @default(false)
+  walletBalance   Decimal  @default(0) @db.Decimal(10, 2)
+  profilePicture  String?
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle?
+  trips           Trip[]   @relation("TripDriver")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([licenseNumber])
+  @@map("drivers")
+}
+
+model Agent {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  firstName       String
+  lastName        String
+  agentCode       String   @unique
+  parkId          String?
+  isActive        Boolean  @default(true)
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  park            Park?    @relation(fields: [parkId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([agentCode])
+  @@map("agents")
+}
+
+model ParkManager {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  firstName       String
+  lastName        String
+  parkId          String?
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  park            Park?    @relation(fields: [parkId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@map("park_managers")
 }
 
 model VerificationCode {
@@ -55,8 +129,305 @@ model VerificationCode {
 
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, code, type])
+  @@index([expiresAt])
   @@map("verification_codes")
 }
+
+// ============================================
+// TRANSACTION & WALLET MODELS
+// ============================================
+
+model Transaction {
+  id              String            @id @default(cuid())
+  userId          String
+  type            TransactionType
+  category        TransactionCategory
+  amount          Decimal           @db.Decimal(10, 2)
+  balanceBefore   Decimal           @db.Decimal(10, 2)
+  balanceAfter    Decimal           @db.Decimal(10, 2)
+  status          TransactionStatus @default(PENDING)
+  description     String?
+  reference       String            @unique // External payment reference
+  metadata        Json?             // Additional data (service provider, phone number, etc.)
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip            Trip?             // If transaction is for a trip
+  vasPurchase     VASPurchase?      // If transaction is for VAS
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([reference])
+  @@map("transactions")
+}
+
+model BankAccount {
+  id              String          @id @default(cuid())
+  userId          String
+  accountName     String
+  accountNumber   String
+  bankName        String
+  bankCode        String?
+  accountType     BankAccountType @default(SAVINGS)
+  isDefault       Boolean         @default(false)
+  isVerified      Boolean         @default(false)
+  
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([accountNumber, bankCode])
+  @@map("bank_accounts")
+}
+
+model BankCard {
+  id              String      @id @default(cuid())
+  userId          String
+  cardNumber      String      // Last 4 digits only (encrypted)
+  cardHolderName  String
+  expiryMonth     Int
+  expiryYear      Int
+  cvv             String?     // Encrypted, should not be stored long-term
+  cardType        String?     // Visa, Mastercard, etc.
+  isDefault       Boolean     @default(false)
+  isActive        Boolean     @default(true)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId])
+  @@map("bank_cards")
+}
+
+model Beneficiary {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  phoneNumber     String
+  accountNumber   String?
+  bankName        String?
+  isFavorite      Boolean  @default(false)
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([phoneNumber])
+  @@map("beneficiaries")
+}
+
+// ============================================
+// TRANSPORT MODELS (T-RIDE)
+// ============================================
+
+model Park {
+  id                String   @id @default(cuid())
+  name              String
+  address           String
+  city              String
+  state             String
+  country           String   @default("Nigeria")
+  latitude          Decimal? @db.Decimal(10, 8)
+  longitude         Decimal? @db.Decimal(11, 8)
+  isActive          Boolean  @default(true)
+  
+  agents            Agent[]
+  parkManagers      ParkManager[]
+  originRoutes      Route[]  @relation("OriginPark")
+  destinationRoutes Route[]  @relation("DestinationPark")
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([city, state])
+  @@map("parks")
+}
+
+model Route {
+  id                String   @id @default(cuid())
+  name              String   // e.g., "Lagos to Ibadan"
+  origin            String
+  destination       String
+  originParkId      String?
+  destinationParkId String?
+  distance          Decimal? @db.Decimal(10, 2) // in kilometers
+  estimatedTime     Int?     // in minutes
+  baseFare          Decimal  @db.Decimal(10, 2)
+  isActive          Boolean  @default(true)
+  
+  originPark        Park?    @relation("OriginPark", fields: [originParkId], references: [id])
+  destinationPark   Park?    @relation("DestinationPark", fields: [destinationParkId], references: [id])
+  trips             Trip[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([origin, destination])
+  @@index([isActive])
+  @@map("routes")
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  driverId        String        @unique
+  plateNumber     String        @unique
+  make            String        // e.g., "Toyota"
+  model           String        // e.g., "Hiace"
+  year            Int?
+  color           String?
+  capacity        Int           // Number of seats
+  vehicleType     VehicleType
+  isVerified      Boolean       @default(false)
+  isActive        Boolean       @default(true)
+  
+  driver          Driver        @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  trips           Trip[]
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([driverId])
+  @@index([plateNumber])
+  @@map("vehicles")
+}
+
+model Trip {
+  id              String        @id @default(cuid())
+  routeId         String
+  driverId        String
+  vehicleId       String
+  passengerId     String
+  fare            Decimal       @db.Decimal(10, 2)
+  status          TripStatus   @default(PENDING)
+  departureTime   DateTime?
+  arrivalTime     DateTime?
+  originLatitude  Decimal?     @db.Decimal(10, 8)
+  originLongitude Decimal?     @db.Decimal(11, 8)
+  destLatitude    Decimal?     @db.Decimal(10, 8)
+  destLongitude   Decimal?     @db.Decimal(11, 8)
+  
+  route           Route        @relation(fields: [routeId], references: [id])
+  driver          Driver       @relation("TripDriver", fields: [driverId], references: [id])
+  vehicle         Vehicle      @relation(fields: [vehicleId], references: [id])
+  user            User         @relation(fields: [passengerId], references: [id])
+  transaction     Transaction?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([passengerId])
+  @@index([driverId])
+  @@index([routeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("trips")
+}
+
+// ============================================
+// VALUE ADDED SERVICES (VAS) MODELS
+// ============================================
+
+model ServiceProvider {
+  id              String            @id @default(cuid())
+  name            String
+  category        VASCategory
+  code            String            @unique // Provider code (e.g., "MTN", "IKEDC")
+  logo            String?
+  isActive        Boolean           @default(true)
+  
+  vasPurchases    VASPurchase[]
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([category])
+  @@index([code])
+  @@map("service_providers")
+}
+
+model VASPurchase {
+  id                String            @id @default(cuid())
+  userId            String
+  serviceProviderId String
+  category          VASCategory
+  amount            Decimal           @db.Decimal(10, 2)
+  phoneNumber       String?           // For airtime/data
+  meterNumber       String?           // For electricity
+  smartCardNumber   String?           // For cable TV
+  packageName       String?           // Selected package/plan
+  status            VASPurchaseStatus @default(PENDING)
+  providerReference String?           // Provider's transaction reference
+  metadata          Json?             // Additional provider-specific data
+  
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceProvider   ServiceProvider   @relation(fields: [serviceProviderId], references: [id])
+  transaction       Transaction?
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+  @@map("vas_purchases")
+}
+
+// ============================================
+// NOTIFICATION & SETTINGS MODELS
+// ============================================
+
+model Notification {
+  id              String           @id @default(cuid())
+  userId          String
+  type            NotificationType
+  title           String
+  message         String
+  isRead          Boolean          @default(false)
+  metadata        Json?            // Additional data
+  
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model UserSettings {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  language            String   @default("en") // en, ha, ig, yo
+  darkMode            Boolean  @default(false)
+  biometricLogin      Boolean  @default(false)
+  smsNotification     Boolean  @default(true)
+  emailNotification   Boolean  @default(true)
+  pushNotification    Boolean  @default(true)
+  
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
+  @@map("user_settings")
+}
+
+// ============================================
+// ENUMS
+// ============================================
 
 enum UserRole {
   PASSENGER
@@ -69,4 +440,77 @@ enum VerificationType {
   EMAIL_VERIFICATION
   PHONE_VERIFICATION
   PASSWORD_RESET
+}
+
+enum TransactionType {
+  CREDIT      // Money coming in (top-up, refund)
+  DEBIT       // Money going out (payment, purchase)
+}
+
+enum TransactionCategory {
+  WALLET_TOPUP
+  FARE_PAYMENT
+  AIRTIME_PURCHASE
+  DATA_PURCHASE
+  ELECTRICITY_PAYMENT
+  CABLE_TV_PAYMENT
+  EDUCATION_PAYMENT
+  TRANSFER
+  REFUND
+  COMMISSION  // For drivers/agents
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum BankAccountType {
+  SAVINGS
+  CURRENT
+}
+
+enum VehicleType {
+  BUS
+  TRICYCLE
+  TAXI
+  MINIBUS
+  SEDAN
+}
+
+enum TripStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum VASCategory {
+  AIRTIME
+  DATA
+  ELECTRICITY
+  CABLE_TV
+  EDUCATION
+}
+
+enum VASPurchaseStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  TRANSACTION
+  WALLET_FUNDED
+  TRIP_CONFIRMED
+  TRIP_COMPLETED
+  SYSTEM
+  PROMOTIONAL
 }

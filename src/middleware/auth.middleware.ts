@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/database';
 import { createError } from './error.middleware';
-
-const prisma = new PrismaClient();
 
 declare global {
   namespace Express {
