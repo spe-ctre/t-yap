@@ -36,6 +36,7 @@ export class WalletController {
       // Send success response
       res.json({
         success: true,
+        statusCode: 200,
         data: result
       });
     } catch (error) {
@@ -62,6 +63,7 @@ export class WalletController {
 
       res.json({
         success: true,
+        statusCode: 200,
         data: result
       });
     } catch (error) {
