@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/auth.routes';
 import walletRoutes from './routes/wallet.routes';
+import notificationRoutes from './routes/notification.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 
@@ -41,6 +42,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
