@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.routes';
 import walletRoutes from './routes/wallet.routes';
 import notificationRoutes from './routes/notification.routes';
 import { errorHandler } from './middleware/error.middleware';
+import settingsRoutes from './routes/settings.routes';
 import { specs } from './config/swagger';
 
 dotenv.config();
@@ -39,7 +40,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 app.get('/', (req, res) => {
   res.redirect('/api-docs');
 });
-
+app.use('/api/settings', settingsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/notifications', notificationRoutes);
