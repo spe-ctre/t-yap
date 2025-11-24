@@ -9,6 +9,8 @@ import walletRoutes from './routes/wallet.routes';
 import notificationRoutes from './routes/notification.routes';
 import { errorHandler } from './middleware/error.middleware';
 import settingsRoutes from './routes/settings.routes';
+import deviceTokenRoutes from './routes/device-token.routes';
+import supportRoutes from './routes/support.routes';
 import { specs } from './config/swagger';
 
 dotenv.config();
@@ -41,9 +43,11 @@ app.get('/', (req, res) => {
   res.redirect('/api-docs');
 });
 app.use('/api/settings', settingsRoutes);
+app.use('/api/device-tokens', deviceTokenRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/support', supportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

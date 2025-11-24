@@ -100,3 +100,6 @@ Thumbs.db
 
 # Prisma
 prisma/migrations/
+
+# Firebase service account
+config/firebase-service-account.json
