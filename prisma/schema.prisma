@@ -35,6 +35,8 @@ model User {
   userSettings      UserSettings?
   trips             Trip[] // As passenger
   vasPurchases      VASPurchase[]
+  sessions          UserSession[]
+  securityQuestion  SecurityQuestion?
 
   @@map("users")
 }
@@ -429,6 +431,45 @@ model UserSettings {
   @@map("user_settings")
 }
 
+model SecurityQuestion {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  question1 String
+  answer1   String // bcrypt hashed
+  question2 String
+  answer2   String // bcrypt hashed
+  question3 String
+  answer3   String // bcrypt hashed
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("security_questions")
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  deviceId     String? // Unique device identifier
+  deviceName   String? // e.g., "iPhone 13", "Samsung Galaxy"
+  deviceType   String? // MOBILE, TABLET, WEB
+  ipAddress    String?
+  userAgent    String?
+  isActive     Boolean  @default(true)
+  lastActivity DateTime @default(now())
+  expiresAt    DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([deviceId])
+  @@map("user_sessions")
+}
+
 // ============================================
 // ENUMS
 // ============================================
@@ -444,6 +485,7 @@ enum VerificationType {
   EMAIL_VERIFICATION
   PHONE_VERIFICATION
   PASSWORD_RESET
+  PIN_RESET
 }
 
 enum TransactionType {

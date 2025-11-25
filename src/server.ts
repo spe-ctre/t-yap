@@ -6,6 +6,10 @@ import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/auth.routes';
 import walletRoutes from './routes/wallet.routes';
+import profileRoutes from './routes/profile.routes';
+import securityRoutes from './routes/security.routes';
+import sessionRoutes from './routes/session.routes';
+import biometricRoutes from './routes/biometric.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 
@@ -41,10 +45,14 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/security', securityRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/biometric', biometricRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ success: true, statusCode: 200, data: { status: 'OK', timestamp: new Date().toISOString() } });
 });
 
 // Error handling
