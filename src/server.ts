@@ -10,6 +10,7 @@ import profileRoutes from './routes/profile.routes';
 import securityRoutes from './routes/security.routes';
 import sessionRoutes from './routes/session.routes';
 import biometricRoutes from './routes/biometric.routes';
+import electricityRoutes from './routes/electricity.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 
@@ -49,6 +50,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/biometric', biometricRoutes);
+app.use('/api/electricity', electricityRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

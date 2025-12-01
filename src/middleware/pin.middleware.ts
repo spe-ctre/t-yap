@@ -40,9 +40,6 @@ export const requirePinVerification = async (req: Request, res: Response, next: 
       throw createError('Invalid transaction PIN', 401);
     }
 
-    // Remove PIN from request body for security (don't pass it to controller)
-    delete req.body.pin;
-
     next();
   } catch (error) {
     next(error);
