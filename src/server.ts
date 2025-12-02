@@ -6,14 +6,10 @@ import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/auth.routes';
 import walletRoutes from './routes/wallet.routes';
-<<<<<<< HEAD
-import notificationRoutes from './routes/notification.routes';
-=======
 import profileRoutes from './routes/profile.routes';
 import securityRoutes from './routes/security.routes';
 import sessionRoutes from './routes/session.routes';
 import biometricRoutes from './routes/biometric.routes';
->>>>>>> ef393f5c4982e6c970be4b6f14e27b9613e3da06
 import { errorHandler } from './middleware/error.middleware';
 import settingsRoutes from './routes/settings.routes';
 import deviceTokenRoutes from './routes/device-token.routes';
@@ -53,15 +49,10 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/device-tokens', deviceTokenRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
-<<<<<<< HEAD
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/support', supportRoutes);
-=======
 app.use('/api/profile', profileRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/biometric', biometricRoutes);
->>>>>>> ef393f5c4982e6c970be4b6f14e27b9613e3da06
 
 // Health check
 app.get('/health', (req, res) => {

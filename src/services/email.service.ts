@@ -29,10 +29,6 @@ export class EmailService {
 
     await this.transporter.sendMail(mailOptions);
   }
-<<<<<<< HEAD
-}
-
-=======
 
   // TODO: Modify to use better template
   async sendPasswordChangeNotification(email: string) { 
@@ -83,4 +79,3 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 }
->>>>>>> ef393f5c4982e6c970be4b6f14e27b9613e3da06
