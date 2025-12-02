@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { WalletController } from '../controllers/wallet.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
+import { requireEmailVerification } from '../middleware/verification.middleware';
 
 const router = Router();
 const walletController = new WalletController();
@@ -33,7 +34,7 @@ const walletController = new WalletController();
  *       401:
  *         description: Unauthorized - Invalid or missing token
  */
-router.get('/balance', authMiddleware, walletController.getBalance);
+router.get('/balance', authMiddleware, requireEmailVerification, walletController.getBalance);
 
 /**
  * @swagger
@@ -62,7 +63,7 @@ router.get('/balance', authMiddleware, walletController.getBalance);
  *       401:
  *         description: Unauthorized
  */
-router.get('/transactions', authMiddleware, walletController.getTransactionHistory);
+router.get('/transactions', authMiddleware, requireEmailVerification, walletController.getTransactionHistory);
 
 export default router;
 

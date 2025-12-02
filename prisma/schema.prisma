@@ -36,7 +36,9 @@ model User {
   userSettings      UserSettings?
   trips             Trip[] // As passenger
   vasPurchases      VASPurchase[]
-  supportTickets SupportTicket[]
+  supportTickets    SupportTicket[]
+  sessions          UserSession[]
+  securityQuestion  SecurityQuestion?
 
   @@map("users")
 }
@@ -413,14 +415,14 @@ model Notification {
 }
 
 model DeviceToken {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  platform  String   // "ios" or "android"
-  isActive  Boolean  @default(true)
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id       String  @id @default(cuid())
+  userId   String
+  token    String  @unique
+  platform String // "ios" or "android"
+  isActive Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -448,6 +450,45 @@ model UserSettings {
   @@map("user_settings")
 }
 
+model SecurityQuestion {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  question1 String
+  answer1   String // bcrypt hashed
+  question2 String
+  answer2   String // bcrypt hashed
+  question3 String
+  answer3   String // bcrypt hashed
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("security_questions")
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  deviceId     String? // Unique device identifier
+  deviceName   String? // e.g., "iPhone 13", "Samsung Galaxy"
+  deviceType   String? // MOBILE, TABLET, WEB
+  ipAddress    String?
+  userAgent    String?
+  isActive     Boolean  @default(true)
+  lastActivity DateTime @default(now())
+  expiresAt    DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([deviceId])
+  @@map("user_sessions")
+}
+
 // ============================================
 // ENUMS
 // ============================================
@@ -463,6 +504,7 @@ enum VerificationType {
   EMAIL_VERIFICATION
   PHONE_VERIFICATION
   PASSWORD_RESET
+  PIN_RESET
 }
 
 enum TransactionType {
@@ -547,9 +589,9 @@ model FAQ {
   order       Int      @default(0) // Display order
   isPublished Boolean  @default(true)
   viewCount   Int      @default(0)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([category])
   @@index([isPublished])
@@ -565,11 +607,11 @@ model SupportTicket {
   status      SupportTicketStatus @default(OPEN)
   priority    TicketPriority      @default(NORMAL)
   attachments Json? // URLs to uploaded files
-  
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -586,9 +628,9 @@ model HelpContent {
   tags        String[]
   order       Int      @default(0)
   isPublished Boolean  @default(true)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([category])
   @@index([slug])
