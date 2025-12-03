@@ -32,9 +32,11 @@ model User {
   bankAccounts      BankAccount[]
   beneficiaries     Beneficiary[]
   notifications     Notification[]
+  deviceTokens      DeviceToken[]
   userSettings      UserSettings?
   trips             Trip[] // As passenger
   vasPurchases      VASPurchase[]
+  supportTickets    SupportTicket[]
   sessions          UserSession[]
   securityQuestion  SecurityQuestion?
   idempotencyKeys   IdempotencyKey[]
@@ -469,6 +471,23 @@ model Notification {
   @@map("notifications")
 }
 
+model DeviceToken {
+  id       String  @id @default(cuid())
+  userId   String
+  token    String  @unique
+  platform String // "ios" or "android"
+  isActive Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@map("device_tokens")
+}
+
 model UserSettings {
   id                String  @id @default(cuid())
   userId            String  @unique
@@ -616,4 +635,84 @@ enum NotificationType {
   TRIP_COMPLETED
   SYSTEM
   PROMOTIONAL
+}
+
+model FAQ {
+  id          String   @id @default(cuid())
+  question    String
+  answer      String
+  category    String
+  tags        String[] // For search
+  order       Int      @default(0) // Display order
+  isPublished Boolean  @default(true)
+  viewCount   Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublished])
+  @@map("faqs")
+}
+
+model SupportTicket {
+  id          String              @id @default(cuid())
+  userId      String
+  subject     String
+  message     String
+  category    SupportCategory
+  status      SupportTicketStatus @default(OPEN)
+  priority    TicketPriority      @default(NORMAL)
+  attachments Json? // URLs to uploaded files
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@map("support_tickets")
+}
+
+model HelpContent {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  category    String
+  slug        String   @unique
+  tags        String[]
+  order       Int      @default(0)
+  isPublished Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([slug])
+  @@index([isPublished])
+  @@map("help_content")
+}
+
+enum SupportCategory {
+  ACCOUNT
+  PAYMENT
+  TECHNICAL
+  FEEDBACK
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
