@@ -93,7 +93,10 @@ export class PushNotificationService {
     const tokenStrings = tokens.map((t) => t.token);
     
     try {
-      const response = await messaging.sendEachForMulticast({
+      // Get messaging instance (throws if Firebase not initialized)
+      const messagingInstance = messaging();
+      
+      const response = await messagingInstance.sendEachForMulticast({
         tokens: tokenStrings,
         notification: {
           title: notification.title,
@@ -138,9 +141,14 @@ export class PushNotificationService {
         successCount: response.successCount,
         failureCount: response.failureCount,
       };
-    } catch (error) {
+    } catch (error: any) {
+      // Handle Firebase not initialized gracefully
+      if (error?.message?.includes('Firebase is not initialized')) {
+        console.warn('Push notification skipped: Firebase not configured');
+        return { success: false, reason: 'firebase_not_configured' };
+      }
       console.error('Error sending push notification:', error);
-      return { success: false, error };
+      return { success: false, error: error?.message || 'Unknown error' };
     }
   }
 
