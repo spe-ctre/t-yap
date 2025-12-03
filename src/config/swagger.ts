@@ -8,6 +8,15 @@ const options = {
       version: '1.0.0',
       description: 'Digital Transport Payment Solution API'
     },
+    tags: [
+      { name: 'Authentication', description: 'User signup, login, verification, passwords and PINs' },
+      { name: 'Profile', description: 'User profile and account settings' },
+      { name: 'Security', description: 'Security questions and related operations' },
+      { name: 'Sessions', description: 'User login sessions management' },
+      { name: 'Biometric', description: 'Biometric authentication management' },
+      { name: 'Wallet', description: 'Wallet balance and transaction history' },
+      { name: 'Electricity', description: 'Electricity meter validation and payments' }
+    ],
     servers: [
       { url: 'https://t-yap-d0rj.onrender.com', description: 'Production server' },
       { url: 'http://localhost:3000', description: 'Development server' }
@@ -222,6 +231,72 @@ const options = {
           required: ['biometricToken'],
           properties: {
             biometricToken: { type: 'string', minLength: 10 }
+          }
+        },
+        ElectricityValidateMeterRequest: {
+          type: 'object',
+          required: ['serviceID', 'meterNumber', 'type'],
+          properties: {
+            serviceID: {
+              type: 'string',
+              description: 'VTpass electricity service ID',
+              enum: [
+                'ikeja-electric',
+                'eko-electric',
+                'kano-electric',
+                'phed-ph',
+                'jos-electric',
+                'ibadan-electric',
+                'kaduna-electric',
+                'abuja-electric',
+                'enugu-electric',
+                'benin-electric',
+                'aba-electric',
+                'yola-electric'
+              ]
+            },
+            meterNumber: { type: 'string', description: 'Electricity meter number' },
+            type: { type: 'string', enum: ['prepaid', 'postpaid'] }
+          }
+        },
+        ElectricityPurchaseRequest: {
+          type: 'object',
+          required: ['serviceID', 'meterNumber', 'amount', 'type', 'phone', 'variation_code', 'pin'],
+          properties: {
+            serviceID: {
+              type: 'string',
+              description: 'VTpass electricity service ID',
+              enum: [
+                'ikeja-electric',
+                'eko-electric',
+                'kano-electric',
+                'phed-ph',
+                'jos-electric',
+                'ibadan-electric',
+                'kaduna-electric',
+                'abuja-electric',
+                'enugu-electric',
+                'benin-electric',
+                'aba-electric',
+                'yola-electric'
+              ]
+            },
+            meterNumber: { type: 'string', description: 'Electricity meter number' },
+            amount: { type: 'number', minimum: 1, description: 'Amount to pay' },
+            type: { type: 'string', enum: ['prepaid', 'postpaid'] },
+            phone: { type: 'string', description: 'Customer phone number for VTpass receipt' },
+            variation_code: {
+              type: 'string',
+              description: 'Meter type / variation code',
+              enum: ['prepaid', 'postpaid']
+            },
+            pin: {
+              type: 'string',
+              minLength: 4,
+              maxLength: 4,
+              pattern: '^\\d+$',
+              description: '4-digit transaction PIN (required and verified before purchase)'
+            }
           }
         }
       }

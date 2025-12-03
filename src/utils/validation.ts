@@ -116,3 +116,40 @@ export const resendVerificationSchema = Joi.object({
   phoneNumber: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).optional(),
   type: Joi.string().valid('EMAIL_VERIFICATION', 'PHONE_VERIFICATION').required()
 }).or('email', 'phoneNumber');
+
+// Electricity payment schemas
+const electricityServiceIds = [
+  'ikeja-electric',
+  'eko-electric',
+  'kano-electric',
+  'phed-ph',
+  'jos-electric',
+  'ibadan-electric',
+  'kaduna-electric',
+  'abuja-electric',
+  'enugu-electric',
+  'benin-electric',
+  'aba-electric',
+  'yola-electric'
+] as const;
+
+export const electricityValidateMeterSchema = Joi.object({
+  serviceID: Joi.string().valid(...electricityServiceIds).required(),
+  meterNumber: Joi.string().min(5).max(20).required(),
+  type: Joi.string().valid('prepaid', 'postpaid').required()
+});
+
+export const electricityPurchaseSchema = Joi.object({
+  serviceID: Joi.string().valid(...electricityServiceIds).required(),
+  meterNumber: Joi.string().min(5).max(20).required(),
+  amount: Joi.number().positive().required(),
+  type: Joi.string().valid('prepaid', 'postpaid').required(),
+  phone: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).required(),
+  variation_code: Joi.string().valid('prepaid', 'postpaid').required(),
+  pin: Joi.string().length(4).pattern(/^\d+$/).required()
+});
+
+export const electricityHistorySchema = Joi.object({
+  page: Joi.number().integer().min(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).optional()
+});

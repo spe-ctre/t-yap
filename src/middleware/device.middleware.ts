@@ -26,6 +26,7 @@ export const extractDeviceInfo = (req: Request, res: Response, next: NextFunctio
     deviceName: req.body.deviceName,
     deviceType: req.body.deviceType
   };
+
   next();
 };
 

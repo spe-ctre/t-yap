@@ -39,6 +39,8 @@ model User {
   supportTickets    SupportTicket[]
   sessions          UserSession[]
   securityQuestion  SecurityQuestion?
+  idempotencyKeys   IdempotencyKey[]
+  transactionLogs   TransactionLog[]
 
   @@map("users")
 }
@@ -376,6 +378,10 @@ model VASPurchase {
   status            VASPurchaseStatus @default(PENDING)
   providerReference String? // Provider's transaction reference
   metadata          Json? // Additional provider-specific data
+  idempotencyKey    String?           @unique // Idempotency key for this purchase
+  requestId         String? // VTpass request_id or external reference
+  retryCount        Int               @default(0)
+  lastRequeryAt     DateTime?
 
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceProvider ServiceProvider @relation(fields: [serviceProviderId], references: [id])
@@ -388,7 +394,58 @@ model VASPurchase {
   @@index([category])
   @@index([status])
   @@index([createdAt])
+  @@index([requestId])
   @@map("vas_purchases")
+}
+
+// ============================================
+// IDEMPOTENCY & TRANSACTION LOGGING MODELS
+// ============================================
+
+model IdempotencyKey {
+  id          String   @id @default(cuid())
+  key         String   @unique // The idempotency key value
+  userId      String
+  requestHash String // Hash of the request payload for validation
+  response    Json? // Cached response for completed operations
+  status      String // PENDING, COMPLETED, FAILED
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([key])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+model TransactionLog {
+  id            String   @id @default(cuid())
+  transactionId String?
+  vasPurchaseId String?
+  userId        String
+  logType       String // REQUEST, RESPONSE, ERROR, WEBHOOK, REQUERY
+  level         String // INFO, WARN, ERROR, DEBUG
+  message       String
+  requestData   Json?
+  responseData  Json?
+  provider      String? // e.g. VTpass
+  endpoint      String?
+  statusCode    Int?
+  duration      Int? // ms
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([transactionId])
+  @@index([vasPurchaseId])
+  @@index([logType])
+  @@index([createdAt])
+  @@map("transaction_logs")
 }
 
 // ============================================
