@@ -30,7 +30,10 @@ export class VTpassProviderService {
 
     this.client = axios.create({
       baseURL: this.config.baseUrl,
-      timeout: 15000
+      timeout: 30000, // 30 seconds - payment APIs can be slower
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
   }
 
@@ -127,6 +130,19 @@ export class VTpassProviderService {
 
       return response.data;
     } catch (error: any) {
+      // Handle timeout specifically
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        console.error('VTpass electricity purchase timeout:', {
+          url: `${this.config.baseUrl}/api/pay`,
+          payload,
+          timeout: '30s'
+        });
+        throw createError(
+          'VTpass request timed out. Please try again or check your network connection.',
+          504
+        );
+      }
+
       if (error.response) {
         const upstreamStatus = error.response.status;
         const upstreamData = error.response.data;
@@ -140,8 +156,141 @@ export class VTpassProviderService {
           502
         );
       }
-      console.log('Unable to reach VTpass for electricity payment', error);
+
+      // Network errors
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+        console.error('VTpass network error:', {
+          code: error.code,
+          message: error.message,
+          url: `${this.config.baseUrl}/api/pay`
+        });
+        throw createError(
+          'Unable to connect to VTpass. Please check your network connection and try again.',
+          502
+        );
+      }
+
+      console.error('VTpass electricity purchase error:', {
+        code: error.code,
+        message: error.message,
+        url: `${this.config.baseUrl}/api/pay`
+      });
       throw createError('Unable to reach VTpass for electricity payment', 502);
+    }
+  }
+
+  /**
+   * Purchase airtime via VTpass
+   * See: https://www.vtpass.com/documentation/mtn-airtime-vtu-api/
+   */
+  async purchaseAirtime(payload: {
+    request_id: string;
+    serviceID: string; // 'mtn', 'glo', 'airtel', '9mobile'
+    amount: number;
+    phone: string;
+  }) {
+    try {
+      const response = await this.client.post(
+        '/api/pay',
+        payload,
+        { headers: this.getPostHeaders() }
+      );
+
+      // VTpass uses code "000" for success
+      const code = response.data?.code;
+      if (code !== '000') {
+        // Log full VTpass response for debugging
+        console.error('VTpass airtime purchase failed - Full response:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: response.data,
+          requestPayload: payload
+        });
+        
+        const errorMessage = response.data?.response_description || 
+                            response.data?.message || 
+                            `Airtime purchase failed with code: ${code}`;
+        
+        // Create error and attach VTpass response data
+        const error = createError(errorMessage, 400);
+        (error as any).vtpassResponse = response.data;
+        (error as any).vtpassCode = code;
+        (error as any).isVTpassError = true;
+        throw error;
+      }
+
+      return response.data;
+    } catch (error: any) {
+      // If this is a VTpass transaction failure (code !== '000'), re-throw as-is
+      // It already has the proper error message and VTpass response data attached
+      if (error.isVTpassError) {
+        throw error;
+      }
+
+      // Handle timeout specifically
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        console.error('VTpass airtime purchase timeout:', {
+          url: `${this.config.baseUrl}/api/pay`,
+          payload,
+          timeout: '30s'
+        });
+        throw createError(
+          'VTpass request timed out. Please try again or check your network connection.',
+          504
+        );
+      }
+
+      // Handle HTTP errors from axios (4xx, 5xx responses)
+      if (error.response) {
+        const upstreamStatus = error.response.status;
+        const upstreamData = error.response.data;
+        
+        // Log full error response for debugging
+        console.error('VTpass airtime purchase HTTP error - Full response:', {
+          status: upstreamStatus,
+          statusText: error.response.statusText,
+          headers: error.response.headers,
+          data: upstreamData,
+          requestPayload: payload
+        });
+        
+        const description =
+          typeof upstreamData === 'string'
+            ? upstreamData
+            : upstreamData?.response_description || 
+              upstreamData?.message ||
+              'VTpass airtime purchase failed';
+
+        throw createError(
+          `VTpass error (${upstreamStatus}): ${description}`,
+          502
+        );
+      }
+
+      // Network errors (connection refused, DNS errors, etc.)
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+        console.error('VTpass network error:', {
+          code: error.code,
+          message: error.message,
+          url: `${this.config.baseUrl}/api/pay`
+        });
+        throw createError(
+          'Unable to connect to VTpass. Please check your network connection and try again.',
+          502
+        );
+      }
+
+      // Log full error details for debugging (unexpected errors)
+      console.error('VTpass airtime purchase unexpected error - Full details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+        url: `${this.config.baseUrl}/api/pay`,
+        requestPayload: payload,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw createError('Unable to reach VTpass for airtime purchase', 502);
     }
   }
 

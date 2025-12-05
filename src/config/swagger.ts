@@ -15,7 +15,8 @@ const options = {
       { name: 'Sessions', description: 'User login sessions management' },
       { name: 'Biometric', description: 'Biometric authentication management' },
       { name: 'Wallet', description: 'Wallet balance and transaction history' },
-      { name: 'Electricity', description: 'Electricity meter validation and payments' }
+      { name: 'Electricity', description: 'Electricity meter validation and payments' },
+      { name: 'Airtime', description: 'Airtime purchase services' }
     ],
     servers: [
       { url: 'https://t-yap-d0rj.onrender.com', description: 'Production server' },
@@ -296,6 +297,44 @@ const options = {
               maxLength: 4,
               pattern: '^\\d+$',
               description: '4-digit transaction PIN (required and verified before purchase)'
+            }
+          }
+        },
+        AirtimePurchaseRequest: {
+          type: 'object',
+          required: ['serviceID', 'amount', 'phone', 'pin'],
+          properties: {
+            serviceID: {
+              type: 'string',
+              description: 'Network provider service ID',
+              enum: ['mtn', 'glo', 'airtel', '9mobile']
+            },
+            amount: {
+              type: 'number',
+              minimum: 50,
+              description: 'Airtime amount in NGN (minimum 50 NGN)'
+            },
+            phone: {
+              type: 'string',
+              pattern: '^(0|\\+234)[0-9]{10,13}$',
+              description: 'Recipient phone number in local format (e.g., 08011111111) or international format (e.g., +2348011111111)'
+            },
+            pin: {
+              type: 'string',
+              minLength: 4,
+              maxLength: 4,
+              pattern: '^\\d+$',
+              description: '4-digit transaction PIN (required and verified before purchase)'
+            }
+          }
+        },
+        AirtimeRequeryRequest: {
+          type: 'object',
+          required: ['purchaseId'],
+          properties: {
+            purchaseId: {
+              type: 'string',
+              description: 'VAS purchase ID to requery'
             }
           }
         }
