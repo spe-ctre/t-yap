@@ -153,3 +153,51 @@ export const electricityHistorySchema = Joi.object({
   page: Joi.number().integer().min(1).optional(),
   limit: Joi.number().integer().min(1).max(100).optional()
 });
+
+// Airtime purchase schemas
+const airtimeServiceIds = ['mtn', 'glo', 'airtel', '9mobile'] as const;
+
+export const airtimePurchaseSchema = Joi.object({
+  serviceID: Joi.string().valid(...airtimeServiceIds).required(),
+  amount: Joi.number().positive().min(50).required(), // Minimum 50 NGN
+  phone: Joi.string().pattern(/^(0|\+234)[0-9]{10,13}$/).required()
+    .messages({
+      'string.pattern.base': 'Phone number must be in format 08011111111 or +2348011111111'
+    }),
+  pin: Joi.string().length(4).pattern(/^\d+$/).required()
+});
+
+export const airtimeHistorySchema = Joi.object({
+  page: Joi.number().integer().min(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).optional()
+});
+
+export const airtimeRequerySchema = Joi.object({
+  purchaseId: Joi.string().required()
+});
+
+// Data purchase schemas
+const dataServiceIds = ['mtn-data', 'glo-data', 'airtel-data', '9mobile-data'] as const;
+
+export const dataGetVariationsSchema = Joi.object({
+  serviceID: Joi.string().valid(...dataServiceIds).required()
+});
+
+export const dataPurchaseSchema = Joi.object({
+  serviceID: Joi.string().valid(...dataServiceIds).required(),
+  variation_code: Joi.string().min(1).required(),
+  phone: Joi.string().pattern(/^(0|\+234)[0-9]{10,13}$/).required()
+    .messages({
+      'string.pattern.base': 'Phone number must be in format 08011111111 or +2348011111111'
+    }),
+  pin: Joi.string().length(4).pattern(/^\d+$/).required()
+});
+
+export const dataHistorySchema = Joi.object({
+  page: Joi.number().integer().min(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).optional()
+});
+
+export const dataRequerySchema = Joi.object({
+  purchaseId: Joi.string().required()
+});
