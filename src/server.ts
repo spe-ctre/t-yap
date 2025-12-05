@@ -12,6 +12,7 @@ import sessionRoutes from './routes/session.routes';
 import biometricRoutes from './routes/biometric.routes';
 import electricityRoutes from './routes/electricity.routes';
 import airtimeRoutes from './routes/airtime.routes';
+import dataRoutes from './routes/data.routes';
 import { errorHandler } from './middleware/error.middleware';
 import settingsRoutes from './routes/settings.routes';
 import deviceTokenRoutes from './routes/device-token.routes';
@@ -57,6 +58,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/biometric', biometricRoutes);
 app.use('/api/electricity', electricityRoutes);
 app.use('/api/airtime', airtimeRoutes);
+app.use('/api/data', dataRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

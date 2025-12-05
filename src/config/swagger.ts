@@ -16,7 +16,8 @@ const options = {
       { name: 'Biometric', description: 'Biometric authentication management' },
       { name: 'Wallet', description: 'Wallet balance and transaction history' },
       { name: 'Electricity', description: 'Electricity meter validation and payments' },
-      { name: 'Airtime', description: 'Airtime purchase services' }
+      { name: 'Airtime', description: 'Airtime purchase services' },
+      { name: 'Data', description: 'Data subscription purchase services' }
     ],
     servers: [
       { url: 'https://t-yap-d0rj.onrender.com', description: 'Production server' },
@@ -329,6 +330,43 @@ const options = {
           }
         },
         AirtimeRequeryRequest: {
+          type: 'object',
+          required: ['purchaseId'],
+          properties: {
+            purchaseId: {
+              type: 'string',
+              description: 'VAS purchase ID to requery'
+            }
+          }
+        },
+        DataPurchaseRequest: {
+          type: 'object',
+          required: ['serviceID', 'variation_code', 'phone', 'pin'],
+          properties: {
+            serviceID: {
+              type: 'string',
+              description: 'Network provider service ID',
+              enum: ['mtn-data', 'glo-data', 'airtel-data', '9mobile-data']
+            },
+            variation_code: {
+              type: 'string',
+              description: 'Data plan variation code (obtained from /api/data/variations endpoint). Amount is automatically determined from this code.'
+            },
+            phone: {
+              type: 'string',
+              pattern: '^(0|\\+234)[0-9]{10,13}$',
+              description: 'Phone number for data subscription and receipt in local format (e.g., 08011111111) or international format (e.g., +2348011111111)'
+            },
+            pin: {
+              type: 'string',
+              minLength: 4,
+              maxLength: 4,
+              pattern: '^\\d+$',
+              description: '4-digit transaction PIN (required and verified before purchase)'
+            }
+          }
+        },
+        DataRequeryRequest: {
           type: 'object',
           required: ['purchaseId'],
           properties: {
