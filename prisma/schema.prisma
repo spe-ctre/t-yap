@@ -16,6 +16,7 @@ model User {
   email           String   @unique
   phoneNumber     String   @unique
   password        String
+  walletBalance   Float    @default(0)
   isEmailVerified Boolean  @default(false)
   isPhoneVerified Boolean  @default(false)
   role            UserRole @default(PASSENGER)
@@ -35,8 +36,18 @@ model User {
   userSettings      UserSettings?
   trips             Trip[] // As passenger
   vasPurchases      VASPurchase[]
+  balanceHistory    BalanceHistory[]  // ← ADD THIS LINE
+  sentTransfers     Transfer[]         @relation("SentTransfers")
+  receivedTransfers Transfer[]         @relation("ReceivedTransfers")
 
   @@map("users")
+}
+
+enum UserType {
+  PASSENGER
+  DRIVER
+  AGENT
+  PARK_MANAGER
 }
 
 model Passenger {
@@ -82,13 +93,14 @@ model Driver {
 }
 
 model Agent {
-  id        String  @id @default(cuid())
-  userId    String  @unique
-  firstName String
-  lastName  String
-  agentCode String  @unique
-  parkId    String?
-  isActive  Boolean @default(true)
+  id            String  @id @default(cuid())
+  userId        String  @unique
+  firstName     String
+  lastName      String
+  agentCode     String  @unique
+  parkId        String?
+  walletBalance Decimal @default(0) @db.Decimal(10, 2)
+  isActive      Boolean @default(true)
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   park Park? @relation(fields: [parkId], references: [id])
@@ -141,6 +153,7 @@ model VerificationCode {
 model Transaction {
   id            String              @id @default(cuid())
   userId        String
+  userType      UserType
   type          TransactionType
   category      TransactionCategory
   amount        Decimal             @db.Decimal(10, 2)
@@ -169,6 +182,59 @@ model Transaction {
   @@index([tripId])
   @@index([vasPurchaseId])
   @@map("transactions")
+}
+
+model Transfer {
+  id            String         @id @default(cuid())
+
+  // Sender & Recipient
+  senderId    String
+  sender      User           @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   User           @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  // Transfer Details
+  amount      Decimal        @db.Decimal(10, 2)
+  description String?
+  reference   String         @unique @default(cuid())
+
+  // Status & Tracking
+  status TransferStatus @default(PENDING)
+
+  // Link to transactions (for accounting)
+  debitTransactionId  String? @unique
+  creditTransactionId String? @unique
+
+  // Scheduling fields
+  isScheduled  Boolean   @default(false)
+  scheduledFor DateTime? // When to execute the transfer
+
+  // Recurring transfer fields
+  isRecurring         Boolean             @default(false)
+  recurringFrequency  RecurringFrequency?
+  nextExecutionDate   DateTime?
+  lastExecutionDate   DateTime?
+  recurringEndDate    DateTime? // Optional end date for recurring transfers
+  executionCount      Int                 @default(0) // How many times it has executed
+  maxExecutions       Int? // Optional maximum number of executions
+  parentTransferId    String? // If this is a recurring execution, link to the parent
+  recurringPinHash    String? // Store encrypted PIN for recurring transfers
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([reference])
+  @@index([isScheduled, scheduledFor])
+  @@index([isRecurring, nextExecutionDate])
+  @@map("transfers")
 }
 
 model BankAccount {
@@ -517,4 +583,40 @@ enum NotificationType {
   TRIP_COMPLETED
   SYSTEM
   PROMOTIONAL
+}
+
+enum TransferStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  SCHEDULED
+  REFUNDED
+}
+
+enum RecurringFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model BalanceHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  userType      UserType
+  balance       Decimal  @db.Decimal(10, 2)
+  snapshotDate  DateTime @default(now())
+  reconciled    Boolean  @default(false)
+  discrepancy   Decimal? @db.Decimal(10, 2) // Difference if reconciliation failed
+  metadata      Json?    // Additional reconciliation info
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([snapshotDate])
+  @@index([reconciled])
+  @@map("balance_history")
 }

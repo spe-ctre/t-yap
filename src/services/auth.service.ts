@@ -59,8 +59,9 @@ export class AuthService {
       where: { OR: [{ email: data.username }, { phoneNumber: data.username }] },
       include: { passenger: true }
     });
-
-    if (!user || !await bcrypt.compare(data.password, user.password)) {
+    
+    // Use bcrypt.compare to check hashed password
+    if (!user || !(await bcrypt.compare(data.password, user.password))) {
       throw createError('Invalid credentials', 401);
     }
 

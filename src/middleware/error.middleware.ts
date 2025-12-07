@@ -14,6 +14,17 @@ export const errorHandler = (
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
 
+  // Log error in production for monitoring
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Error:', {
+      message: err.message,
+      statusCode,
+      path: req.path,
+      method: req.method,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   res.status(statusCode).json({
     success: false,
     message,

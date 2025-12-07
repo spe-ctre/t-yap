@@ -1,60 +1,57 @@
+// src/controllers/wallet.controller.ts
+
 import { Request, Response, NextFunction } from 'express';
 import { WalletService } from '../services/wallet.service';
+import { createError } from '../middleware/error.middleware';
+
+/**
+ * AuthenticatedRequest interface
+ * Extends Express Request to include user information from JWT token
+ */
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;
+    role: 'PASSENGER' | 'DRIVER' | 'AGENT';
+  };
+}
 
 /**
  * WalletController - Handles HTTP requests related to wallets
- * 
- * Think of this as the "waiter" - it takes orders (HTTP requests),
- * talks to the kitchen (WalletService), and brings back the food (HTTP responses).
  */
 export class WalletController {
   private walletService: WalletService;
 
   constructor() {
-    // Create an instance of WalletService when controller is created
     this.walletService = new WalletService();
   }
 
   /**
-   * Handle GET /api/wallet/balance request
-   * 
-   * How it works:
-   * 1. Receives the HTTP request
-   * 2. Gets userId from req.user (set by authMiddleware)
-   * 3. Calls walletService.getBalance()
-   * 4. Sends the response back to the user
+   * GET /api/wallet/balance
+   * Get wallet balance
    */
-  getBalance = async (req: Request, res: Response, next: NextFunction) => {
+  getBalance = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      // req.user is set by authMiddleware after verifying the JWT token
-      // It contains the logged-in user's information
+      console.log('REQ.USER CONTENT:', req.user);
       const userId = req.user.id;
 
-      // Call the service to get the balance
       const result = await this.walletService.getBalance(userId);
 
-      // Send success response
       res.json({
         success: true,
         data: result
       });
     } catch (error) {
-      // If anything goes wrong, pass it to error handler
       next(error);
     }
   };
 
   /**
-   * Handle GET /api/wallet/transactions request
-   * 
-   * This gets the transaction history for the logged-in user
+   * GET /api/wallet/transactions
+   * Get transaction history
    */
-  getTransactionHistory = async (req: Request, res: Response, next: NextFunction) => {
+  getTransactionHistory = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const userId = req.user.id;
-      
-      // Get query parameters for pagination
-      // Example: /api/wallet/transactions?limit=20&offset=0
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = parseInt(req.query.offset as string) || 0;
 
@@ -68,5 +65,78 @@ export class WalletController {
       next(error);
     }
   };
-}
 
+  /**
+   * POST /api/wallet/topup/initialize
+   * Initialize wallet top-up
+   */
+  initializeTopUp = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user.id;
+      const { amount } = req.body;
+
+      // Validate amount
+      if (!amount || typeof amount !== 'number') {
+        throw createError('Valid amount is required', 400);
+      }
+
+      const result = await this.walletService.initializeTopUp(userId, amount);
+
+      res.status(200).json({
+        success: true,
+        message: 'Top-up initialized successfully',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/wallet/topup/verify
+   * Verify and complete top-up transaction
+   */
+  verifyTopUp = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user.id;
+      const { transactionReference } = req.body;
+
+      if (!transactionReference) {
+        throw createError('Transaction reference is required', 400);
+      }
+
+      const result = await this.walletService.verifyTopUp(userId, transactionReference);
+
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/wallet/topup/status/:reference
+   * Get top-up transaction status
+   */
+  getTopUpStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user.id;
+      const { reference } = req.params;
+
+      if (!reference) {
+        throw createError('Transaction reference is required', 400);
+      }
+
+      const result = await this.walletService.getTopUpStatus(userId, reference);
+
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
