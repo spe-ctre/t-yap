@@ -38,7 +38,7 @@ const deviceTokenController = new DeviceTokenController();
  *       401:
  *         description: Unauthorized
  */
-router.post('/register', authMiddleware, deviceTokenController.registerToken);
+router.post('/register', authMiddleware as any, deviceTokenController.registerToken as any);
 
 /**
  * @swagger
@@ -54,7 +54,7 @@ router.post('/register', authMiddleware, deviceTokenController.registerToken);
  *       401:
  *         description: Unauthorized
  */
-router.get('/', authMiddleware, deviceTokenController.getTokens);
+router.get('/', authMiddleware as any, deviceTokenController.getTokens as any);
 
 /**
  * @swagger
@@ -84,6 +84,6 @@ router.get('/', authMiddleware, deviceTokenController.getTokens);
  *       401:
  *         description: Unauthorized
  */
-router.delete('/', authMiddleware, deviceTokenController.removeToken);
+router.delete('/', authMiddleware as any, deviceTokenController.removeToken as any);
 
 export default router;

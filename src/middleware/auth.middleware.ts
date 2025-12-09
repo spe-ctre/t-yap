@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
 import { createError } from './error.middleware';
 
-// Define allowed user roles (must match Prisma UserRole enum)
+// Define allowed user roles
 export type UserRole = 'PASSENGER' | 'DRIVER' | 'AGENT' | 'PARK_MANAGER';
 
 // Extend Express Request to include authenticated user
@@ -12,6 +12,8 @@ export interface AuthenticatedRequest extends Request {
   user: {
     id: string;
     role: UserRole;
+    isEmailVerified?: boolean;
+    isPhoneVerified?: boolean;
   };
 }
 
@@ -54,9 +56,9 @@ export const authMiddleware = async (
     const decoded = jwt.verify(token, secret) as { userId: string; role: UserRole };
 
     // Check user existence in DB
-    const userExists = await prisma.user.findUnique({ 
+    const userExists = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, role: true }
+      select: { id: true, role: true, isEmailVerified: true, isPhoneVerified: true }
     });
 
     if (!userExists) {
@@ -69,7 +71,9 @@ export const authMiddleware = async (
     // Attach user info to request
     req.user = {
       id: decoded.userId,
-      role: decoded.role
+      role: decoded.role as UserRole,
+      isEmailVerified: userExists.isEmailVerified,
+      isPhoneVerified: userExists.isPhoneVerified
     };
 
     next();

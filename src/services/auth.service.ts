@@ -87,14 +87,14 @@ export class AuthService {
       throw createError('Account not verified. Please verify your email or phone number to continue.', 403);
     }
 
-    // Create session with device info
+    // Create session with device info (include role so downstream can enforce passenger PIN)
     const session = await this.sessionService.createSession(user.id, {
       deviceName: data.deviceName,
       deviceType: data.deviceType,
       deviceId: data.deviceId,
       ipAddress: data.ipAddress,
       userAgent: data.userAgent
-    });
+    }, user.role as any);
     
     return {
       user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber },
@@ -160,7 +160,7 @@ export class AuthService {
         deviceId: (data as any).deviceId,
         ipAddress: (data as any).ipAddress,
         userAgent: (data as any).userAgent
-      });
+      }, user.role as any);
       
       token = session.token;
     } else if (data.type === 'PHONE_VERIFICATION') {

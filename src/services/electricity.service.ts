@@ -247,9 +247,15 @@ export class ElectricityService {
             phoneNumber: data.phone,
             packageName: data.variation_code || null,
             status: VASPurchaseStatus.SUCCESS,
-            providerReference: vtpassResponse?.requestId || vtpassResponse?.request_id || null,
-            requestId,
-            metadata: vtpassResponse,
+            providerReference: vtpassResponse?.requestId || vtpassResponse?.request_id || requestId,
+            metadata: {
+              meterNumber: data.meterNumber,
+              phone: data.phone,
+              serviceID: data.serviceID,
+              variation_code: data.variation_code,
+              requestId,
+              vtpassResponse
+            },
             idempotencyKey: key
           }
         });
@@ -258,6 +264,7 @@ export class ElectricityService {
         const transaction = await tx.transaction.create({
           data: {
             userId,
+            userType: 'PASSENGER',
             type: TransactionType.DEBIT,
             category: TransactionCategory.ELECTRICITY_PAYMENT,
             amount,
@@ -383,7 +390,8 @@ export class ElectricityService {
       throw createError('Electricity purchase not found', 404);
     }
 
-    if (!purchase.requestId) {
+    const requestId = purchase.providerReference || (purchase.metadata as any)?.requestId;
+    if (!requestId) {
       throw createError('No external request ID available for this purchase', 400);
     }
 
@@ -393,10 +401,10 @@ export class ElectricityService {
       'INFO',
       'Requery VTpass electricity transaction',
       { userId, vasPurchaseId, provider: 'VTpass', endpoint: '/api/requery' },
-      { requestId: purchase.requestId }
+      { requestId }
     );
 
-    const vtpassResponse = await this.vtpass.requeryTransaction(purchase.requestId);
+    const vtpassResponse = await this.vtpass.requeryTransaction(requestId);
 
     await this.logger.log(
       'RESPONSE',
@@ -409,7 +417,7 @@ export class ElectricityService {
         endpoint: '/api/requery',
         duration: Date.now() - start
       },
-      { requestId: purchase.requestId },
+      { requestId },
       vtpassResponse
     );
 

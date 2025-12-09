@@ -1,8 +1,7 @@
 import { prisma } from '../config/database';
-import cloudinary from '../config/cloudinary';
+import { getCloudinary, isCloudinaryAvailable } from '../config/cloudinary';
 import { createError } from '../middleware/error.middleware';
 import { extractPublicIdFromUrl } from '../utils/file.util';
-import { UploadApiResponse } from 'cloudinary';
 
 export class ProfileService {
   /**
@@ -127,6 +126,12 @@ export class ProfileService {
    * Upload profile picture to Cloudinary
    */
   async uploadProfilePicture(userId: string, file: Express.Multer.File): Promise<string> {
+    // Check if Cloudinary is available
+    if (!isCloudinaryAvailable()) {
+      throw createError('Profile picture upload is not available. Cloudinary is not configured.', 503);
+    }
+
+    const cloudinary = getCloudinary();
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { passenger: true, driver: true }
@@ -152,7 +157,7 @@ export class ProfileService {
             { width: 400, height: 400, crop: 'fill', gravity: 'face' }
           ]
         },
-        async (error, result: UploadApiResponse | undefined) => {
+        async (error: any, result: any) => {
           if (error) {
             reject(createError('Failed to upload image', 500));
             return;
@@ -167,14 +172,14 @@ export class ProfileService {
             // Delete old picture if exists
             if (user.role === 'PASSENGER' && user.passenger?.profilePicture) {
               const oldPublicId = extractPublicIdFromUrl(user.passenger.profilePicture);
-              if (oldPublicId) {
+              if (oldPublicId && isCloudinaryAvailable()) {
                 await cloudinary.uploader.destroy(oldPublicId).catch(() => {
                   // Ignore errors when deleting old image
                 });
               }
             } else if (user.role === 'DRIVER' && user.driver?.profilePicture) {
               const oldPublicId = extractPublicIdFromUrl(user.driver.profilePicture);
-              if (oldPublicId) {
+              if (oldPublicId && isCloudinaryAvailable()) {
                 await cloudinary.uploader.destroy(oldPublicId).catch(() => {
                   // Ignore errors when deleting old image
                 });
@@ -197,7 +202,9 @@ export class ProfileService {
             resolve(result.secure_url);
           } catch (err) {
             // Delete uploaded image if database update fails
-            await cloudinary.uploader.destroy(result.public_id).catch(() => {});
+            if (isCloudinaryAvailable() && result?.public_id) {
+              await cloudinary.uploader.destroy(result.public_id).catch(() => {});
+            }
             reject(createError('Failed to save profile picture', 500));
           }
         }
@@ -233,7 +240,8 @@ export class ProfileService {
 
     // Delete from Cloudinary
     const publicId = extractPublicIdFromUrl(profilePicture);
-    if (publicId) {
+    if (publicId && isCloudinaryAvailable()) {
+      const cloudinary = getCloudinary();
       await cloudinary.uploader.destroy(publicId).catch(() => {
         // Ignore errors when deleting from Cloudinary
       });

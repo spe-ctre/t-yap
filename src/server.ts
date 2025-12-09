@@ -18,6 +18,18 @@ import bankAccountRoutes from './routes/bank-account.routes';
 import withdrawalRoutes from './routes/withdrawal.routes';
 import balanceReconciliationRoutes from './routes/balance-reconciliation.routes';
 import transactionAnalyticsRoutes from './routes/transaction-analytics.routes';
+import electricityRoutes from './routes/electricity.routes';
+import airtimeRoutes from './routes/airtime.routes';
+import dataRoutes from './routes/data.routes';
+import tvSubscriptionRoutes from './routes/tv-subscription.routes';
+import profileRoutes from './routes/profile.routes';
+import sessionRoutes from './routes/session.routes';
+import supportRoutes from './routes/support.routes';
+import notificationRoutes from './routes/notification.routes';
+import biometricRoutes from './routes/biometric.routes';
+import deviceTokenRoutes from './routes/device-token.routes';
+import securityRoutes from './routes/security.routes';
+import settingsRoutes from './routes/settings.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 import { setupCronJobs } from './jobs/cron-jobs';
@@ -59,6 +71,18 @@ app.use('/api/bank-accounts', bankAccountRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/balance', balanceReconciliationRoutes);
 app.use('/api/analytics', transactionAnalyticsRoutes);
+app.use('/api/electricity', electricityRoutes);
+app.use('/api/airtime', airtimeRoutes);
+app.use('/api/data', dataRoutes);
+app.use('/api/tv-subscription', tvSubscriptionRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/support', supportRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/biometric', biometricRoutes);
+app.use('/api/device-tokens', deviceTokenRoutes);
+app.use('/api/security', securityRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

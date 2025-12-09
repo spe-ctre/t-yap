@@ -1,4 +1,4 @@
-import { TransactionCategory, TransactionStatus, TransactionType, VASCategory, VASPurchaseStatus } from '@prisma/client';
+import { TransactionCategory, TransactionStatus, TransactionType, UserType, VASCategory, VASPurchaseStatus } from '@prisma/client';
 import { prisma } from '../config/database';
 import { createError } from '../middleware/error.middleware';
 import { VTpassProviderService } from './vtpass-provider.service';
@@ -10,7 +10,7 @@ interface DeviceInfo {
   userAgent?: string;
 }
 
-export class AirtimeService {
+export class TVSubscriptionService {
   private vtpass: VTpassProviderService;
   private idempotency: IdempotencyService;
   private logger: TransactionLogService;
@@ -21,9 +21,102 @@ export class AirtimeService {
     this.logger = new TransactionLogService();
   }
 
-  async purchaseAirtime(userId: string, data: {
+  async getVariations(serviceID: string) {
+    const start = Date.now();
+    await this.logger.log(
+      'REQUEST',
+      'INFO',
+      'Get TV subscription variation codes from VTpass',
+      { provider: 'VTpass', endpoint: '/api/service-variations', userId: 'system' },
+      { serviceID }
+    );
+
+    const response = await this.vtpass.getVariationCodes(serviceID);
+
+    await this.logger.log(
+      'RESPONSE',
+      'INFO',
+      'TV subscription variation codes response',
+      {
+        provider: 'VTpass',
+        endpoint: '/api/service-variations',
+        duration: Date.now() - start,
+        userId: 'system'
+      },
+      { serviceID },
+      response
+    );
+
+    // Format variations for easier consumption
+    const variations = response?.content?.variations || [];
+    
+    return {
+      serviceID: response?.content?.serviceID || serviceID,
+      serviceName: response?.content?.ServiceName || 'TV Subscription',
+      variations: variations.map((v: any) => ({
+        variation_code: v.variation_code,
+        name: v.name,
+        amount: parseFloat(v.variation_amount || v.amount || '0'),
+        fixedPrice: v.fixedPrice === 'Yes'
+      })),
+      raw: response
+    };
+  }
+
+  async verifySmartcard(userId: string, data: {
     serviceID: string;
-    amount: number;
+    smartCardNumber: string;
+  }, device?: DeviceInfo) {
+    const start = Date.now();
+    await this.logger.log(
+      'REQUEST',
+      'INFO',
+      'Verify TV subscription smartcard',
+      { userId, provider: 'VTpass', endpoint: '/api/merchant-verify', ipAddress: device?.ipAddress, userAgent: device?.userAgent },
+      data
+    );
+
+    const response = await this.vtpass.verifySmartcard({
+      serviceID: data.serviceID,
+      billersCode: data.smartCardNumber
+    });
+
+    await this.logger.log(
+      'RESPONSE',
+      'INFO',
+      'Smartcard verification response',
+      {
+        userId,
+        provider: 'VTpass',
+        endpoint: '/api/merchant-verify',
+        duration: Date.now() - start,
+        ipAddress: device?.ipAddress,
+        userAgent: device?.userAgent
+      },
+      data,
+      response
+    );
+
+    const customer = response?.content?.Customer || response?.content?.customer;
+    const renewalAmount = response?.content?.Renewal_Amount || response?.content?.renewal_amount;
+
+    return {
+      isValid: true,
+      raw: response,
+      customer: {
+        name: customer?.Customer_Name || customer?.name,
+        smartCardNumber: data.smartCardNumber,
+        currentPackage: customer?.Current_Bouquet || customer?.current_bouquet,
+        renewalAmount: renewalAmount ? parseFloat(renewalAmount) : null
+      }
+    };
+  }
+
+  async purchaseSubscription(userId: string, data: {
+    serviceID: string;
+    smartCardNumber: string;
+    subscription_type: 'new' | 'renew';
+    variation_code: string;
     phone: string;
   }, device?: DeviceInfo) {
     // Ensure user exists and has a passenger profile (for wallet)
@@ -36,13 +129,24 @@ export class AirtimeService {
       throw createError('Passenger profile not found', 404);
     }
 
-    const amount = Number(data.amount);
-    if (amount <= 0) {
-      throw createError('Amount must be greater than zero', 400);
+    // Normalize phone number early for idempotency and VTpass
+    const normalizedPhone = this.normalizePhoneNumber(data.phone);
+
+    // Always derive amount from variation_code (for both new and renew)
+    const variationsResponse = await this.vtpass.getVariationCodes(data.serviceID);
+    const variations = variationsResponse?.content?.variations || [];
+    const selectedVariation = variations.find(
+      (v: any) => v.variation_code === data.variation_code
+    );
+
+    if (!selectedVariation) {
+      throw createError(`Invalid variation_code: ${data.variation_code}`, 400);
     }
 
-    if (amount < 50) {
-      throw createError('Minimum airtime purchase is 50 NGN', 400);
+    const amount = parseFloat(selectedVariation.variation_amount || selectedVariation.amount || '0');
+    
+    if (amount <= 0) {
+      throw createError('Invalid variation code or amount', 400);
     }
 
     // Check wallet balance
@@ -51,14 +155,13 @@ export class AirtimeService {
       throw createError('Insufficient wallet balance', 400);
     }
 
-    // Normalize phone number early for idempotency and VTpass
-    const normalizedPhone = this.normalizePhoneNumber(data.phone);
-
-    // Generate idempotency key based on user + payload (using normalized phone)
+    // Generate idempotency key based on user + payload
     const payloadForHash = {
       serviceID: data.serviceID,
-      amount: data.amount,
-      phone: normalizedPhone
+      smartCardNumber: data.smartCardNumber,
+      subscription_type: data.subscription_type,
+      variation_code: data.variation_code,
+      amount: amount
     };
     const requestHash = this.idempotency.hashPayload(payloadForHash);
     const key = this.idempotency.generateKey(userId, payloadForHash);
@@ -70,7 +173,7 @@ export class AirtimeService {
         return existing.response as any;
       }
       if (existing.status === 'PENDING') {
-        throw createError('A similar airtime transaction is already processing', 409);
+        throw createError('A similar TV subscription transaction is already processing', 409);
       }
     }
 
@@ -96,18 +199,25 @@ export class AirtimeService {
       }
 
       // Call VTpass FIRST - only proceed if they accept the request
-      const requestId = `AIRTIME-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
-      const vtpassPayload = {
+      const requestId = `TV-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+      const vtpassPayload: any = {
         request_id: requestId,
         serviceID: data.serviceID,
-        amount: data.amount,
+        billersCode: data.smartCardNumber,
+        subscription_type: data.subscription_type === 'new' ? 'change' : 'renew',
         phone: normalizedPhone
       };
+
+      // Add variation_code for all subscriptions (VTpass can accept this for both)
+      vtpassPayload.variation_code = data.variation_code;
+
+      // Always include amount derived from variation
+      vtpassPayload.amount = amount;
 
       await this.logger.log(
         'REQUEST',
         'INFO',
-        'Airtime purchase request to VTpass',
+        'TV subscription purchase request to VTpass',
         {
           userId,
           provider: 'VTpass',
@@ -120,21 +230,21 @@ export class AirtimeService {
 
       let vtpassResponse;
       try {
-        vtpassResponse = await this.vtpass.purchaseAirtime(vtpassPayload);
+        vtpassResponse = await this.vtpass.purchaseTVSubscription(vtpassPayload);
       } catch (error: any) {
         // VTpass rejected - mark idempotency as failed and rethrow
         await this.idempotency.markFailed(key).catch(() => undefined);
         
-        // Log full error details (including VTpass response if available)
+        // Log full error details
         const errorDetails = {
           message: error?.message || 'Unknown error',
           code: error?.code,
           status: error?.response?.status,
           statusText: error?.response?.statusText,
           responseData: error?.response?.data,
-          vtpassResponse: error?.vtpassResponse, // VTpass transaction failure response
-          vtpassCode: error?.vtpassCode, // VTpass error code (e.g., '016')
-          isVTpassError: error?.isVTpassError, // Indicates VTpass transaction failure
+          vtpassResponse: error?.vtpassResponse,
+          vtpassCode: error?.vtpassCode,
+          isVTpassError: error?.isVTpassError,
           stack: error?.stack
         };
         
@@ -143,7 +253,7 @@ export class AirtimeService {
           'ERROR',
           error?.isVTpassError 
             ? `VTpass transaction failed: ${error?.vtpassCode || 'unknown'} - ${error?.message}`
-            : 'VTpass rejected airtime purchase before DB records created',
+            : 'VTpass rejected TV subscription purchase before DB records created',
           {
             userId,
             provider: 'VTpass',
@@ -157,7 +267,7 @@ export class AirtimeService {
         );
         
         // Log to console for immediate visibility
-        console.error('VTpass airtime purchase error details:', {
+        console.error('VTpass TV subscription purchase error details:', {
           requestPayload: vtpassPayload,
           error: errorDetails
         });
@@ -188,7 +298,7 @@ export class AirtimeService {
           vtpassResponse
         );
         throw createError(
-          vtpassResponse?.response_description || 'Airtime purchase failed',
+          vtpassResponse?.response_description || 'TV subscription purchase failed',
           400
         );
       }
@@ -202,29 +312,39 @@ export class AirtimeService {
           create: {
             name: this.getProviderName(data.serviceID),
             code: data.serviceID,
-            category: VASCategory.AIRTIME,
+            category: VASCategory.CABLE_TV,
             isActive: true
           }
         });
         const serviceProviderId = provider.id;
+
+        // Get actual amount from VTpass response (may differ from request)
+        const actualAmount = parseFloat(
+          vtpassResponse?.amount || 
+          vtpassResponse?.content?.transactions?.amount || 
+          amount.toString()
+        );
 
         // Create VAS purchase record (SUCCESS since VTpass already confirmed)
         const vasPurchase = await tx.vASPurchase.create({
           data: {
             userId,
             serviceProviderId,
-            category: VASCategory.AIRTIME,
-            amount,
+            category: VASCategory.CABLE_TV,
+            amount: actualAmount,
+            smartCardNumber: data.smartCardNumber,
             phoneNumber: normalizedPhone,
+            packageName: data.variation_code || null,
             status: VASPurchaseStatus.SUCCESS,
             providerReference: vtpassResponse?.requestId || vtpassResponse?.request_id || requestId,
             metadata: {
-              requestId,
+              subscription_type: data.subscription_type,
               phone: normalizedPhone,
               serviceID: data.serviceID,
+              variation_code: data.variation_code,
+              requestId,
               vtpassResponse
-            },
-            idempotencyKey: key
+            }
           }
         });
 
@@ -232,19 +352,21 @@ export class AirtimeService {
         const transaction = await tx.transaction.create({
           data: {
             userId,
-            userType: 'PASSENGER',
+            userType: UserType.PASSENGER,
             type: TransactionType.DEBIT,
-            category: TransactionCategory.AIRTIME_PURCHASE,
-            amount,
+            category: TransactionCategory.CABLE_TV_PAYMENT,
+            amount: actualAmount,
             balanceBefore: currentBalance,
-            balanceAfter: currentBalance - amount,
+            balanceAfter: currentBalance - actualAmount,
             status: TransactionStatus.SUCCESS,
-            description: `Airtime purchase to ${this.getProviderName(data.serviceID)} for ${normalizedPhone}`,
+            description: `${data.subscription_type === 'new' ? 'New' : 'Renewal'} TV subscription to ${this.getProviderName(data.serviceID)} for smartcard ${data.smartCardNumber}`,
             reference: requestId,
             metadata: {
+              smartCardNumber: data.smartCardNumber,
               phone: normalizedPhone,
-              originalPhone: data.phone,
               serviceID: data.serviceID,
+              subscription_type: data.subscription_type,
+              variation_code: data.variation_code,
               vtpassResponse
             },
             vasPurchaseId: vasPurchase.id
@@ -255,7 +377,7 @@ export class AirtimeService {
         await tx.passenger.update({
           where: { userId },
           data: {
-            walletBalance: currentBalance - amount
+            walletBalance: currentBalance - actualAmount
           }
         });
 
@@ -265,7 +387,7 @@ export class AirtimeService {
       await this.logger.log(
         'RESPONSE',
         'INFO',
-        'Airtime purchase VTpass response - records created',
+        'TV subscription purchase VTpass response - records created',
         {
           userId,
           transactionId: result.transaction.id,
@@ -286,7 +408,9 @@ export class AirtimeService {
         vasPurchaseId: result.vasPurchase.id,
         status: result.vasPurchase.status,
         amount: result.vasPurchase.amount,
-        phoneNumber: result.vasPurchase.phoneNumber,
+        smartCardNumber: result.vasPurchase.smartCardNumber,
+        packageName: result.vasPurchase.packageName,
+        subscriptionType: data.subscription_type,
         provider: data.serviceID,
         providerName: this.getProviderName(data.serviceID),
         raw: vtpassResponse
@@ -300,7 +424,7 @@ export class AirtimeService {
       await this.logger.log(
         'ERROR',
         'ERROR',
-        'Airtime purchase failed',
+        'TV subscription purchase failed',
         { userId, provider: 'VTpass', endpoint: '/api/pay', duration: Date.now() - start, ipAddress: device?.ipAddress, userAgent: device?.userAgent },
         data,
         { error: (error as any)?.message || 'Unknown error' }
@@ -318,7 +442,7 @@ export class AirtimeService {
       prisma.vASPurchase.findMany({
         where: {
           userId,
-          category: VASCategory.AIRTIME
+          category: VASCategory.CABLE_TV
         },
         include: {
           serviceProvider: {
@@ -336,7 +460,7 @@ export class AirtimeService {
       prisma.vASPurchase.count({
         where: {
           userId,
-          category: VASCategory.AIRTIME
+          category: VASCategory.CABLE_TV
         }
       })
     ]);
@@ -357,12 +481,12 @@ export class AirtimeService {
       where: {
         id: vasPurchaseId,
         userId,
-        category: VASCategory.AIRTIME
+        category: VASCategory.CABLE_TV
       }
     });
 
     if (!purchase) {
-      throw createError('Airtime purchase not found', 404);
+      throw createError('TV subscription purchase not found', 404);
     }
 
     const requestId = purchase.providerReference || (purchase.metadata as any)?.requestId;
@@ -374,7 +498,7 @@ export class AirtimeService {
     await this.logger.log(
       'REQUEST',
       'INFO',
-      'Requery VTpass airtime transaction',
+      'Requery VTpass TV subscription transaction',
       { userId, vasPurchaseId, provider: 'VTpass', endpoint: '/api/requery' },
       { requestId }
     );
@@ -384,7 +508,7 @@ export class AirtimeService {
     await this.logger.log(
       'RESPONSE',
       'INFO',
-      'Requery VTpass airtime transaction response',
+      'Requery VTpass TV subscription transaction response',
       {
         userId,
         vasPurchaseId,
@@ -392,7 +516,7 @@ export class AirtimeService {
         endpoint: '/api/requery',
         duration: Date.now() - start
       },
-      { requestId: purchase.requestId },
+      { requestId },
       vtpassResponse
     );
 
@@ -415,8 +539,11 @@ export class AirtimeService {
       where: { id: vasPurchaseId },
       data: {
         status: newStatus,
-        metadata: vtpassResponse,
-        lastRequeryAt: new Date()
+        metadata: {
+          ...(purchase.metadata as any || {}),
+          lastRequeryAt: new Date().toISOString(),
+          lastRequeryResponse: vtpassResponse
+        }
       }
     });
 
@@ -453,10 +580,10 @@ export class AirtimeService {
 
   private getProviderName(serviceID: string): string {
     const names: Record<string, string> = {
-      'mtn': 'MTN',
-      'glo': 'Glo',
-      'airtel': 'Airtel',
-      '9mobile': '9mobile'
+      'dstv': 'DSTV',
+      'gotv': 'GOTV',
+      'startimes': 'Startimes',
+      'showmax': 'Showmax'
     };
     return names[serviceID.toLowerCase()] || serviceID.toUpperCase();
   }

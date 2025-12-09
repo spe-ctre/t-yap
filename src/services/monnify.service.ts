@@ -55,6 +55,7 @@ export class MonnifyService {
   private webhookSecret: string;
   private accessToken: string | null = null;
   private tokenExpiry: number = 0;
+  private isConfigured: boolean = false;
 
   constructor() {
     this.baseUrl = process.env.MONNIFY_BASE_URL || '';
@@ -63,9 +64,27 @@ export class MonnifyService {
     this.contractCode = process.env.MONNIFY_CONTRACT_CODE || '';
     this.webhookSecret = process.env.MONNIFY_WEBHOOK_SECRET || '';
 
-    if (!this.baseUrl || !this.apiKey || !this.secretKey || !this.contractCode) {
-      throw new Error('Monnify credentials not configured');
+    // Check if all required credentials are present
+    this.isConfigured = !!(
+      this.baseUrl &&
+      this.apiKey &&
+      this.secretKey &&
+      this.contractCode
+    );
+
+    if (!this.isConfigured) {
+      console.warn('⚠️  Monnify credentials not found. Wallet top-up will be disabled.');
+      console.warn('   Please configure MONNIFY_BASE_URL, MONNIFY_API_KEY, MONNIFY_SECRET_KEY, and MONNIFY_CONTRACT_CODE to enable wallet top-up.');
+    } else {
+      console.log('✅ Monnify payment service initialized successfully');
     }
+  }
+
+  /**
+   * Check if Monnify is properly configured
+   */
+  isAvailable(): boolean {
+    return this.isConfigured;
   }
 
   /**
@@ -73,6 +92,9 @@ export class MonnifyService {
    * Token is cached and only refreshed when expired
    */
   private async getAccessToken(): Promise<string> {
+    if (!this.isConfigured) {
+      throw createError('Monnify is not configured. Please set MONNIFY_BASE_URL, MONNIFY_API_KEY, MONNIFY_SECRET_KEY, and MONNIFY_CONTRACT_CODE environment variables.', 503);
+    }
     // Return cached token if still valid
     if (this.accessToken && Date.now() < this.tokenExpiry) {
       return this.accessToken;
@@ -177,6 +199,10 @@ export class MonnifyService {
    * Verify a payment transaction
    */
   async verifyPayment(transactionReference: string): Promise<VerifyPaymentResponse['responseBody']> {
+    if (!this.isConfigured) {
+      throw createError('Monnify is not configured. Please set MONNIFY_BASE_URL, MONNIFY_API_KEY, MONNIFY_SECRET_KEY, and MONNIFY_CONTRACT_CODE environment variables.', 503);
+    }
+
     try {
       const token = await this.getAccessToken();
 

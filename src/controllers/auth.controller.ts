@@ -71,7 +71,7 @@ export class AuthController {
    * POST /api/auth/verify
    * Requires authentication
    */
-  verifyCode = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  verifyCode = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = verifyCodeSchema.validate(req.body);
       if (error) {
@@ -97,7 +97,7 @@ export class AuthController {
    * POST /api/auth/create-pin
    * Requires authentication
    */
-  createPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  createPin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = createPinSchema.validate(req.body);
       if (error) {

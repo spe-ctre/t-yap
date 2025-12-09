@@ -39,11 +39,11 @@ const controller = new AirtimeController();
  */
 router.post(
   '/purchase',
-  authMiddleware,
+  authMiddleware as any,
   requireEmailVerification,
   requirePinVerification,
   extractDeviceInfo,
-  controller.purchase
+  controller.purchase as any
 );
 
 /**
@@ -75,9 +75,9 @@ router.post(
  */
 router.get(
   '/history',
-  authMiddleware,
+  authMiddleware as any,
   requireEmailVerification,
-  controller.history
+  controller.history as any
 );
 
 /**
@@ -104,9 +104,9 @@ router.get(
  */
 router.post(
   '/requery',
-  authMiddleware,
+  authMiddleware as any,
   requireEmailVerification,
-  controller.requery
+  controller.requery as any
 );
 
 export default router;
