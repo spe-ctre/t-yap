@@ -10,10 +10,20 @@ import { Decimal } from '@prisma/client/runtime/library';
  * WalletService - Handles all wallet-related operations
  */
 export class WalletService {
-  private monnifyService: MonnifyService;
+  private monnifyService: MonnifyService | null = null;
 
   constructor() {
-    this.monnifyService = new MonnifyService();
+    try {
+      this.monnifyService = new MonnifyService();
+      // Only keep reference if Monnify is configured
+      if (!this.monnifyService.isAvailable()) {
+        this.monnifyService = null;
+      }
+    } catch (error) {
+      // Monnify initialization failed, but we can still run without it
+      console.warn('⚠️  Monnify service initialization failed. Wallet top-up will be disabled.');
+      this.monnifyService = null;
+    }
   }
 
   /**
@@ -86,6 +96,10 @@ export class WalletService {
    * Initialize wallet top-up
    */
   async initializeTopUp(userId: string, amount: number) {
+    if (!this.monnifyService || !this.monnifyService.isAvailable()) {
+      throw createError('Wallet top-up is not available. Monnify payment service is not configured. Please contact support.', 503);
+    }
+
     // Validate amount
     if (amount < 100) {
       throw createError('Minimum top-up amount is ₦100', 400);
@@ -169,6 +183,10 @@ export class WalletService {
    * Verify and complete top-up transaction
    */
   async verifyTopUp(userId: string, transactionReference: string) {
+    if (!this.monnifyService || !this.monnifyService.isAvailable()) {
+      throw createError('Wallet top-up verification is not available. Monnify payment service is not configured. Please contact support.', 503);
+    }
+
     // Get the pending transaction
     const transaction = await prisma.transaction.findFirst({
       where: {

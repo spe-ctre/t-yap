@@ -114,3 +114,31 @@ export const isAgent = (
     });
   }
 };
+
+/**
+ * Middleware to check if user is a passenger
+ */
+export const requirePassenger = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userRole = req.user?.role;
+
+    if (!userRole || userRole !== 'PASSENGER') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Access denied. Passenger privileges required.' 
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Role check error:', error);
+    return res.status(403).json({ 
+      success: false,
+      message: 'Access denied' 
+    });
+  }
+};

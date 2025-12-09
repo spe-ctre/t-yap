@@ -64,7 +64,7 @@ router.post('/verify', authMiddleware, requirePassenger, biometricController.ver
  *       404:
  *         description: Biometric data not registered
  */
-router.delete('/remove', authMiddleware, requirePassenger, biometricController.removeBiometric);
+router.delete('/remove', authMiddleware as any, requirePassenger as any, biometricController.removeBiometric as any);
 
 /**
  * @swagger
@@ -90,7 +90,7 @@ router.delete('/remove', authMiddleware, requirePassenger, biometricController.r
  *                     isRegistered:
  *                       type: boolean
  */
-router.get('/status', authMiddleware, requirePassenger, biometricController.checkBiometricStatus);
+router.get('/status', authMiddleware as any, requirePassenger as any, biometricController.checkBiometricStatus as any);
 
 export default router;
 

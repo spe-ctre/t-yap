@@ -276,9 +276,14 @@ export class DataService {
             phoneNumber: normalizedPhone,
             packageName: data.variation_code,
             status: VASPurchaseStatus.SUCCESS,
-            providerReference: vtpassResponse?.requestId || vtpassResponse?.request_id || null,
-            requestId,
-            metadata: vtpassResponse,
+            providerReference: vtpassResponse?.requestId || vtpassResponse?.request_id || requestId,
+            metadata: {
+              phone: normalizedPhone,
+              serviceID: data.serviceID,
+              variation_code: data.variation_code,
+              requestId,
+              vtpassResponse
+            },
             idempotencyKey: key
           }
         });
@@ -287,6 +292,7 @@ export class DataService {
         const transaction = await tx.transaction.create({
           data: {
             userId,
+            userType: 'PASSENGER',
             type: TransactionType.DEBIT,
             category: TransactionCategory.DATA_PURCHASE,
             amount: actualAmount,
@@ -420,7 +426,8 @@ export class DataService {
       throw createError('Data purchase not found', 404);
     }
 
-    if (!purchase.requestId) {
+    const requestId = purchase.providerReference || (purchase.metadata as any)?.requestId;
+    if (!requestId) {
       throw createError('No external request ID available for this purchase', 400);
     }
 
@@ -430,10 +437,10 @@ export class DataService {
       'INFO',
       'Requery VTpass data transaction',
       { userId, vasPurchaseId, provider: 'VTpass', endpoint: '/api/requery' },
-      { requestId: purchase.requestId }
+      { requestId }
     );
 
-    const vtpassResponse = await this.vtpass.requeryTransaction(purchase.requestId);
+    const vtpassResponse = await this.vtpass.requeryTransaction(requestId);
 
     await this.logger.log(
       'RESPONSE',
@@ -446,7 +453,7 @@ export class DataService {
         endpoint: '/api/requery',
         duration: Date.now() - start
       },
-      { requestId: purchase.requestId },
+      { requestId },
       vtpassResponse
     );
 

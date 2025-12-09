@@ -1,26 +1,26 @@
 import { Router } from 'express';
-import { DataController } from '../controllers/data.controller';
+import { TVSubscriptionController } from '../controllers/tv-subscription.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { requireEmailVerification } from '../middleware/verification.middleware';
 import { requirePinVerification } from '../middleware/pin.middleware';
 import { extractDeviceInfo } from '../middleware/device.middleware';
 
 const router = Router();
-const controller = new DataController();
+const controller = new TVSubscriptionController();
 
 /**
  * @swagger
  * tags:
- *   name: Data
- *   description: Data subscription purchase services
+ *   name: TV Subscription
+ *   description: TV subscription purchase and renewal services
  */
 
 /**
  * @swagger
- * /api/data/variations:
+ * /api/tv-subscription/variations:
  *   get:
- *     summary: Get available data subscription plans
- *     tags: [Data]
+ *     summary: Get available TV subscription packages
+ *     tags: [TV Subscription]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -29,11 +29,11 @@ const controller = new DataController();
  *         required: true
  *         schema:
  *           type: string
- *           enum: [mtn-data, glo-data, airtel-data, 9mobile-data]
- *         description: Network provider service ID
+ *           enum: [dstv, gotv, startimes, showmax]
+ *         description: TV service provider ID
  *     responses:
  *       200:
- *         description: List of available data plans
+ *         description: List of available subscription packages
  *       400:
  *         description: Invalid serviceID
  *       401:
@@ -41,17 +41,17 @@ const controller = new DataController();
  */
 router.get(
   '/variations',
-  authMiddleware as any,
+  authMiddleware,
   requireEmailVerification,
-  controller.getVariations as any
+  controller.getVariations
 );
 
 /**
  * @swagger
- * /api/data/purchase:
+ * /api/tv-subscription/verify:
  *   post:
- *     summary: Purchase data bundle
- *     tags: [Data]
+ *     summary: Verify smartcard number
+ *     tags: [TV Subscription]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -59,10 +59,40 @@ router.get(
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/DataPurchaseRequest'
+ *             $ref: '#/components/schemas/TVVerifySmartcardRequest'
  *     responses:
  *       200:
- *         description: Data purchase processed successfully
+ *         description: Smartcard verification result
+ *       400:
+ *         description: Validation error or invalid smartcard
+ *       401:
+ *         description: Unauthorized
+ */
+router.post(
+  '/verify',
+  authMiddleware,
+  requireEmailVerification,
+  extractDeviceInfo,
+  controller.verifySmartcard
+);
+
+/**
+ * @swagger
+ * /api/tv-subscription/purchase:
+ *   post:
+ *     summary: Purchase or renew TV subscription
+ *     tags: [TV Subscription]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TVPurchaseRequest'
+ *     responses:
+ *       200:
+ *         description: TV subscription processed successfully
  *       400:
  *         description: Validation error or insufficient balance
  *       401:
@@ -70,19 +100,19 @@ router.get(
  */
 router.post(
   '/purchase',
-  authMiddleware as any,
+  authMiddleware,
   requireEmailVerification,
   requirePinVerification,
   extractDeviceInfo,
-  controller.purchase as any
+  controller.purchase
 );
 
 /**
  * @swagger
- * /api/data/history:
+ * /api/tv-subscription/history:
  *   get:
- *     summary: Get data purchase history
- *     tags: [Data]
+ *     summary: Get TV subscription purchase history
+ *     tags: [TV Subscription]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -100,23 +130,23 @@ router.post(
  *         description: Items per page
  *     responses:
  *       200:
- *         description: Data purchase history
+ *         description: TV subscription purchase history
  *       401:
  *         description: Unauthorized
  */
 router.get(
   '/history',
-  authMiddleware as any,
+  authMiddleware,
   requireEmailVerification,
-  controller.history as any
+  controller.history
 );
 
 /**
  * @swagger
- * /api/data/requery:
+ * /api/tv-subscription/requery:
  *   post:
- *     summary: Requery data transaction status from VTpass
- *     tags: [Data]
+ *     summary: Requery TV subscription transaction status from VTpass
+ *     tags: [TV Subscription]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -124,7 +154,7 @@ router.get(
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/DataRequeryRequest'
+ *             $ref: '#/components/schemas/TVRequeryRequest'
  *     responses:
  *       200:
  *         description: Requery result
@@ -135,9 +165,9 @@ router.get(
  */
 router.post(
   '/requery',
-  authMiddleware as any,
+  authMiddleware,
   requireEmailVerification,
-  controller.requery as any
+  controller.requery
 );
 
 export default router;

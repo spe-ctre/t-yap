@@ -16,7 +16,6 @@ model User {
   email           String   @unique
   phoneNumber     String   @unique
   password        String
-  walletBalance   Float    @default(0)
   isEmailVerified Boolean  @default(false)
   isPhoneVerified Boolean  @default(false)
   role            UserRole @default(PASSENGER)
@@ -36,9 +35,15 @@ model User {
   userSettings      UserSettings?
   trips             Trip[] // As passenger
   vasPurchases      VASPurchase[]
-  balanceHistory    BalanceHistory[]  // ← ADD THIS LINE
+  balanceHistory    BalanceHistory[] // ← ADD THIS LINE
   sentTransfers     Transfer[]         @relation("SentTransfers")
   receivedTransfers Transfer[]         @relation("ReceivedTransfers")
+  sessions          UserSession[]
+  idempotencyKeys   IdempotencyKey[]
+  transactionLogs   TransactionLog[]
+  securityQuestion  SecurityQuestion?
+  deviceTokens      DeviceToken[]
+  supportTickets    SupportTicket[]
 
   @@map("users")
 }
@@ -185,19 +190,19 @@ model Transaction {
 }
 
 model Transfer {
-  id            String         @id @default(cuid())
+  id String @id @default(cuid())
 
   // Sender & Recipient
-  senderId    String
-  sender      User           @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId String
+  sender   User   @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
 
   recipientId String
-  recipient   User           @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipient   User   @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: Cascade)
 
   // Transfer Details
-  amount      Decimal        @db.Decimal(10, 2)
+  amount      Decimal @db.Decimal(10, 2)
   description String?
-  reference   String         @unique @default(cuid())
+  reference   String  @unique @default(cuid())
 
   // Status & Tracking
   status TransferStatus @default(PENDING)
@@ -211,15 +216,15 @@ model Transfer {
   scheduledFor DateTime? // When to execute the transfer
 
   // Recurring transfer fields
-  isRecurring         Boolean             @default(false)
-  recurringFrequency  RecurringFrequency?
-  nextExecutionDate   DateTime?
-  lastExecutionDate   DateTime?
-  recurringEndDate    DateTime? // Optional end date for recurring transfers
-  executionCount      Int                 @default(0) // How many times it has executed
-  maxExecutions       Int? // Optional maximum number of executions
-  parentTransferId    String? // If this is a recurring execution, link to the parent
-  recurringPinHash    String? // Store encrypted PIN for recurring transfers
+  isRecurring        Boolean             @default(false)
+  recurringFrequency RecurringFrequency?
+  nextExecutionDate  DateTime?
+  lastExecutionDate  DateTime?
+  recurringEndDate   DateTime? // Optional end date for recurring transfers
+  executionCount     Int                 @default(0) // How many times it has executed
+  maxExecutions      Int? // Optional maximum number of executions
+  parentTransferId   String? // If this is a recurring execution, link to the parent
+  recurringPinHash   String? // Store encrypted PIN for recurring transfers
 
   // Timestamps
   createdAt   DateTime  @default(now())
@@ -495,6 +500,179 @@ model UserSettings {
   @@map("user_settings")
 }
 
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  deviceId     String? // Unique device identifier
+  deviceName   String? // e.g., "iPhone 13", "Samsung Galaxy"
+  deviceType   String? // MOBILE, TABLET, WEB
+  ipAddress    String?
+  userAgent    String?
+  isActive     Boolean  @default(true)
+  lastActivity DateTime @default(now())
+  expiresAt    DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([deviceId])
+  @@map("user_sessions")
+}
+
+// ============================================
+// IDEMPOTENCY & LOGGING MODELS
+// ============================================
+
+model IdempotencyKey {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  userId      String
+  requestHash String
+  response    Json?
+  status      String // PENDING, COMPLETED, FAILED
+  expiresAt   DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([key])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+model TransactionLog {
+  id            String  @id @default(cuid())
+  transactionId String?
+  vasPurchaseId String?
+  userId        String
+  logType       String // REQUEST, RESPONSE, ERROR, WEBHOOK, REQUERY
+  level         String // INFO, WARN, ERROR, DEBUG
+  message       String
+  requestData   Json?
+  responseData  Json?
+  provider      String?
+  endpoint      String?
+  statusCode    Int?
+  duration      Int?
+  ipAddress     String?
+  userAgent     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([transactionId])
+  @@index([vasPurchaseId])
+  @@index([logType])
+  @@index([createdAt])
+  @@map("transaction_logs")
+}
+
+// ============================================
+// SECURITY & SUPPORT MODELS
+// ============================================
+
+model SecurityQuestion {
+  id        String @id @default(cuid())
+  userId    String @unique
+  question1 String
+  answer1   String
+  question2 String
+  answer2   String
+  question3 String
+  answer3   String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("security_questions")
+}
+
+model DeviceToken {
+  id       String  @id @default(cuid())
+  userId   String
+  token    String  @unique
+  platform String // iOS, Android, Web
+  isActive Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@map("device_tokens")
+}
+
+model SupportTicket {
+  id          String              @id @default(cuid())
+  userId      String
+  subject     String
+  message     String
+  category    SupportCategory
+  status      SupportTicketStatus @default(OPEN)
+  priority    TicketPriority      @default(NORMAL)
+  attachments Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@map("support_tickets")
+}
+
+model FAQ {
+  id          String   @id @default(cuid())
+  question    String
+  answer      String
+  category    String
+  tags        String[]
+  order       Int      @default(0)
+  isPublished Boolean  @default(true)
+  viewCount   Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublished])
+  @@map("faqs")
+}
+
+model HelpContent {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  category    String
+  slug        String   @unique
+  tags        String[]
+  order       Int      @default(0)
+  isPublished Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([slug])
+  @@index([isPublished])
+  @@map("help_content")
+}
+
 // ============================================
 // ENUMS
 // ============================================
@@ -510,6 +688,7 @@ enum VerificationType {
   EMAIL_VERIFICATION
   PHONE_VERIFICATION
   PASSWORD_RESET
+  PIN_RESET
 }
 
 enum TransactionType {
@@ -585,6 +764,28 @@ enum NotificationType {
   PROMOTIONAL
 }
 
+enum SupportCategory {
+  ACCOUNT
+  PAYMENT
+  TECHNICAL
+  FEEDBACK
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 enum TransferStatus {
   PENDING
   PROCESSING
@@ -602,14 +803,14 @@ enum RecurringFrequency {
 }
 
 model BalanceHistory {
-  id            String   @id @default(cuid())
-  userId        String
-  userType      UserType
-  balance       Decimal  @db.Decimal(10, 2)
-  snapshotDate  DateTime @default(now())
-  reconciled    Boolean  @default(false)
-  discrepancy   Decimal? @db.Decimal(10, 2) // Difference if reconciliation failed
-  metadata      Json?    // Additional reconciliation info
+  id           String   @id @default(cuid())
+  userId       String
+  userType     UserType
+  balance      Decimal  @db.Decimal(10, 2)
+  snapshotDate DateTime @default(now())
+  reconciled   Boolean  @default(false)
+  discrepancy  Decimal? @db.Decimal(10, 2) // Difference if reconciliation failed
+  metadata     Json? // Additional reconciliation info
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

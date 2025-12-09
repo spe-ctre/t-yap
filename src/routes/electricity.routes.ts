@@ -39,10 +39,10 @@ const controller = new ElectricityController();
  */
 router.post(
   '/validate-meter',
-  authMiddleware,
+  authMiddleware as any,
   requireEmailVerification,
   extractDeviceInfo,
-  controller.validateMeter
+  controller.validateMeter as any
 );
 
 /**
@@ -69,11 +69,11 @@ router.post(
  */
 router.post(
   '/purchase',
-  authMiddleware,
+  authMiddleware as any,
   requireEmailVerification,
   requirePinVerification,
   extractDeviceInfo,
-  controller.purchase
+  controller.purchase as any
 );
 
 /**
@@ -105,9 +105,9 @@ router.post(
  */
 router.get(
   '/history',
-  authMiddleware,
+  authMiddleware as any,
   requireEmailVerification,
-  controller.history
+  controller.history as any
 );
 
 /**
@@ -135,9 +135,9 @@ router.get(
  */
 router.post(
   '/requery/:id',
-  authMiddleware,
+  authMiddleware as any,
   requireEmailVerification,
-  controller.requery
+  controller.requery as any
 );
 
 export default router;

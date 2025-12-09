@@ -201,3 +201,36 @@ export const dataHistorySchema = Joi.object({
 export const dataRequerySchema = Joi.object({
   purchaseId: Joi.string().required()
 });
+
+// TV subscription schemas
+const tvServiceIds = ['dstv', 'gotv', 'startimes', 'showmax'] as const;
+
+export const tvGetVariationsSchema = Joi.object({
+  serviceID: Joi.string().valid(...tvServiceIds).required()
+});
+
+export const tvVerifySmartcardSchema = Joi.object({
+  serviceID: Joi.string().valid(...tvServiceIds).required(),
+  smartCardNumber: Joi.string().min(8).max(20).required()
+});
+
+export const tvPurchaseSchema = Joi.object({
+  serviceID: Joi.string().valid(...tvServiceIds).required(),
+  smartCardNumber: Joi.string().min(8).max(20).required(),
+  subscription_type: Joi.string().valid('new', 'renew').required(),
+  variation_code: Joi.string().min(1).required(),
+  phone: Joi.string().pattern(/^(0|\+234)[0-9]{10,13}$/).required()
+    .messages({
+      'string.pattern.base': 'Phone number must be in format 08011111111 or +2348011111111'
+    }),
+  pin: Joi.string().length(4).pattern(/^\d+$/).required()
+});
+
+export const tvHistorySchema = Joi.object({
+  page: Joi.number().integer().min(1).optional(),
+  limit: Joi.number().integer().min(1).max(100).optional()
+});
+
+export const tvRequerySchema = Joi.object({
+  purchaseId: Joi.string().required()
+});

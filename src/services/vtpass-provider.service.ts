@@ -455,6 +455,171 @@ export class VTpassProviderService {
   }
 
   /**
+   * Verify TV subscription smartcard number using VTpass merchant-verify endpoint
+   * See: https://www.vtpass.com/documentation/dstv-subscription-api/
+   */
+  async verifySmartcard(params: {
+    serviceID: string; // 'dstv', 'gotv', 'startimes', 'showmax'
+    billersCode: string; // smartcard number
+  }) {
+    try {
+      const response = await this.client.post(
+        '/api/merchant-verify',
+        {
+          serviceID: params.serviceID,
+          billersCode: params.billersCode
+        },
+        { headers: this.getPostHeaders() }
+      );
+
+      if (response.data?.code !== '000') {
+        throw createError(response.data?.response_description || 'Smartcard verification failed', 400);
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error('VTpass verifySmartcard error:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+
+      if (error.response) {
+        const upstreamStatus = error.response.status;
+        const upstreamData = error.response.data;
+        const description =
+          typeof upstreamData === 'string'
+            ? upstreamData
+            : upstreamData?.response_description || 'VTpass smartcard verification failed';
+
+        throw createError(
+          `VTpass error (${upstreamStatus}): ${description}`,
+          502
+        );
+      }
+      throw createError('Unable to reach VTpass for smartcard verification', 502);
+    }
+  }
+
+  /**
+   * Purchase or renew TV subscription via VTpass
+   * See: https://www.vtpass.com/documentation/dstv-subscription-api/
+   */
+  async purchaseTVSubscription(payload: {
+    request_id: string;
+    serviceID: string; // 'dstv', 'gotv', 'startimes', 'showmax'
+    billersCode: string; // smartcard number
+    subscription_type: 'change' | 'renew'; // 'change' for new, 'renew' for renewal
+    variation_code?: string; // Required for 'change' (new subscription)
+    amount?: number; // Required for 'renew' (renewal)
+    phone: string;
+    quantity?: number; // Optional, number of months
+  }) {
+    try {
+      const response = await this.client.post(
+        '/api/pay',
+        payload,
+        { headers: this.getPostHeaders() }
+      );
+
+      // VTpass uses code "000" for success
+      const code = response.data?.code;
+      if (code !== '000') {
+        // Log full VTpass response for debugging
+        console.error('VTpass TV subscription purchase failed - Full response:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: response.data,
+          requestPayload: payload
+        });
+        
+        const errorMessage = response.data?.response_description || 
+                            response.data?.message || 
+                            `TV subscription purchase failed with code: ${code}`;
+        
+        // Create error and attach VTpass response data
+        const error = createError(errorMessage, 400);
+        (error as any).vtpassResponse = response.data;
+        (error as any).vtpassCode = code;
+        (error as any).isVTpassError = true;
+        throw error;
+      }
+
+      return response.data;
+    } catch (error: any) {
+      // If this is a VTpass transaction failure (code !== '000'), re-throw as-is
+      if (error.isVTpassError) {
+        throw error;
+      }
+
+      // Handle timeout specifically
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        console.error('VTpass TV subscription purchase timeout:', {
+          url: `${this.config.baseUrl}/api/pay`,
+          payload,
+          timeout: '30s'
+        });
+        throw createError(
+          'VTpass request timed out. Please try again or check your network connection.',
+          504
+        );
+      }
+
+      // Handle HTTP errors from axios (4xx, 5xx responses)
+      if (error.response) {
+        const upstreamStatus = error.response.status;
+        const upstreamData = error.response.data;
+        
+        // Log full error response for debugging
+        console.error('VTpass TV subscription purchase HTTP error - Full response:', {
+          status: upstreamStatus,
+          statusText: error.response.statusText,
+          headers: error.response.headers,
+          data: upstreamData,
+          requestPayload: payload
+        });
+        
+        const description =
+          typeof upstreamData === 'string'
+            ? upstreamData
+            : upstreamData?.response_description || 
+              upstreamData?.message ||
+              'VTpass TV subscription purchase failed';
+
+        throw createError(
+          `VTpass error (${upstreamStatus}): ${description}`,
+          502
+        );
+      }
+
+      // Network errors (connection refused, DNS errors, etc.)
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+        console.error('VTpass network error:', {
+          code: error.code,
+          message: error.message,
+          url: `${this.config.baseUrl}/api/pay`
+        });
+        throw createError(
+          'Unable to connect to VTpass. Please check your network connection and try again.',
+          502
+        );
+      }
+
+      // Log full error details for debugging (unexpected errors)
+      console.error('VTpass TV subscription purchase unexpected error - Full details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+        url: `${this.config.baseUrl}/api/pay`,
+        requestPayload: payload,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      throw createError('Unable to reach VTpass for TV subscription purchase', 502);
+    }
+  }
+
+  /**
    * Requery transaction status using VTpass /api/requery
    */
   async requeryTransaction(requestId: string) {

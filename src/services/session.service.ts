@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
 import { createError } from '../middleware/error.middleware';
+import { UserRole } from '../middleware/auth.middleware';
 
 export class SessionService {
   /**
@@ -12,8 +13,8 @@ export class SessionService {
     deviceType?: string;
     ipAddress?: string;
     userAgent?: string;
-  }) {
-    const token = this.generateToken(userId);
+  }, role?: UserRole) {
+    const token = this.generateToken(userId, role);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     const session = await prisma.userSession.create({
@@ -184,12 +185,12 @@ export class SessionService {
     return { count: result.count };
   }
 
-  private generateToken(userId: string): string {
+  private generateToken(userId: string, role?: UserRole): string {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       throw new Error('JWT_SECRET is not defined');
     }
-    return jwt.sign({ userId }, secret, { expiresIn: '7d' });
+    return jwt.sign({ userId, role }, secret, { expiresIn: '7d' });
   }
 }
 
