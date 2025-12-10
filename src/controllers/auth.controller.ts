@@ -97,7 +97,7 @@ export class AuthController {
    * POST /api/auth/create-pin
    * Requires authentication
    */
-  createPin = async (req: Request, res: Response, next: NextFunction) => {
+  createPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = createPinSchema.validate(req.body);
       if (error) {
@@ -112,7 +112,7 @@ export class AuthController {
     }
   };
 
-  changePassword = async (req: Request, res: Response, next: NextFunction) => {
+  changePassword = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = changePasswordSchema.validate(req.body);
       if (error) {
@@ -131,7 +131,7 @@ export class AuthController {
     }
   };
 
-  updatePin = async (req: Request, res: Response, next: NextFunction) => {
+  updatePin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = updatePinSchema.validate(req.body);
       if (error) {
@@ -150,7 +150,7 @@ export class AuthController {
     }
   };
 
-  verifyPin = async (req: Request, res: Response, next: NextFunction) => {
+  verifyPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = verifyPinSchema.validate(req.body);
       if (error) {
@@ -165,7 +165,7 @@ export class AuthController {
     }
   };
 
-  requestPinReset = async (req: Request, res: Response, next: NextFunction) => {
+  requestPinReset = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const result = await this.authService.requestPinReset(req.user.id);
       res.json({ success: true, statusCode: 200, data: result });
@@ -174,7 +174,7 @@ export class AuthController {
     }
   };
 
-  resetPin = async (req: Request, res: Response, next: NextFunction) => {
+  resetPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = resetPinSchema.validate(req.body);
       if (error) {
