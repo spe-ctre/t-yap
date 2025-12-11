@@ -19,7 +19,7 @@ export interface AuthenticatedRequest extends Request {
 
 // Middleware to authenticate JWT token
 export const authMiddleware = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -27,18 +27,18 @@ export const authMiddleware = async (
     // Check for Authorization header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Authorization header missing or malformed' 
+        message: 'Authorization header missing or malformed'
       });
     }
 
     // Extract token
     const token = authHeader.split(' ')[1];
     if (!token) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Token missing' 
+        message: 'Token missing'
       });
     }
 
@@ -46,9 +46,9 @@ export const authMiddleware = async (
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       console.error('JWT_SECRET not configured!');
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
-        message: 'Server configuration error' 
+        message: 'Server configuration error'
       });
     }
 
@@ -62,14 +62,14 @@ export const authMiddleware = async (
     });
 
     if (!userExists) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'User not found' 
+        message: 'User not found'
       });
     }
 
-    // Attach user info to request
-    req.user = {
+    // Attach user info to request (cast to AuthenticatedRequest)
+    (req as AuthenticatedRequest).user = {
       id: decoded.userId,
       role: decoded.role as UserRole,
       isEmailVerified: userExists.isEmailVerified,
@@ -80,23 +80,23 @@ export const authMiddleware = async (
   } catch (error: any) {
     // Handle specific JWT errors
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Token expired. Please login again.' 
+        message: 'Token expired. Please login again.'
       });
     }
 
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Invalid token' 
+        message: 'Invalid token'
       });
     }
 
     console.error('Auth middleware error:', error.message);
-    return res.status(401).json({ 
+    return res.status(401).json({
       success: false,
-      message: 'Authentication failed' 
+      message: 'Authentication failed'
     });
   }
 };
