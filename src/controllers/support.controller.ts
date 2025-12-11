@@ -3,6 +3,7 @@ import { FAQService } from '../services/faq.service';
 import { SupportTicketService } from '../services/support-ticket.service';
 import { HelpContentService } from '../services/help-content.service';
 import { createError } from '../middleware/error.middleware';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
 export class SupportController {
   private faqService: FAQService;
@@ -67,7 +68,7 @@ export class SupportController {
   };
 
   // Support ticket endpoints
-  createTicket = async (req: Request, res: Response, next: NextFunction) => {
+  createTicket = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { subject, message, category, priority, attachments } = req.body;
 
@@ -94,7 +95,7 @@ export class SupportController {
     }
   };
 
-  getUserTickets = async (req: Request, res: Response, next: NextFunction) => {
+  getUserTickets = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { status } = req.query;
       const tickets = await this.ticketService.getUserTickets(
@@ -107,7 +108,7 @@ export class SupportController {
     }
   };
 
-  getTicketById = async (req: Request, res: Response, next: NextFunction) => {
+  getTicketById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const ticket = await this.ticketService.getTicketById(
         req.user.id,
@@ -119,7 +120,7 @@ export class SupportController {
     }
   };
 
-  getTicketStats = async (req: Request, res: Response, next: NextFunction) => {
+  getTicketStats = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const stats = await this.ticketService.getUserTicketStats(req.user.id);
       res.json({ success: true, data: stats });

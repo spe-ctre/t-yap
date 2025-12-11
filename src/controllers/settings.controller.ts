@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { SettingsService } from '../services/settings.service';
 import { createError } from '../middleware/error.middleware';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
 export class SettingsController {
   private settingsService: SettingsService;
@@ -12,7 +13,7 @@ export class SettingsController {
   // GET /api/settings
   getSettings = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const settings = await this.settingsService.getUserSettings(req.user.id);
+      const settings = await this.settingsService.getUserSettings((req as AuthenticatedRequest).user.id);
       res.json({ success: true, data: settings });
     } catch (error) {
       next(error);
@@ -34,12 +35,12 @@ export class SettingsController {
       }
 
       const settings = await this.settingsService.updateNotificationSettings(
-        req.user.id,
+        (req as AuthenticatedRequest).user.id,
         { pushNotification, emailNotification, smsNotification }
       );
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         data: settings,
         message: 'Notification preferences updated successfully'
       });
@@ -68,12 +69,12 @@ export class SettingsController {
       }
 
       const settings = await this.settingsService.updateGeneralSettings(
-        req.user.id,
+        (req as AuthenticatedRequest).user.id,
         { language, darkMode, biometricLogin }
       );
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         data: settings,
         message: 'Settings updated successfully'
       });
