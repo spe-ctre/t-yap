@@ -234,3 +234,126 @@ export const tvHistorySchema = Joi.object({
 export const tvRequerySchema = Joi.object({
   purchaseId: Joi.string().required()
 });
+
+// T-Ride validation schemas
+export const nearbyParksQuerySchema = Joi.object({
+  latitude: Joi.number().min(-90).max(90).required()
+    .messages({
+      'number.base': 'Latitude must be a valid number',
+      'number.min': 'Latitude must be between -90 and 90',
+      'number.max': 'Latitude must be between -90 and 90',
+      'any.required': 'Latitude is required'
+    }),
+  longitude: Joi.number().min(-180).max(180).required()
+    .messages({
+      'number.base': 'Longitude must be a valid number',
+      'number.min': 'Longitude must be between -180 and 180',
+      'number.max': 'Longitude must be between -180 and 180',
+      'any.required': 'Longitude is required'
+    }),
+  radius: Joi.number().positive().max(100).optional()
+    .messages({
+      'number.base': 'Radius must be a valid number',
+      'number.positive': 'Radius must be a positive number',
+      'number.max': 'Radius cannot exceed 100 kilometers'
+    })
+});
+
+export const parkIdParamSchema = Joi.object({
+  parkId: Joi.string().required()
+    .messages({
+      'string.empty': 'Park ID is required',
+      'any.required': 'Park ID is required'
+    })
+});
+
+export const vehicleIdParamSchema = Joi.object({
+  vehicleId: Joi.string().required()
+    .messages({
+      'string.empty': 'Vehicle ID is required',
+      'any.required': 'Vehicle ID is required'
+    })
+});
+
+// Trip validation schemas
+export const createTripSchema = Joi.object({
+  routeId: Joi.string().required()
+    .messages({
+      'string.empty': 'Route ID is required',
+      'any.required': 'Route ID is required'
+    }),
+  driverId: Joi.string().required()
+    .messages({
+      'string.empty': 'Driver ID is required',
+      'any.required': 'Driver ID is required'
+    }),
+  vehicleId: Joi.string().required()
+    .messages({
+      'string.empty': 'Vehicle ID is required',
+      'any.required': 'Vehicle ID is required'
+    }),
+  fare: Joi.number().positive().required()
+    .messages({
+      'number.base': 'Fare must be a valid number',
+      'number.positive': 'Fare must be a positive number',
+      'any.required': 'Fare is required'
+    }),
+  isLongDistance: Joi.boolean().optional(),
+  originLatitude: Joi.number().min(-90).max(90).optional()
+    .messages({
+      'number.base': 'Origin latitude must be a valid number',
+      'number.min': 'Origin latitude must be between -90 and 90',
+      'number.max': 'Origin latitude must be between -90 and 90'
+    }),
+  originLongitude: Joi.number().min(-180).max(180).optional()
+    .messages({
+      'number.base': 'Origin longitude must be a valid number',
+      'number.min': 'Origin longitude must be between -180 and 180',
+      'number.max': 'Origin longitude must be between -180 and 180'
+    }),
+  destLatitude: Joi.number().min(-90).max(90).optional()
+    .messages({
+      'number.base': 'Destination latitude must be a valid number',
+      'number.min': 'Destination latitude must be between -90 and 90',
+      'number.max': 'Destination latitude must be between -90 and 90'
+    }),
+  destLongitude: Joi.number().min(-180).max(180).optional()
+    .messages({
+      'number.base': 'Destination longitude must be a valid number',
+      'number.min': 'Destination longitude must be between -180 and 180',
+      'number.max': 'Destination longitude must be between -180 and 180'
+    })
+});
+
+export const tripIdParamSchema = Joi.object({
+  tripId: Joi.string().required()
+    .messages({
+      'string.empty': 'Trip ID is required',
+      'any.required': 'Trip ID is required'
+    })
+});
+
+export const updateTripStatusSchema = Joi.object({
+  status: Joi.string().valid('PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED').required()
+    .messages({
+      'any.only': 'Status must be one of: PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED',
+      'any.required': 'Status is required'
+    })
+});
+
+export const tripQuerySchema = Joi.object({
+  status: Joi.string().valid('PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED').optional(),
+  limit: Joi.number().integer().min(1).max(100).optional()
+    .messages({
+      'number.base': 'Limit must be a valid number',
+      'number.integer': 'Limit must be an integer',
+      'number.min': 'Limit must be at least 1',
+      'number.max': 'Limit cannot exceed 100'
+    }),
+  offset: Joi.number().integer().min(0).optional()
+    .messages({
+      'number.base': 'Offset must be a valid number',
+      'number.integer': 'Offset must be an integer',
+      'number.min': 'Offset must be 0 or greater'
+    })
+});
