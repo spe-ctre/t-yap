@@ -30,6 +30,8 @@ import biometricRoutes from './routes/biometric.routes';
 import deviceTokenRoutes from './routes/device-token.routes';
 import securityRoutes from './routes/security.routes';
 import settingsRoutes from './routes/settings.routes';
+import tRideRoutes from './routes/t-ride.routes';
+import tripRoutes from './routes/trip.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 import { setupCronJobs } from './jobs/cron-jobs';
@@ -83,6 +85,8 @@ app.use('/api/biometric', biometricRoutes);
 app.use('/api/device-tokens', deviceTokenRoutes);
 app.use('/api/security', securityRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/t-ride', tRideRoutes);
+app.use('/api/trips', tripRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
