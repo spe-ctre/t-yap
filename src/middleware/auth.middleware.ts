@@ -9,7 +9,7 @@ export type UserRole = 'PASSENGER' | 'DRIVER' | 'AGENT' | 'PARK_MANAGER';
 
 // Extend Express Request to include authenticated user
 export interface AuthenticatedRequest extends Request {
-  user: {
+  user?: {
     id: string;
     role: UserRole;
     isEmailVerified?: boolean;
