@@ -24,7 +24,7 @@ export class DeviceTokenController {
       }
 
       const deviceToken = await this.pushNotificationService.registerDeviceToken(
-        (req as AuthenticatedRequest).user.id,
+        (req as AuthenticatedRequest).user!.id,
         token,
         platform
       );
@@ -62,7 +62,7 @@ export class DeviceTokenController {
   // GET /api/device-tokens
   getTokens = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tokens = await this.pushNotificationService.getUserTokens((req as AuthenticatedRequest).user.id);
+      const tokens = await this.pushNotificationService.getUserTokens((req as AuthenticatedRequest).user!.id);
 
       res.json({
         success: true,

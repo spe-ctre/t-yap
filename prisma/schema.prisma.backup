@@ -16,7 +16,6 @@ model User {
   email           String   @unique
   phoneNumber     String   @unique
   password        String
-  walletBalance   Float    @default(0)
   isEmailVerified Boolean  @default(false)
   isPhoneVerified Boolean  @default(false)
   role            UserRole @default(PASSENGER)
@@ -34,9 +33,9 @@ model User {
   beneficiaries     Beneficiary[]
   notifications     Notification[]
   userSettings      UserSettings?
-  trips             Trip[]
+  trips             Trip[] // As passenger
   vasPurchases      VASPurchase[]
-  balanceHistory    BalanceHistory[]
+  balanceHistory    BalanceHistory[] // ← ADD THIS LINE
   sentTransfers     Transfer[]         @relation("SentTransfers")
   receivedTransfers Transfer[]         @relation("ReceivedTransfers")
   sessions          UserSession[]
@@ -61,7 +60,7 @@ model Passenger {
   userId         String  @unique
   firstName      String?
   lastName       String?
-  biometricData  String?
+  biometricData  String? // Encrypted biometric template
   transactionPin String?
   walletBalance  Decimal @default(0) @db.Decimal(10, 2)
   profilePicture String?
@@ -167,11 +166,12 @@ model Transaction {
   balanceAfter  Decimal             @db.Decimal(10, 2)
   status        TransactionStatus   @default(PENDING)
   description   String?
-  reference     String              @unique
-  metadata      Json?
-  tripId        String?             @unique
-  vasPurchaseId String?             @unique
+  reference     String              @unique // External payment reference
+  metadata      Json? // Additional data (service provider, phone number, etc.)
+  tripId        String?             @unique // If transaction is for a trip
+  vasPurchaseId String?             @unique // If transaction is for VAS
 
+  // Relations
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   trip        Trip?        @relation(fields: [tripId], references: [id])
   vasPurchase VASPurchase? @relation(fields: [vasPurchaseId], references: [id])
@@ -192,34 +192,41 @@ model Transaction {
 model Transfer {
   id String @id @default(cuid())
 
+  // Sender & Recipient
   senderId String
   sender   User   @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
 
   recipientId String
   recipient   User   @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: Cascade)
 
+  // Transfer Details
   amount      Decimal @db.Decimal(10, 2)
   description String?
   reference   String  @unique @default(cuid())
 
+  // Status & Tracking
   status TransferStatus @default(PENDING)
 
+  // Link to transactions (for accounting)
   debitTransactionId  String? @unique
   creditTransactionId String? @unique
 
+  // Scheduling fields
   isScheduled  Boolean   @default(false)
-  scheduledFor DateTime?
+  scheduledFor DateTime? // When to execute the transfer
 
+  // Recurring transfer fields
   isRecurring        Boolean             @default(false)
   recurringFrequency RecurringFrequency?
   nextExecutionDate  DateTime?
   lastExecutionDate  DateTime?
-  recurringEndDate   DateTime?
-  executionCount     Int                 @default(0)
-  maxExecutions      Int?
-  parentTransferId   String?
-  recurringPinHash   String?
+  recurringEndDate   DateTime? // Optional end date for recurring transfers
+  executionCount     Int                 @default(0) // How many times it has executed
+  maxExecutions      Int? // Optional maximum number of executions
+  parentTransferId   String? // If this is a recurring execution, link to the parent
+  recurringPinHash   String? // Store encrypted PIN for recurring transfers
 
+  // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   completedAt DateTime?
@@ -259,12 +266,12 @@ model BankAccount {
 model BankCard {
   id             String  @id @default(cuid())
   userId         String
-  cardNumber     String
+  cardNumber     String // Last 4 digits only (encrypted)
   cardHolderName String
   expiryMonth    Int
   expiryYear     Int
-  cvv            String?
-  cardType       String?
+  cvv            String? // Encrypted, should not be stored long-term
+  cardType       String? // Visa, Mastercard, etc.
   isDefault      Boolean @default(false)
   isActive       Boolean @default(true)
 
@@ -292,26 +299,6 @@ model Beneficiary {
   @@index([userId])
   @@index([phoneNumber])
   @@map("beneficiaries")
-}
-
-model BalanceHistory {
-  id           String   @id @default(cuid())
-  userId       String
-  userType     UserType
-  balance      Decimal  @db.Decimal(10, 2)
-  snapshotDate DateTime @default(now())
-  reconciled   Boolean  @default(false)
-  discrepancy  Decimal? @db.Decimal(10, 2)
-  metadata     Json?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([snapshotDate])
-  @@index([reconciled])
-  @@map("balance_history")
 }
 
 // ============================================
@@ -345,13 +332,13 @@ model Park {
 
 model Route {
   id                String   @id @default(cuid())
-  name              String
+  name              String // e.g., "Lagos to Ibadan"
   origin            String
   destination       String
   originParkId      String?
   destinationParkId String?
-  distance          Decimal? @db.Decimal(10, 2)
-  estimatedTime     Int?
+  distance          Decimal? @db.Decimal(10, 2) // in kilometers
+  estimatedTime     Int? // in minutes
   baseFare          Decimal  @db.Decimal(10, 2)
   isActive          Boolean  @default(true)
 
@@ -368,19 +355,19 @@ model Route {
 }
 
 model Vehicle {
-  id                     String      @id @default(cuid())
-  driverId               String      @unique
-  plateNumber            String      @unique
-  make                   String
-  model                  String
-  year                   Int?
-  color                  String?
-  capacity               Int
-  vehicleType            VehicleType
-  isVerified             Boolean     @default(false)
-  isActive               Boolean     @default(true)
-  currentParkId          String?
-  isAvailableForBoarding Boolean     @default(false)
+  id                    String      @id @default(cuid())
+  driverId              String      @unique
+  plateNumber           String      @unique
+  make                  String // e.g., "Toyota"
+  model                 String // e.g., "Hiace"
+  year                  Int?
+  color                 String?
+  capacity              Int // Number of seats
+  vehicleType           VehicleType
+  isVerified            Boolean     @default(false)
+  isActive              Boolean     @default(true)
+  currentParkId         String? // Current park location
+  isAvailableForBoarding Boolean     @default(false) // Available for passenger onboarding
 
   driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
   park   Park?  @relation(fields: [currentParkId], references: [id])
@@ -404,7 +391,7 @@ model Trip {
   passengerId     String
   fare            Decimal    @db.Decimal(10, 2)
   status          TripStatus @default(PENDING)
-  isLongDistance  Boolean    @default(false)
+  isLongDistance  Boolean    @default(false) // Flag for long-distance trips requiring manifest
   departureTime   DateTime?
   arrivalTime     DateTime?
   originLatitude  Decimal?   @db.Decimal(10, 8)
@@ -438,7 +425,7 @@ model ServiceProvider {
   id       String      @id @default(cuid())
   name     String
   category VASCategory
-  code     String      @unique
+  code     String      @unique // Provider code (e.g., "MTN", "IKEDC")
   logo     String?
   isActive Boolean     @default(true)
 
@@ -458,16 +445,13 @@ model VASPurchase {
   serviceProviderId String
   category          VASCategory
   amount            Decimal           @db.Decimal(10, 2)
-  phoneNumber       String?
-  meterNumber       String?
-  smartCardNumber   String?
-  packageName       String?
+  phoneNumber       String? // For airtime/data
+  meterNumber       String? // For electricity
+  smartCardNumber   String? // For cable TV
+  packageName       String? // Selected package/plan
   status            VASPurchaseStatus @default(PENDING)
-  providerReference String?
-  metadata          Json?
-  idempotencyKey    String?
-  requestId         String?
-  lastRequeryAt     DateTime?
+  providerReference String? // Provider's transaction reference
+  metadata          Json? // Additional provider-specific data
 
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceProvider ServiceProvider @relation(fields: [serviceProviderId], references: [id])
@@ -494,7 +478,7 @@ model Notification {
   title    String
   message  String
   isRead   Boolean          @default(false)
-  metadata Json?
+  metadata Json? // Additional data
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -509,7 +493,7 @@ model Notification {
 model UserSettings {
   id                String  @id @default(cuid())
   userId            String  @unique
-  language          String  @default("en")
+  language          String  @default("en") // en, ha, ig, yo
   darkMode          Boolean @default(false)
   biometricLogin    Boolean @default(false)
   smsNotification   Boolean @default(true)
@@ -525,17 +509,13 @@ model UserSettings {
   @@map("user_settings")
 }
 
-// ============================================
-// SESSION & DEVICE MODELS
-// ============================================
-
 model UserSession {
   id           String   @id @default(cuid())
   userId       String
   token        String   @unique
-  deviceId     String?
-  deviceName   String?
-  deviceType   String?
+  deviceId     String? // Unique device identifier
+  deviceName   String? // e.g., "iPhone 13", "Samsung Galaxy"
+  deviceType   String? // MOBILE, TABLET, WEB
   ipAddress    String?
   userAgent    String?
   isActive     Boolean  @default(true)
@@ -553,45 +533,9 @@ model UserSession {
   @@map("user_sessions")
 }
 
-model DeviceToken {
-  id       String   @id @default(cuid())
-  userId   String
-  token    String   @unique
-  platform String
-  isActive Boolean  @default(true)
-  lastUsed DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([token])
-  @@map("device_tokens")
-}
-
 // ============================================
-// SECURITY & AUDIT MODELS
+// IDEMPOTENCY & LOGGING MODELS
 // ============================================
-
-model SecurityQuestion {
-  id          String @id @default(cuid())
-  userId      String @unique
-  question1   String
-  answer1Hash String
-  question2   String
-  answer2Hash String
-  question3   String
-  answer3Hash String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("security_questions")
-}
 
 model IdempotencyKey {
   id          String   @id @default(cuid())
@@ -599,7 +543,7 @@ model IdempotencyKey {
   userId      String
   requestHash String
   response    Json?
-  status      String
+  status      String // PENDING, COMPLETED, FAILED
   expiresAt   DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -617,8 +561,8 @@ model TransactionLog {
   transactionId String?
   vasPurchaseId String?
   userId        String
-  logType       String
-  level         String
+  logType       String // REQUEST, RESPONSE, ERROR, WEBHOOK, REQUERY
+  level         String // INFO, WARN, ERROR, DEBUG
   message       String
   requestData   Json?
   responseData  Json?
@@ -642,8 +586,43 @@ model TransactionLog {
 }
 
 // ============================================
-// SUPPORT & HELP MODELS
+// SECURITY & SUPPORT MODELS
 // ============================================
+
+model SecurityQuestion {
+  id        String @id @default(cuid())
+  userId    String @unique
+  question1 String
+  answer1   String
+  question2 String
+  answer2   String
+  question3 String
+  answer3   String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("security_questions")
+}
+
+model DeviceToken {
+  id       String  @id @default(cuid())
+  userId   String
+  token    String  @unique
+  platform String // iOS, Android, Web
+  isActive Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@map("device_tokens")
+}
 
 model SupportTicket {
   id          String              @id @default(cuid())
@@ -722,8 +701,8 @@ enum VerificationType {
 }
 
 enum TransactionType {
-  CREDIT
-  DEBIT
+  CREDIT // Money coming in (top-up, refund)
+  DEBIT // Money going out (payment, purchase)
 }
 
 enum TransactionCategory {
@@ -736,7 +715,7 @@ enum TransactionCategory {
   EDUCATION_PAYMENT
   TRANSFER
   REFUND
-  COMMISSION
+  COMMISSION // For drivers/agents
 }
 
 enum TransactionStatus {
@@ -816,13 +795,6 @@ enum TicketPriority {
   URGENT
 }
 
-enum TicketStatus {
-  OPEN
-  IN_PROGRESS
-  RESOLVED
-  CLOSED
-}
-
 enum TransferStatus {
   PENDING
   PROCESSING
@@ -837,4 +809,24 @@ enum RecurringFrequency {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+model BalanceHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  userType     UserType
+  balance      Decimal  @db.Decimal(10, 2)
+  snapshotDate DateTime @default(now())
+  reconciled   Boolean  @default(false)
+  discrepancy  Decimal? @db.Decimal(10, 2) // Difference if reconciliation failed
+  metadata     Json? // Additional reconciliation info
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([snapshotDate])
+  @@index([reconciled])
+  @@map("balance_history")
 }

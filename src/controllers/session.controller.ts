@@ -10,7 +10,7 @@ export class SessionController {
 
   getSessions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const sessions = await this.sessionService.getUserSessions(req.user.id);
+      const sessions = await this.sessionService.getUserSessions(req.user!.id);
       res.json({ success: true, statusCode: 200, data: sessions });
     } catch (error) {
       next(error);
@@ -20,7 +20,7 @@ export class SessionController {
   revokeSession = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { sessionId } = req.params;
-      const result = await this.sessionService.revokeSession(req.user.id, sessionId);
+      const result = await this.sessionService.revokeSession(req.user!.id, sessionId);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (error) {
       next(error);
@@ -34,7 +34,7 @@ export class SessionController {
         throw new Error('Session ID not found in request');
       }
 
-      const result = await this.sessionService.revokeAllOtherSessions(req.user.id, currentSessionId);
+      const result = await this.sessionService.revokeAllOtherSessions(req.user!.id, currentSessionId);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (error) {
       next(error);
@@ -43,7 +43,7 @@ export class SessionController {
 
   revokeAllSessions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.sessionService.revokeAllSessions(req.user.id);
+      const result = await this.sessionService.revokeAllSessions(req.user!.id);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (error) {
       next(error);

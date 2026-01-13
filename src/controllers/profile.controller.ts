@@ -14,7 +14,7 @@ export class ProfileController {
 
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const profile = await this.profileService.getProfile(req.user.id);
+      const profile = await this.profileService.getProfile(req.user!.id);
       res.json({ success: true, statusCode: 200, data: profile });
     } catch (error) {
       next(error);
@@ -29,7 +29,7 @@ export class ProfileController {
         throw createError(message, 400);
       }
 
-      const profile = await this.profileService.updateProfile(req.user.id, req.body);
+      const profile = await this.profileService.updateProfile(req.user!.id, req.body);
       res.json({ success: true, statusCode: 200, data: profile });
     } catch (error) {
       next(error);
@@ -47,7 +47,7 @@ export class ProfileController {
         throw createError(validation.error!, 400);
       }
 
-      const imageUrl = await this.profileService.uploadProfilePicture(req.user.id, req.file);
+      const imageUrl = await this.profileService.uploadProfilePicture(req.user!.id, req.file);
       res.json({ success: true, statusCode: 200, data: { profilePicture: imageUrl } });
     } catch (error) {
       next(error);
@@ -56,7 +56,7 @@ export class ProfileController {
 
   deleteProfilePicture = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.profileService.deleteProfilePicture(req.user.id);
+      const result = await this.profileService.deleteProfilePicture(req.user!.id);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (error) {
       next(error);
@@ -65,7 +65,7 @@ export class ProfileController {
 
   getSettings = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const settings = await this.profileService.getSettings(req.user.id);
+      const settings = await this.profileService.getSettings(req.user!.id);
       res.json({ success: true, statusCode: 200, data: settings });
     } catch (error) {
       next(error);
@@ -80,7 +80,7 @@ export class ProfileController {
         throw createError(message, 400);
       }
 
-      const settings = await this.profileService.updateSettings(req.user.id, req.body);
+      const settings = await this.profileService.updateSettings(req.user!.id, req.body);
       res.json({ success: true, statusCode: 200, data: settings });
     } catch (error) {
       next(error);

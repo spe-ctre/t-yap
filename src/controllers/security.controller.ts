@@ -19,7 +19,7 @@ export class SecurityController {
         throw createError(message, 400);
       }
 
-      const result = await this.securityService.setSecurityQuestions(req.user.id, req.body);
+      const result = await this.securityService.setSecurityQuestions(req.user!.id, req.body);
       res.status(201).json({ success: true, statusCode: 201, data: result });
     } catch (error) {
       next(error);
@@ -39,7 +39,7 @@ export class SecurityController {
       }
 
       const result = await this.securityService.updateSecurityQuestions(
-        req.user.id,
+        req.user!.id,
         req.body.currentPassword,
         {
           question1: req.body.question1,
@@ -58,7 +58,7 @@ export class SecurityController {
 
   getSecurityQuestions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.securityService.getSecurityQuestions(req.user.id);
+      const result = await this.securityService.getSecurityQuestions(req.user!.id);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (error) {
       next(error);
@@ -73,7 +73,7 @@ export class SecurityController {
         throw createError(message, 400);
       }
 
-      await this.securityService.verifySecurityQuestions(req.user.id, req.body);
+      await this.securityService.verifySecurityQuestions(req.user!.id, req.body);
       res.json({ success: true, statusCode: 200, message: 'Security questions verified successfully' });
     } catch (error) {
       next(error);

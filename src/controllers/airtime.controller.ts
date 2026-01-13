@@ -19,7 +19,7 @@ export class AirtimeController {
         throw createError(message, 400);
       }
 
-      const result = await this.service.purchaseAirtime(req.user.id, req.body, {
+      const result = await this.service.purchaseAirtime(req.user!.id, req.body, {
         ipAddress: req.deviceInfo?.ipAddress,
         userAgent: req.deviceInfo?.userAgent
       });
@@ -41,7 +41,7 @@ export class AirtimeController {
       const page = parseInt((req.query.page as string) || '1', 10);
       const limit = parseInt((req.query.limit as string) || '10', 10);
 
-      const result = await this.service.getHistory(req.user.id, { page, limit });
+      const result = await this.service.getHistory(req.user!.id, { page, limit });
       res.json({ success: true, statusCode: 200, data: result });
     } catch (err) {
       next(err);
@@ -57,7 +57,7 @@ export class AirtimeController {
       }
 
       const { purchaseId } = req.body;
-      const result = await this.service.requery(req.user.id, purchaseId);
+      const result = await this.service.requery(req.user!.id, purchaseId);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (err) {
       next(err);

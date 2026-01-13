@@ -159,7 +159,7 @@ export class TransferService {
           balanceBefore: new Decimal(recipientBalance),
           balanceAfter: newRecipientBalance,
           status: TransactionStatus.SUCCESS,
-          reference: transferReference,
+          reference: `${transferReference}-CR`,
           description: description || `Transfer from ${sender.passenger.firstName || ''} ${sender.passenger.lastName || ''}`.trim(),
           metadata: {
             senderId,
@@ -196,7 +196,7 @@ export class TransferService {
             balanceBefore: new Decimal(senderBalance - amount),
             balanceAfter: newSenderBalance,
             status: TransactionStatus.SUCCESS,
-            reference: transferReference,
+            reference: `${transferReference}-FEE`,
             description: 'Transfer fee',
             metadata: {
               relatedTransactionId: debitTransaction.id,

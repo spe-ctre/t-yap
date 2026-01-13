@@ -19,7 +19,7 @@ export class BiometricController {
         throw createError(message, 400);
       }
 
-      const result = await this.biometricService.registerBiometric(req.user.id, req.body.biometricToken);
+      const result = await this.biometricService.registerBiometric(req.user!.id, req.body.biometricToken);
       res.status(201).json({ success: true, statusCode: 201, data: result });
     } catch (error) {
       next(error);
@@ -34,7 +34,7 @@ export class BiometricController {
         throw createError(message, 400);
       }
 
-      const isValid = await this.biometricService.verifyBiometric(req.user.id, req.body.biometricToken);
+      const isValid = await this.biometricService.verifyBiometric(req.user!.id, req.body.biometricToken);
       res.json({ success: true, statusCode: 200, data: { verified: isValid } });
     } catch (error) {
       next(error);
@@ -43,7 +43,7 @@ export class BiometricController {
 
   removeBiometric = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.biometricService.removeBiometric(req.user.id);
+      const result = await this.biometricService.removeBiometric(req.user!.id);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (error) {
       next(error);
@@ -52,7 +52,7 @@ export class BiometricController {
 
   checkBiometricStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const isRegistered = await this.biometricService.isBiometricRegistered(req.user.id);
+      const isRegistered = await this.biometricService.isBiometricRegistered(req.user!.id);
       res.json({ success: true, statusCode: 200, data: { isRegistered } });
     } catch (error) {
       next(error);

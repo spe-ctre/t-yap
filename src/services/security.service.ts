@@ -32,11 +32,11 @@ export class SecurityService {
       data: {
         userId,
         question1: data.question1.trim(),
-        answer1: hashedAnswer1,
+        answer1Hash: hashedAnswer1,
         question2: data.question2.trim(),
-        answer2: hashedAnswer2,
+        answer2Hash: hashedAnswer2,
         question3: data.question3.trim(),
-        answer3: hashedAnswer3
+        answer3Hash: hashedAnswer3
       }
     });
 
@@ -84,19 +84,19 @@ export class SecurityService {
       create: {
         userId,
         question1: data.question1.trim(),
-        answer1: hashedAnswer1,
+        answer1Hash: hashedAnswer1,
         question2: data.question2.trim(),
-        answer2: hashedAnswer2,
+        answer2Hash: hashedAnswer2,
         question3: data.question3.trim(),
-        answer3: hashedAnswer3
+        answer3Hash: hashedAnswer3
       },
       update: {
         question1: data.question1.trim(),
-        answer1: hashedAnswer1,
+        answer1Hash: hashedAnswer1,
         question2: data.question2.trim(),
-        answer2: hashedAnswer2,
+        answer2Hash: hashedAnswer2,
         question3: data.question3.trim(),
-        answer3: hashedAnswer3
+        answer3Hash: hashedAnswer3
       }
     });
 
@@ -148,9 +148,9 @@ export class SecurityService {
     }
 
     // Verify all three answers
-    const answer1Valid = await bcrypt.compare(answers.answer1.toLowerCase().trim(), securityQuestion.answer1);
-    const answer2Valid = await bcrypt.compare(answers.answer2.toLowerCase().trim(), securityQuestion.answer2);
-    const answer3Valid = await bcrypt.compare(answers.answer3.toLowerCase().trim(), securityQuestion.answer3);
+    const answer1Valid = await bcrypt.compare(answers.answer1.toLowerCase().trim(), securityQuestion.answer1Hash);
+    const answer2Valid = await bcrypt.compare(answers.answer2.toLowerCase().trim(), securityQuestion.answer2Hash);
+    const answer3Valid = await bcrypt.compare(answers.answer3.toLowerCase().trim(), securityQuestion.answer3Hash);
 
     if (!answer1Valid || !answer2Valid || !answer3Valid) {
       throw createError('One or more security question answers are incorrect', 401);
@@ -159,4 +159,3 @@ export class SecurityService {
     return true;
   }
 }
-

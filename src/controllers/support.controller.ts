@@ -77,7 +77,7 @@ export class SupportController {
       }
 
       const ticket = await this.ticketService.createTicket({
-        userId: req.user.id,
+        userId: req.user!.id,
         subject,
         message,
         category,
@@ -99,7 +99,7 @@ export class SupportController {
     try {
       const { status } = req.query;
       const tickets = await this.ticketService.getUserTickets(
-        req.user.id,
+        req.user!.id,
         status as string
       );
       res.json({ success: true, data: tickets });
@@ -111,7 +111,7 @@ export class SupportController {
   getTicketById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const ticket = await this.ticketService.getTicketById(
-        req.user.id,
+        req.user!.id,
         req.params.id
       );
       res.json({ success: true, data: ticket });
@@ -122,7 +122,7 @@ export class SupportController {
 
   getTicketStats = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const stats = await this.ticketService.getUserTicketStats(req.user.id);
+      const stats = await this.ticketService.getUserTicketStats(req.user!.id);
       res.json({ success: true, data: stats });
     } catch (error) {
       next(error);

@@ -5,6 +5,7 @@ import { createError } from '../middleware/error.middleware';
 import { EmailService } from './email.service';
 import { SessionService } from './session.service';
 import { prisma } from '../config/database';
+import { normalizePhoneNumber, isValidNigerianPhone } from '../utils/phone';
 
 export class AuthService {
   private emailService: EmailService;
@@ -14,27 +15,34 @@ export class AuthService {
     this.emailService = new EmailService();
     this.sessionService = new SessionService();
   }
-
   async signup(data: { email: string; phoneNumber: string; password: string; role?: string }) {
+    // Normalize phone number
+    const normalizedPhone = normalizePhoneNumber(data.phoneNumber);
+    
+    // Validate phone number
+    if (!isValidNigerianPhone(data.phoneNumber)) {
+      throw createError('Please provide a valid Nigerian phone number (e.g., 08012345678 or +2348012345678)', 400);
+    }
+  
     const existingUser = await prisma.user.findFirst({
-      where: { OR: [{ email: data.email }, { phoneNumber: data.phoneNumber }] }
+      where: { OR: [{ email: data.email }, { phoneNumber: normalizedPhone }] }
     });
-
+  
     if (existingUser) {
       throw createError('User already exists', 409);
     }
-
+  
     const hashedPassword = await bcrypt.hash(data.password, 12);
     const role = (data.role || 'PASSENGER') as any;
     
     // Create user with appropriate profile based on role
     const userData: any = {
       email: data.email,
-      phoneNumber: data.phoneNumber,
+      phoneNumber: normalizedPhone, // Use normalized phone
       password: hashedPassword,
       role
     };
-
+  
     // Create role-specific profile
     if (role === 'PASSENGER') {
       userData.passenger = { create: {} };
@@ -50,7 +58,7 @@ export class AuthService {
       data: userData,
       include: { passenger: true, driver: true, agent: true, parkManager: true }
     });
-
+  
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     await prisma.verificationCode.create({
@@ -61,7 +69,7 @@ export class AuthService {
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
       }
     });
-
+  
     await this.emailService.sendVerificationEmail(user.email, verificationCode);
     
     // No session created - user must verify email first
@@ -70,7 +78,7 @@ export class AuthService {
       message: 'Verification code sent to email. Please verify your email to continue.'
     };
   }
-
+  
   async login(data: { username: string; password: string; deviceName?: string; deviceType?: string; deviceId?: string; ipAddress?: string; userAgent?: string }) {
     const user = await prisma.user.findFirst({
       where: { OR: [{ email: data.username }, { phoneNumber: data.username }] },

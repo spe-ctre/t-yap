@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { UserRole } from '@prisma/client'; 
 import { TripService } from '../services/trip.service';
 import { createError } from '../middleware/error.middleware';
 import { TripStatus } from '@prisma/client';
@@ -13,7 +14,7 @@ import { getValidationErrorMessage } from '../utils/validation-error.util';
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
-    role: string;
+    role: UserRole;
   };
 }
 
