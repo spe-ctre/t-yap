@@ -50,14 +50,20 @@ model User {
 }
 
 model Passenger {
-  id             String  @id @default(cuid())
-  userId         String  @unique
+  id             String   @id @default(cuid())
+  userId         String   @unique
   firstName      String?
   lastName       String?
   biometricData  String?
   transactionPin String?
-  walletBalance  Decimal @default(0) @db.Decimal(10, 2)
+  walletBalance  Decimal  @default(0) @db.Decimal(10, 2)
   profilePicture String?
+  
+  // NEW FIELDS ADDED
+  nextOfKinName         String?
+  nextOfKinPhone        String?
+  nextOfKinRelationship String?
+  tier                  String?  @default("TIER_1")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -69,41 +75,61 @@ model Passenger {
 }
 
 model Driver {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  firstName      String
-  lastName       String
-  licenseNumber  String   @unique
-  licenseExpiry  DateTime
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  firstName       String
+  lastName        String
+  licenseNumber   String   @unique
+  licenseExpiry   DateTime
   biometricData   String?
   transactionPin  String?
-  isVerified     Boolean  @default(false)
-  walletBalance  Decimal  @default(0) @db.Decimal(10, 2)
-  profilePicture String?
+  isVerified      Boolean  @default(false)
+  walletBalance   Decimal  @default(0) @db.Decimal(10, 2)
+  profilePicture  String?
+  
+  // NEW FIELDS ADDED
+  assignedRouteId   String?
+  tier              String?   @default("TIER_1")
+  isAvailableToday  Boolean   @default(false)
+  lastCheckInDate   DateTime?
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle Vehicle?
-  trips   Trip[]   @relation("TripDriver")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle?
+  trips          Trip[]   @relation("TripDriver")
+  assignedRoute  Route?   @relation("AssignedDrivers", fields: [assignedRouteId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([licenseNumber])
+  @@index([assignedRouteId])
   @@map("drivers")
 }
 
 model Agent {
-  id            String  @id @default(cuid())
-  userId        String  @unique
-  firstName     String
-  lastName      String
-  agentCode     String  @unique
-  parkId        String?
-  biometricData   String?
-  transactionPin  String?
-  walletBalance Decimal @default(0) @db.Decimal(10, 2)
-  isActive      Boolean @default(true)
+  id             String     @id @default(cuid())
+  userId         String     @unique
+  firstName      String
+  lastName       String
+  agentCode      String     @unique
+  parkId         String?
+  biometricData  String?
+  transactionPin String?
+  walletBalance  Decimal    @default(0) @db.Decimal(10, 2)
+  isActive       Boolean    @default(true)
+  
+  // NEW FIELDS ADDED
+  businessName       String?
+  bvn                String?
+  nin                String?
+  idDocumentUrl      String?
+  residentialAddress String?
+  state              String?
+  lga                String?
+  terminalId         String?    @unique
+  kycStatus          KYCStatus? @default(PENDING)
+  commissionRate     Decimal?   @db.Decimal(5, 2)
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   park Park? @relation(fields: [parkId], references: [id])
@@ -113,17 +139,22 @@ model Agent {
 
   @@index([userId])
   @@index([agentCode])
+  @@index([terminalId])
+  @@index([kycStatus])
   @@map("agents")
 }
 
 model ParkManager {
-  id        String  @id @default(cuid())
-  userId    String  @unique
-  firstName String
-  lastName  String
-  parkId    String?
-  biometricData   String?
-  transactionPin  String?
+  id             String     @id @default(cuid())
+  userId         String     @unique
+  firstName      String
+  lastName       String
+  parkId         String?
+  biometricData  String?
+  transactionPin String?
+  
+  // NEW FIELD ADDED
+  commissionRate Decimal? @db.Decimal(5, 2)
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   park Park? @relation(fields: [parkId], references: [id])
@@ -189,18 +220,14 @@ model Transaction {
 }
 
 model Transfer {
-  id String @id @default(cuid())
-
-  senderId String
-  sender   User   @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
-
+  id         String   @id @default(cuid())
+  senderId   String
+  sender     User     @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
   recipientId String
-  recipient   User   @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: Cascade)
-
+  recipient   User    @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: Cascade)
   amount      Decimal @db.Decimal(10, 2)
   description String?
   reference   String  @unique @default(cuid())
-
   status TransferStatus @default(PENDING)
 
   debitTransactionId  String? @unique
@@ -296,7 +323,7 @@ model Beneficiary {
 model BalanceHistory {
   id           String   @id @default(cuid())
   userId       String
-  userType      UserRole
+  userType     UserRole
   balance      Decimal  @db.Decimal(10, 2)
   snapshotDate DateTime @default(now())
   reconciled   Boolean  @default(false)
@@ -354,9 +381,10 @@ model Route {
   baseFare          Decimal  @db.Decimal(10, 2)
   isActive          Boolean  @default(true)
 
-  originPark      Park?  @relation("OriginPark", fields: [originParkId], references: [id])
-  destinationPark Park?  @relation("DestinationPark", fields: [destinationParkId], references: [id])
+  originPark      Park?    @relation("OriginPark", fields: [originParkId], references: [id])
+  destinationPark Park?    @relation("DestinationPark", fields: [destinationParkId], references: [id])
   trips           Trip[]
+  assignedDrivers Driver[] @relation("AssignedDrivers")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -836,4 +864,11 @@ enum RecurringFrequency {
   DAILY
   WEEKLY
   MONTHLY
+}
+
+// NEW ENUM ADDED
+enum KYCStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
