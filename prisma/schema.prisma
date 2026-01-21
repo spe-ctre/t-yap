@@ -231,7 +231,7 @@ model VerificationCode {
 model Transaction {
   id            String              @id @default(cuid())
   userId        String
-  UserRole      UserRole
+  userType      UserRole
   type          TransactionType
   category      TransactionCategory
   amount        Decimal             @db.Decimal(10, 2)
@@ -365,7 +365,7 @@ model Beneficiary {
 model BalanceHistory {
   id           String   @id @default(cuid())
   userId       String
-  UserRole     UserRole
+  userType      UserRole
   balance      Decimal  @db.Decimal(10, 2)
   snapshotDate DateTime @default(now())
   reconciled   Boolean  @default(false)
