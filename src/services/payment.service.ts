@@ -1,14 +1,14 @@
 // src/services/payment.service.ts
 import { prisma } from '../config/database';
 import { TransactionService } from './transaction.service';
-import { UserType, TransactionType, TransactionCategory } from '@prisma/client';
+import { UserRole, TransactionType, TransactionCategory } from '@prisma/client';
 import { verifyWalletTopup } from '../utils/monnify.utils';
 import { createError } from '../middleware/error.middleware';
 import { v4 as uuidv4 } from 'uuid';
 
 interface InitializePaymentInput {
   userId: string;
-  userType: UserType;
+  UserRole: UserRole;
   amount: number;
   email?: string;
   description?: string;
@@ -24,7 +24,7 @@ interface InitializePaymentResponse {
 interface VerifyPaymentInput {
   reference: string;
   userId: string;
-  userType: UserType;
+  UserRole: UserRole;
 }
 
 export class PaymentService {
@@ -39,7 +39,7 @@ export class PaymentService {
    * Creates a pending transaction and returns payment reference
    */
   async initializePayment(data: InitializePaymentInput): Promise<InitializePaymentResponse> {
-    const { userId, userType, amount, email, description } = data;
+    const { userId, UserRole, amount, email, description } = data;
 
     // Validate amount
     if (amount <= 0) {
@@ -64,7 +64,7 @@ export class PaymentService {
     // Create pending transaction
     await this.transactionService.createTransaction({
       userId,
-      userType,
+      UserRole,
       type: TransactionType.CREDIT,
       category: TransactionCategory.WALLET_TOPUP,
       amount,
@@ -93,7 +93,7 @@ export class PaymentService {
    * Calls Monnify API to verify payment, then credits user wallet
    */
   async verifyPayment(data: VerifyPaymentInput) {
-    const { reference, userId, userType } = data;
+    const { reference, userId, UserRole } = data;
 
     // Get the pending transaction
     const transaction = await prisma.transaction.findFirst({
@@ -144,7 +144,7 @@ export class PaymentService {
       const result = await this.transactionService.processTopup(
         'monnify',
         reference,
-        { userId, userType }
+        { userId, UserRole }
       );
 
       // Update transaction with Monnify response data
@@ -211,13 +211,13 @@ export class PaymentService {
       }
 
       // Get user type from transaction
-      const userType = transaction.userType;
+      const UserRole = transaction.userType;
 
       // Process the top-up
       await this.transactionService.processTopup(
         'monnify',
         paymentReference,
-        { userId: transaction.userId, userType }
+        { userId: transaction.userId, UserRole }
       );
 
       // Update transaction

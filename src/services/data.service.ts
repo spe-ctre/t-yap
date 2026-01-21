@@ -292,7 +292,7 @@ export class DataService {
         const transaction = await tx.transaction.create({
           data: {
             userId,
-            userType: 'PASSENGER',
+            UserRole: 'PASSENGER',
             type: TransactionType.DEBIT,
             category: TransactionCategory.DATA_PURCHASE,
             amount: actualAmount,

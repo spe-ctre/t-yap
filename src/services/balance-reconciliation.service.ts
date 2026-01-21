@@ -1,12 +1,12 @@
 // src/services/balance-reconciliation.service.ts
 
-import { PrismaClient, UserType, TransactionStatus, TransactionType } from '@prisma/client';
+import { PrismaClient, UserRole, TransactionStatus, TransactionType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../config/database'; // Use shared instance
 
 interface ReconciliationResult {
   userId: string;
-  userType: UserType;
+  UserRole: UserRole;
   calculatedBalance: number;
   currentBalance: number;
   discrepancy: number;
@@ -21,37 +21,37 @@ export class BalanceReconciliationService {
    */
   static async reconcileUserBalance(
     userId: string,
-    userType: UserType
+    UserRole: UserRole
   ): Promise<ReconciliationResult> {
     // Get user's profile based on type
     let currentBalance = 0;
     let userProfile = null;
 
-    switch (userType) {
-      case UserType.PASSENGER:
+    switch (UserRole) {
+      case UserRole.PASSENGER:
         userProfile = await prisma.passenger.findUnique({
           where: { userId },
         });
         currentBalance = userProfile?.walletBalance.toNumber() || 0;
         break;
-      case UserType.DRIVER:
+      case UserRole.DRIVER:
         userProfile = await prisma.driver.findUnique({
           where: { userId },
         });
         currentBalance = userProfile?.walletBalance.toNumber() || 0;
         break;
-      case UserType.AGENT:
+      case UserRole.AGENT:
         userProfile = await prisma.agent.findUnique({
           where: { userId },
         });
         currentBalance = userProfile?.walletBalance.toNumber() || 0;
         break;
-      case UserType.PARK_MANAGER:
+      case UserRole.PARK_MANAGER:
         // Park managers might not have wallet balance
         console.warn(`Skipping reconciliation for PARK_MANAGER: ${userId}`);
         throw new Error(`Reconciliation not supported for PARK_MANAGER`);
       default:
-        throw new Error(`Unknown user type: ${userType}`);
+        throw new Error(`Unknown user type: ${UserRole}`);
     }
 
     if (!userProfile) {
@@ -86,7 +86,7 @@ export class BalanceReconciliationService {
     await prisma.balanceHistory.create({
       data: {
         userId,
-        userType,
+        UserRole,
         balance: new Decimal(currentBalance),
         reconciled: isReconciled,
         discrepancy: isReconciled ? null : new Decimal(discrepancy),
@@ -100,7 +100,7 @@ export class BalanceReconciliationService {
 
     return {
       userId,
-      userType,
+      UserRole,
       calculatedBalance,
       currentBalance,
       discrepancy,
@@ -132,21 +132,21 @@ export class BalanceReconciliationService {
 
       // Process passengers in batches
       const passengerResults = await this.reconcileBatch(
-        passengers.map(p => ({ userId: p.userId, userType: UserType.PASSENGER }))
+        passengers.map(p => ({ userId: p.userId, UserRole: UserRole.PASSENGER }))
       );
       results.push(...passengerResults.results);
       errors.push(...passengerResults.errors);
 
       // Process drivers in batches
       const driverResults = await this.reconcileBatch(
-        drivers.map(d => ({ userId: d.userId, userType: UserType.DRIVER }))
+        drivers.map(d => ({ userId: d.userId, UserRole: UserRole.DRIVER }))
       );
       results.push(...driverResults.results);
       errors.push(...driverResults.errors);
 
       // Process agents in batches
       const agentResults = await this.reconcileBatch(
-        agents.map(a => ({ userId: a.userId, userType: UserType.AGENT }))
+        agents.map(a => ({ userId: a.userId, UserRole: UserRole.AGENT }))
       );
       results.push(...agentResults.results);
       errors.push(...agentResults.errors);
@@ -175,7 +175,7 @@ export class BalanceReconciliationService {
    * Reconcile users in batches for better performance
    */
   private static async reconcileBatch(
-    users: { userId: string; userType: UserType }[]
+    users: { userId: string; UserRole: UserRole }[]
   ): Promise<{
     results: ReconciliationResult[];
     errors: { userId: string; error: string }[];
@@ -188,7 +188,7 @@ export class BalanceReconciliationService {
       const batch = users.slice(i, i + BATCH_SIZE);
       
       const batchResults = await Promise.allSettled(
-        batch.map(user => this.reconcileUserBalance(user.userId, user.userType))
+        batch.map(user => this.reconcileUserBalance(user.userId, user.UserRole))
       );
 
       batchResults.forEach((result, index) => {
@@ -321,7 +321,7 @@ export class BalanceReconciliationService {
       userId: record.userId,
       userEmail: record.user.email,
       userPhone: record.user.phoneNumber,
-      userType: record.userType,
+      UserRole: record.UserRole,
       balance: record.balance.toNumber(),
       discrepancy: record.discrepancy?.toNumber() || 0,
       snapshotDate: record.snapshotDate,

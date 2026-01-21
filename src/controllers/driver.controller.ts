@@ -354,7 +354,7 @@ export const completeTrip = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId: driver.userId,
-        userType: 'DRIVER',
+        UserRole: 'DRIVER',
         type: 'CREDIT',
         category: 'FARE_PAYMENT',
         amount: trip.fare,
@@ -679,7 +679,7 @@ export const withdrawFunds = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId,
-        userType: 'DRIVER',
+        UserRole: 'DRIVER',
         type: 'DEBIT',
         category: 'TRANSFER',
         amount: Number(amount),

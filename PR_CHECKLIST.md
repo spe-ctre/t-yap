@@ -296,7 +296,7 @@ None
 
 ## Database Changes
 - Added BalanceHistory table
-- Updated UserType enum to include PARK_MANAGER
+- Updated UserRole enum to include PARK_MANAGER
 - Added indexes for performance
 
 ## Environment Variables Added

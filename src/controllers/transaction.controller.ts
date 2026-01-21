@@ -77,7 +77,7 @@ export class TransactionController {
   createTransaction = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const userId = req.user.id;
-      const userType = req.user.role;
+      const UserRole = req.user.role;
       const { type, category, amount, description, metadata } = req.body;
 
       // Validate required fields
@@ -92,7 +92,7 @@ export class TransactionController {
       // Create transaction via service
       const transaction = await this.transactionService.createTransaction({
         userId,
-        userType,
+        UserRole,
         type,
         category,
         amount,
@@ -117,7 +117,7 @@ export class TransactionController {
   processWalletTopup = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const userId = req.user.id;
-      const userType = req.user.role;
+      const UserRole = req.user.role;
       const { reference, provider = 'monnify' } = req.body;
 
       if (!reference) {
@@ -128,7 +128,7 @@ export class TransactionController {
       const transaction = await this.transactionService.processTopup(
         provider,
         reference,
-        { userId, userType }
+        { userId, UserRole }
       );
 
       res.json({

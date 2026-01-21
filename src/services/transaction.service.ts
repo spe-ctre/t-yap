@@ -1,14 +1,14 @@
 // src/services/transaction.service.ts
 import { prisma } from '../config/database';
 import { v4 as uuidv4 } from 'uuid';
-import { TransactionType, TransactionCategory, UserType } from '@prisma/client';
+import { TransactionType, TransactionCategory, UserRole } from '@prisma/client';
 
-// Re-export UserType from Prisma for other services to use
-export { UserType } from '@prisma/client';
+// Re-export UserRole from Prisma for other services to use
+export { UserRole } from '@prisma/client';
 
 interface CreateTransactionInput {
   userId: string;
-  userType: UserType;
+  UserRole: UserRole;
   type: TransactionType;
   category: TransactionCategory;
   amount: number;
@@ -24,20 +24,20 @@ export class TransactionService {
   async createTransaction(data: CreateTransactionInput) {
     const reference = data.reference || uuidv4();
 
-    // Fetch user profile based on userType to calculate balances
+    // Fetch user profile based on UserRole to calculate balances
     let balanceBefore = 0;
 
-    if (data.userType === 'PASSENGER') {
+    if (data.UserRole === 'PASSENGER') {
       const passenger = await prisma.passenger.findUnique({
         where: { userId: data.userId }
       });
       balanceBefore = passenger?.walletBalance.toNumber() || 0;
-    } else if (data.userType === 'DRIVER') {
+    } else if (data.UserRole === 'DRIVER') {
       const driver = await prisma.driver.findUnique({
         where: { userId: data.userId }
       });
       balanceBefore = driver?.walletBalance.toNumber() || 0;
-    } else if (data.userType === 'AGENT') {
+    } else if (data.UserRole === 'AGENT') {
       const agent = await prisma.agent.findUnique({
         where: { userId: data.userId }
       });
@@ -50,7 +50,7 @@ export class TransactionService {
     return prisma.transaction.create({
       data: {
         userId: data.userId,
-        userType: data.userType,
+        UserRole: data.UserRole,
         type: data.type,
         category: data.category,
         amount: data.amount,
@@ -88,7 +88,7 @@ export class TransactionService {
   async processTopup(
     provider: 'monnify' | 'paystack' | 'flutterwave' | 'manual',
     reference: string,
-    metadata?: { userId: string; userType: UserType }
+    metadata?: { userId: string; UserRole: UserRole }
   ) {
     const transaction = await prisma.transaction.findUnique({ where: { reference } });
 
@@ -108,18 +108,18 @@ export class TransactionService {
         data: { metadata: updatedMetadata },
       });
 
-      // Increment wallet balance on the correct model based on userType
-      if (metadata.userType === 'PASSENGER') {
+      // Increment wallet balance on the correct model based on UserRole
+      if (metadata.UserRole === 'PASSENGER') {
         await prisma.passenger.update({
           where: { userId: metadata.userId },
           data: { walletBalance: { increment: transaction.amount } },
         });
-      } else if (metadata.userType === 'DRIVER') {
+      } else if (metadata.UserRole === 'DRIVER') {
         await prisma.driver.update({
           where: { userId: metadata.userId },
           data: { walletBalance: { increment: transaction.amount } },
         });
-      } else if (metadata.userType === 'AGENT') {
+      } else if (metadata.UserRole === 'AGENT') {
         await prisma.agent.update({
           where: { userId: metadata.userId },
           data: { walletBalance: { increment: transaction.amount } },

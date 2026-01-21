@@ -48,7 +48,7 @@ model User {
   @@map("users")
 }
 
-enum UserType {
+enum UserRole {
   PASSENGER
   DRIVER
   AGENT
@@ -158,7 +158,7 @@ model VerificationCode {
 model Transaction {
   id            String              @id @default(cuid())
   userId        String
-  userType      UserType
+  UserRole      UserRole
   type          TransactionType
   category      TransactionCategory
   amount        Decimal             @db.Decimal(10, 2)
@@ -814,7 +814,7 @@ enum RecurringFrequency {
 model BalanceHistory {
   id           String   @id @default(cuid())
   userId       String
-  userType     UserType
+  UserRole     UserRole
   balance      Decimal  @db.Decimal(10, 2)
   snapshotDate DateTime @default(now())
   reconciled   Boolean  @default(false)

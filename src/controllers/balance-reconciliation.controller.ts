@@ -3,7 +3,7 @@ import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { BalanceReconciliationService } from '../services/balance-reconciliation.service';
 import { AppError } from '../utils/errors';
-import { UserType } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 export class BalanceReconciliationController {
   /**
@@ -23,12 +23,12 @@ export class BalanceReconciliationController {
         throw new AppError('User information not found', 401);
       }
 
-      // Map auth role to UserType
-      const userType = userRole.toUpperCase() as UserType;
+      // Map auth role to UserRole
+      const UserRole = userRole.toUpperCase() as UserRole;
 
       const result = await BalanceReconciliationService.reconcileUserBalance(
         userId,
-        userType
+        UserRole
       );
 
       res.status(200).json({

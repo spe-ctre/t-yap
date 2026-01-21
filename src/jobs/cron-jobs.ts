@@ -80,7 +80,7 @@ async function sendDiscrepancyAlert(result: any) {
     timestamp: new Date().toISOString(),
     affectedUsers: discrepancyUsers.map((u: any) => ({
       userId: u.userId,
-      userType: u.userType,
+      UserRole: u.UserRole,
       discrepancy: u.discrepancy,
       currentBalance: u.currentBalance,
       calculatedBalance: u.calculatedBalance,

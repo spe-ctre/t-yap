@@ -821,7 +821,7 @@ export const activatePassengerWallet = async (req: Request, res: Response) => {
     const passengerTransaction = await prisma.transaction.create({
       data: {
         userId: passenger.userId,
-        userType: 'PASSENGER',
+        UserRole: 'PASSENGER',
         type: 'CREDIT',
         category: 'WALLET_TOPUP',
         amount: activationAmount,
@@ -858,7 +858,7 @@ export const activatePassengerWallet = async (req: Request, res: Response) => {
     await prisma.transaction.create({
       data: {
         userId: agent.userId,
-        userType: 'AGENT',
+        UserRole: 'AGENT',
         type: 'CREDIT',
         category: 'COMMISSION',
         amount: agentCommission,
@@ -1221,7 +1221,7 @@ export const topUpPassengerWallet = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId: passenger.userId,
-        userType: 'PASSENGER',
+        UserRole: 'PASSENGER',
         type: 'CREDIT',
         category: 'WALLET_TOPUP',
         amount: topUpAmount,
@@ -1321,7 +1321,7 @@ export const withdrawEarnings = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId,
-        userType: 'AGENT',
+        UserRole: 'AGENT',
         type: 'DEBIT',
         category: 'TRANSFER',
         amount: withdrawalAmount,
@@ -1520,7 +1520,7 @@ export const cashOut = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId,
-        userType: 'AGENT',
+        UserRole: 'AGENT',
         type: 'DEBIT',
         category: 'TRANSFER',
         amount: cashOutAmount,
