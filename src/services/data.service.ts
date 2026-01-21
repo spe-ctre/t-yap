@@ -1,4 +1,4 @@
-import { TransactionCategory, TransactionStatus, TransactionType, VASCategory, VASPurchaseStatus } from '@prisma/client';
+import { TransactionCategory, TransactionStatus, TransactionType, VASCategory, VASPurchaseStatus, UserRole } from '@prisma/client';
 import { prisma } from '../config/database';
 import { createError } from '../middleware/error.middleware';
 import { VTpassProviderService } from './vtpass-provider.service';
@@ -292,7 +292,7 @@ export class DataService {
         const transaction = await tx.transaction.create({
           data: {
             userId,
-            UserRole: 'PASSENGER',
+            userType: UserRole.PASSENGER,
             type: TransactionType.DEBIT,
             category: TransactionCategory.DATA_PURCHASE,
             amount: actualAmount,

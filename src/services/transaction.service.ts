@@ -8,7 +8,7 @@ export { UserRole } from '@prisma/client';
 
 interface CreateTransactionInput {
   userId: string;
-  UserRole: UserRole;
+  userType: UserRole;
   type: TransactionType;
   category: TransactionCategory;
   amount: number;
@@ -27,17 +27,17 @@ export class TransactionService {
     // Fetch user profile based on UserRole to calculate balances
     let balanceBefore = 0;
 
-    if (data.UserRole === 'PASSENGER') {
+    if (data.userType === 'PASSENGER') {
       const passenger = await prisma.passenger.findUnique({
         where: { userId: data.userId }
       });
       balanceBefore = passenger?.walletBalance.toNumber() || 0;
-    } else if (data.UserRole === 'DRIVER') {
+    } else if (data.userType === 'DRIVER') {
       const driver = await prisma.driver.findUnique({
         where: { userId: data.userId }
       });
       balanceBefore = driver?.walletBalance.toNumber() || 0;
-    } else if (data.UserRole === 'AGENT') {
+    } else if (data.userType === 'AGENT') {
       const agent = await prisma.agent.findUnique({
         where: { userId: data.userId }
       });
@@ -50,7 +50,7 @@ export class TransactionService {
     return prisma.transaction.create({
       data: {
         userId: data.userId,
-        UserRole: data.UserRole,
+        userType: data.userType,
         type: data.type,
         category: data.category,
         amount: data.amount,
@@ -88,7 +88,7 @@ export class TransactionService {
   async processTopup(
     provider: 'monnify' | 'paystack' | 'flutterwave' | 'manual',
     reference: string,
-    metadata?: { userId: string; UserRole: UserRole }
+    metadata?: { userId: string; userType: UserRole }
   ) {
     const transaction = await prisma.transaction.findUnique({ where: { reference } });
 
@@ -109,17 +109,17 @@ export class TransactionService {
       });
 
       // Increment wallet balance on the correct model based on UserRole
-      if (metadata.UserRole === 'PASSENGER') {
+      if (metadata.userType === 'PASSENGER') {
         await prisma.passenger.update({
           where: { userId: metadata.userId },
           data: { walletBalance: { increment: transaction.amount } },
         });
-      } else if (metadata.UserRole === 'DRIVER') {
+      } else if (metadata.userType === 'DRIVER') {
         await prisma.driver.update({
           where: { userId: metadata.userId },
           data: { walletBalance: { increment: transaction.amount } },
         });
-      } else if (metadata.UserRole === 'AGENT') {
+      } else if (metadata.userType === 'AGENT') {
         await prisma.agent.update({
           where: { userId: metadata.userId },
           data: { walletBalance: { increment: transaction.amount } },

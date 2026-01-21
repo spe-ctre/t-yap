@@ -27,7 +27,7 @@ export class PaymentController {
     try {
       const { amount } = req.body;
       const userId = req.user.id;
-      const UserRole = req.user.role;
+      const userType = req.user.role;
 
       if (!amount || amount <= 0) {
         throw createError('Amount must be greater than 0', 400);
@@ -42,7 +42,7 @@ export class PaymentController {
       // Initialize payment
       const result = await this.paymentService.initializePayment({
         userId,
-        UserRole,
+        userType,
         amount,
         email: user?.email,
         description: 'Wallet Top-up'
@@ -67,7 +67,7 @@ export class PaymentController {
     try {
       const { reference } = req.body;
       const userId = req.user.id;
-      const UserRole = req.user.role;
+      const userType = req.user.role;
 
       if (!reference) {
         throw createError('Payment reference is required', 400);
@@ -77,7 +77,7 @@ export class PaymentController {
       const result = await this.paymentService.verifyPayment({
         reference,
         userId,
-        UserRole
+        userType
       });
 
       res.json({

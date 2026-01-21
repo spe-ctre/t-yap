@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -354,7 +354,7 @@ export const completeTrip = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId: driver.userId,
-        UserRole: 'DRIVER',
+        userType: UserRole.DRIVER,
         type: 'CREDIT',
         category: 'FARE_PAYMENT',
         amount: trip.fare,
@@ -679,7 +679,7 @@ export const withdrawFunds = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId,
-        UserRole: 'DRIVER',
+        userType: UserRole.DRIVER,
         type: 'DEBIT',
         category: 'TRANSFER',
         amount: Number(amount),
