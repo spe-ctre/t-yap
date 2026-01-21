@@ -49,6 +49,48 @@ model User {
   @@map("users")
 }
 
+// ============================================
+// DEVICE & DOCUMENT MODELS
+// ============================================
+
+model Device {
+  id          String   @id @default(cuid())
+  deviceId    String   @unique
+  userId      String?
+  deviceModel String?
+  osVersion   String?
+  status      String   @default("ACTIVE")
+  lastActive  DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deviceId])
+  @@index([userId])
+  @@index([status])
+  @@map("devices")
+}
+
+model Document {
+  id             String         @id @default(cuid())
+  userId         String
+  documentType   DocumentType
+  url            String
+  documentNumber String?
+  status         DocumentStatus @default(PENDING)
+  rejectionNote  String?
+  verifiedBy     String?
+  verifiedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([documentType])
+  @@map("documents")
+}
+
 model Passenger {
   id             String   @id @default(cuid())
   userId         String   @unique
@@ -868,6 +910,23 @@ enum RecurringFrequency {
 
 // NEW ENUM ADDED
 enum KYCStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  NIN
+  DRIVERS_LICENSE
+  VOTERS_CARD
+  PASSPORT
+  BVN_SLIP
+  UTILITY_BILL
+  CAC_CERTIFICATE
+  OTHER
+}
+
+enum DocumentStatus {
   PENDING
   APPROVED
   REJECTED

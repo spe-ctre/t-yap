@@ -2,7 +2,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
-import { createError } from './error.middleware';
 
 // Define allowed user roles
 export type UserRole = 'PASSENGER' | 'DRIVER' | 'AGENT' | 'PARK_MANAGER';
@@ -100,3 +99,6 @@ export const authMiddleware = async (
     });
   }
 };
+
+// Export alias for compatibility with agent routes
+export const authenticateToken = authMiddleware;

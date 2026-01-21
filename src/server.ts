@@ -32,6 +32,9 @@ import securityRoutes from './routes/security.routes';
 import settingsRoutes from './routes/settings.routes';
 import tRideRoutes from './routes/t-ride.routes';
 import tripRoutes from './routes/trip.routes';
+import driverRoutes from './routes/driver.routes';
+import agentRoutes from './routes/agent.routes'; 
+import parkManagementRoutes from './routes/park-management.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 import { setupCronJobs } from './jobs/cron-jobs';
@@ -87,6 +90,9 @@ app.use('/api/security', securityRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/t-ride', tRideRoutes);
 app.use('/api/trips', tripRoutes);
+app.use('/api/driver', driverRoutes);
+app.use('/api/agent', agentRoutes); 
+app.use('/api/park-management', parkManagementRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -117,6 +123,8 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Balance reconciliation routes available at /api/balance`);
   console.log(`📈 Analytics routes available at /api/analytics`);
+  console.log(`🎯 Agent routes available at /api/agent`); 
+  console.log(`🏞️  Park Management routes available at /api/park-management`);
   console.log(`📖 API Documentation available at http://localhost:${PORT}/api-docs`);
 });
 
