@@ -3,7 +3,7 @@
 import { prisma } from '../config/database';
 import { createError } from '../middleware/error.middleware';
 import { MonnifyService } from './monnify.service';
-import { TransactionType, TransactionCategory, TransactionStatus, UserType } from '@prisma/client';
+import { TransactionType, TransactionCategory, TransactionStatus, UserRole } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 /**
@@ -140,7 +140,7 @@ export class WalletService {
     const transaction = await prisma.transaction.create({
       data: {
         userId,
-        userType: UserType.PASSENGER,
+        userType: UserRole.PASSENGER,
         type: TransactionType.CREDIT,
         category: TransactionCategory.WALLET_TOPUP,
         amount: new Decimal(amount),

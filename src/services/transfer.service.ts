@@ -1,6 +1,6 @@
 // src/services/transfer.service.ts
 
-import { PrismaClient, TransactionStatus, TransactionType, TransactionCategory, UserType, TransferStatus } from '@prisma/client';
+import { PrismaClient, TransactionStatus, TransactionType, TransactionCategory, UserRole, TransferStatus } from '@prisma/client';
 import { AppError } from '../utils/errors';
 import bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -130,7 +130,7 @@ export class TransferService {
       const debitTransaction = await tx.transaction.create({
         data: {
           userId: senderId,
-          userType: UserType.PASSENGER,
+          userType: UserRole.PASSENGER,
           type: TransactionType.DEBIT,
           category: TransactionCategory.TRANSFER,
           amount: new Decimal(-totalDeduction),
@@ -152,7 +152,7 @@ export class TransferService {
       const creditTransaction = await tx.transaction.create({
         data: {
           userId: recipientId,
-          userType: UserType.PASSENGER,
+          userType: UserRole.PASSENGER,
           type: TransactionType.CREDIT,
           category: TransactionCategory.TRANSFER,
           amount: new Decimal(amount),
@@ -189,7 +189,7 @@ export class TransferService {
         await tx.transaction.create({
           data: {
             userId: senderId,
-            userType: UserType.PASSENGER,
+            userType: UserRole.PASSENGER,
             type: TransactionType.DEBIT,
             category: TransactionCategory.TRANSFER,
             amount: new Decimal(-fee),

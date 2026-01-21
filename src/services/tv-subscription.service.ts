@@ -1,4 +1,4 @@
-import { TransactionCategory, TransactionStatus, TransactionType, UserType, VASCategory, VASPurchaseStatus } from '@prisma/client';
+import { TransactionCategory, TransactionStatus, TransactionType, UserRole, VASCategory, VASPurchaseStatus } from '@prisma/client';
 import { prisma } from '../config/database';
 import { createError } from '../middleware/error.middleware';
 import { VTpassProviderService } from './vtpass-provider.service';
@@ -352,7 +352,7 @@ export class TVSubscriptionService {
         const transaction = await tx.transaction.create({
           data: {
             userId,
-            userType: UserType.PASSENGER,
+            userType: UserRole.PASSENGER,
             type: TransactionType.DEBIT,
             category: TransactionCategory.CABLE_TV_PAYMENT,
             amount: actualAmount,
