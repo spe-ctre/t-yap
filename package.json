@@ -4,7 +4,7 @@
   "description": "T-Yap Digital Transport Payment Backend",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/swagger && cp -r src/swagger/*.yaml dist/swagger/",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "test": "jest",
