@@ -1,0 +1,576 @@
+paths:
+  # ==========================================
+  # AGENT AUTHENTICATION & ONBOARDING
+  # ==========================================
+  /api/agent/auth/device-setup:
+    post:
+      tags:
+        - Agent
+      summary: Device setup
+      description: Register device for agent onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deviceId
+              properties:
+                deviceId:
+                  type: string
+                  description: Unique device identifier
+                deviceModel:
+                  type: string
+                deviceType:
+                  type: string
+                  enum: [IOS, ANDROID]
+      responses:
+        '200':
+          description: Device registered successfully
+        '400':
+          description: Invalid input
+
+  /api/agent/auth/send-otp:
+    post:
+      tags:
+        - Agent
+      summary: Send registration OTP
+      description: Send OTP to agent's phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phoneNumber
+              properties:
+                phoneNumber:
+                  type: string
+                  pattern: '^\+?[1-9]\d{1,14}$'
+      responses:
+        '200':
+          description: OTP sent successfully
+        '400':
+          description: Agent already exists
+
+  /api/agent/auth/verify-otp:
+    post:
+      tags:
+        - Agent
+      summary: Verify registration OTP
+      description: Verify OTP sent to agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phoneNumber
+                - otp
+              properties:
+                phoneNumber:
+                  type: string
+                otp:
+                  type: string
+                  minLength: 6
+                  maxLength: 6
+      responses:
+        '200':
+          description: Phone verified successfully
+        '400':
+          description: Invalid or expired OTP
+
+  /api/agent/auth/complete-profile:
+    post:
+      tags:
+        - Agent
+      summary: Complete agent profile
+      description: Complete profile after OTP verification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firstName
+                - lastName
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                address:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Profile completed successfully
+
+  /api/agent/auth/upload-document:
+    post:
+      tags:
+        - Agent
+      summary: Upload document
+      description: Upload required documents for verification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - documentType
+                - documentUrl
+              properties:
+                documentType:
+                  type: string
+                  enum: [ID_CARD, CERTIFICATE, LICENSE]
+                documentUrl:
+                  type: string
+      responses:
+        '200':
+          description: Document uploaded successfully
+
+  /api/agent/auth/submit-biometric:
+    post:
+      tags:
+        - Agent
+      summary: Submit biometric data
+      description: Submit biometric data to complete registration
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - biometricData
+              properties:
+                biometricData:
+                  type: string
+      responses:
+        '200':
+          description: Registration completed successfully
+
+  # ==========================================
+  # AGENT DASHBOARD
+  # ==========================================
+  /api/agent/dashboard:
+    get:
+      tags:
+        - Agent
+      summary: Get dashboard
+      description: Get agent dashboard with earnings and statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    type: object
+                  totalCommission:
+                    type: number
+                  todayCommission:
+                    type: number
+                  totalTransactions:
+                    type: integer
+                  todayTransactions:
+                    type: integer
+
+  # ==========================================
+  # AGENT TRANSACTIONS
+  # ==========================================
+  /api/agent/transactions:
+    get:
+      tags:
+        - Agent
+      summary: Get transactions
+      description: Get transaction history with filters and pagination
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transactions retrieved
+
+  /api/agent/transactions/{transactionId}:
+    get:
+      tags:
+        - Agent
+      summary: Get transaction details
+      description: Get detailed information about a transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: transactionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction details retrieved
+
+  # ==========================================
+  # AGENT WALLET & COMMISSIONS
+  # ==========================================
+  /api/agent/wallet:
+    get:
+      tags:
+        - Agent
+      summary: Get wallet balance
+      description: Get agent commission wallet balance
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Wallet details retrieved
+
+  /api/agent/commissions:
+    get:
+      tags:
+        - Agent
+      summary: Get commissions
+      description: Get earned commissions with filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Commissions retrieved
+
+  /api/agent/pending-settlements:
+    get:
+      tags:
+        - Agent
+      summary: Get pending settlements
+      description: Get pending commission settlements
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pending settlements retrieved
+
+  /api/agent/request-settlement:
+    post:
+      tags:
+        - Agent
+      summary: Request settlement
+      description: Request commission settlement payout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - pin
+              properties:
+                amount:
+                  type: number
+                bankAccountId:
+                  type: string
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+      responses:
+        '200':
+          description: Settlement requested
+        '401':
+          description: Invalid PIN
+
+  /api/agent/withdraw:
+    post:
+      tags:
+        - Agent
+      summary: Withdraw funds
+      description: Withdraw commission to bank account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - pin
+              properties:
+                amount:
+                  type: number
+                bankAccountId:
+                  type: string
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+      responses:
+        '200':
+          description: Withdrawal successful
+        '401':
+          description: Invalid PIN
+
+  # ==========================================
+  # AGENT BANK ACCOUNTS
+  # ==========================================
+  /api/agent/bank-accounts:
+    get:
+      tags:
+        - Agent
+      summary: Get bank accounts
+      description: Get agent's registered bank accounts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bank accounts retrieved
+    post:
+      tags:
+        - Agent
+      summary: Add bank account
+      description: Add a new bank account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accountName
+                - accountNumber
+                - bankName
+              properties:
+                accountName:
+                  type: string
+                accountNumber:
+                  type: string
+                bankName:
+                  type: string
+                bankCode:
+                  type: string
+                accountType:
+                  type: string
+                  enum: [SAVINGS, CURRENT]
+                  default: SAVINGS
+                isDefault:
+                  type: boolean
+      responses:
+        '201':
+          description: Bank account added
+
+  # ==========================================
+  # AGENT PROFILE
+  # ==========================================
+  /api/agent/profile:
+    get:
+      tags:
+        - Agent
+      summary: Get profile
+      description: Get agent profile information
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved
+    put:
+      tags:
+        - Agent
+      summary: Update profile
+      description: Update agent profile information
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                address:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+
+  # ==========================================
+  # AGENT TRANSACTION PIN
+  # ==========================================
+  /api/agent/set-pin:
+    post:
+      tags:
+        - Agent
+      summary: Set transaction PIN
+      description: Set up 4-digit transaction PIN
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pin
+                - confirmPin
+              properties:
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+                  pattern: '^\d+$'
+                confirmPin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+      responses:
+        '200':
+          description: PIN set successfully
+        '400':
+          description: PINs do not match
+
+  /api/agent/verify-pin:
+    post:
+      tags:
+        - Agent
+      summary: Verify transaction PIN
+      description: Verify agent's transaction PIN
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pin
+              properties:
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+      responses:
+        '200':
+          description: PIN verified
+        '401':
+          description: Invalid PIN
+
+  # ==========================================
+  # AGENT REPORTS
+  # ==========================================
+  /api/agent/reports/earnings:
+    get:
+      tags:
+        - Agent
+      summary: Get earnings report
+      description: Get detailed earnings report
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: groupBy
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+      responses:
+        '200':
+          description: Earnings report retrieved
+
+  /api/agent/reports/transactions:
+    get:
+      tags:
+        - Agent
+      summary: Get transactions report
+      description: Get transaction statistics report
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Transactions report retrieved

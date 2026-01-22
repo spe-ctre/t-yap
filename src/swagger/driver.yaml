@@ -1,0 +1,400 @@
+paths:
+  # ==========================================
+  # DRIVER DASHBOARD
+  # ==========================================
+  /api/driver/dashboard:
+    get:
+      tags:
+        - Driver
+      summary: Get dashboard
+      description: Get driver dashboard with earnings, trips, and statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  driver:
+                    type: object
+                  wallet:
+                    type: object
+                  currentPark:
+                    type: object
+                  assignedRoute:
+                    type: object
+                  todayEarnings:
+                    type: number
+                  recentTransactions:
+                    type: array
+                  activeTrip:
+                    type: object
+        '404':
+          description: Driver not found
+
+  # ==========================================
+  # DRIVER CHECK-IN/OUT
+  # ==========================================
+  /api/driver/check-in:
+    post:
+      tags:
+        - Driver
+      summary: Check-in
+      description: Mark driver as available for the day
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Check-in successful
+        '404':
+          description: Driver not found
+
+  /api/driver/check-out:
+    post:
+      tags:
+        - Driver
+      summary: Check-out
+      description: Mark driver as unavailable
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Check-out successful
+        '400':
+          description: Cannot check out with active trips
+        '404':
+          description: Driver not found
+
+  # ==========================================
+  # DRIVER TRIP MANAGEMENT
+  # ==========================================
+  /api/driver/trips/start:
+    post:
+      tags:
+        - Driver
+      summary: Start trip
+      description: Start a new trip
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - routeId
+                - passengerId
+                - fare
+              properties:
+                routeId:
+                  type: string
+                passengerId:
+                  type: string
+                fare:
+                  type: number
+      responses:
+        '201':
+          description: Trip started successfully
+        '400':
+          description: Invalid input or driver not checked in
+        '404':
+          description: Driver, passenger, or route not found
+
+  /api/driver/trips/{tripId}/complete:
+    post:
+      tags:
+        - Driver
+      summary: Complete trip
+      description: Mark trip as completed and process payment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: tripId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trip completed successfully
+        '400':
+          description: Trip already completed
+        '403':
+          description: Not your trip
+        '404':
+          description: Trip not found
+
+  /api/driver/passengers/checklist:
+    get:
+      tags:
+        - Driver
+      summary: Get passenger checklist
+      description: Get list of passengers waiting at the park
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Passenger checklist retrieved
+        '404':
+          description: Driver not found
+
+  # ==========================================
+  # DRIVER TRANSACTIONS
+  # ==========================================
+  /api/driver/transactions:
+    get:
+      tags:
+        - Driver
+      summary: Get transactions
+      description: Get transaction history with filters and pagination
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transactions retrieved
+
+  # ==========================================
+  # DRIVER WALLET
+  # ==========================================
+  /api/driver/wallet:
+    get:
+      tags:
+        - Driver
+      summary: Get wallet
+      description: Get wallet balance and recent transactions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Wallet details retrieved
+        '404':
+          description: Driver not found
+
+  /api/driver/withdraw:
+    post:
+      tags:
+        - Driver
+      summary: Withdraw funds
+      description: Withdraw earnings to bank account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - bankAccountId
+                - pin
+              properties:
+                amount:
+                  type: number
+                  minimum: 100
+                bankAccountId:
+                  type: string
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+                  pattern: '^\d+$'
+      responses:
+        '200':
+          description: Withdrawal successful
+        '400':
+          description: Invalid input or insufficient balance
+        '401':
+          description: Invalid PIN
+        '404':
+          description: Driver or bank account not found
+
+  # ==========================================
+  # DRIVER BANK ACCOUNTS
+  # ==========================================
+  /api/driver/bank-accounts:
+    get:
+      tags:
+        - Driver
+      summary: Get bank accounts
+      description: Get all registered bank accounts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bank accounts retrieved
+    post:
+      tags:
+        - Driver
+      summary: Add bank account
+      description: Add a new bank account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accountName
+                - accountNumber
+                - bankName
+              properties:
+                accountName:
+                  type: string
+                accountNumber:
+                  type: string
+                bankName:
+                  type: string
+                bankCode:
+                  type: string
+                accountType:
+                  type: string
+                  enum: [SAVINGS, CURRENT]
+                  default: SAVINGS
+                isDefault:
+                  type: boolean
+      responses:
+        '201':
+          description: Bank account added
+        '400':
+          description: Invalid input
+
+  # ==========================================
+  # DRIVER TRANSACTION PIN
+  # ==========================================
+  /api/driver/set-pin:
+    post:
+      tags:
+        - Driver
+      summary: Set transaction PIN
+      description: Set up 4-digit transaction PIN
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pin
+                - confirmPin
+              properties:
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+                  pattern: '^\d+$'
+                confirmPin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+      responses:
+        '200':
+          description: PIN set successfully
+        '400':
+          description: PINs do not match or invalid format
+        '404':
+          description: Driver not found
+
+  /api/driver/verify-pin:
+    post:
+      tags:
+        - Driver
+      summary: Verify transaction PIN
+      description: Verify driver's transaction PIN
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pin
+              properties:
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+      responses:
+        '200':
+          description: PIN verified successfully
+        '400':
+          description: No PIN set
+        '401':
+          description: Invalid PIN
+        '404':
+          description: Driver not found
+
+  # ==========================================
+  # DRIVER PROFILE
+  # ==========================================
+  /api/driver/profile:
+    get:
+      tags:
+        - Driver
+      summary: Get profile
+      description: Get driver profile information
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved
+        '404':
+          description: Driver not found
+    put:
+      tags:
+        - Driver
+      summary: Update profile
+      description: Update driver profile information
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                profilePicture:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Profile updated successfully
+        '404':
+          description: Driver not found

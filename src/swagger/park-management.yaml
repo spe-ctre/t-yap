@@ -1,0 +1,911 @@
+paths:
+  # ==========================================
+  # AUTHENTICATION & ONBOARDING
+  # ==========================================
+  /api/park-management/auth/device-setup:
+    post:
+      tags:
+        - Park Management
+      summary: Device setup
+      description: Register device for park manager onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deviceId
+              properties:
+                deviceId:
+                  type: string
+                  description: Unique device identifier
+                deviceModel:
+                  type: string
+                  description: Device model name
+                osVersion:
+                  type: string
+                  description: Operating system version
+      responses:
+        '200':
+          description: Device registered successfully
+        '400':
+          description: Invalid input
+
+  /api/park-management/auth/send-otp:
+    post:
+      tags:
+        - Park Management
+      summary: Send registration OTP
+      description: Send OTP to park manager's phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phoneNumber
+              properties:
+                phoneNumber:
+                  type: string
+                  pattern: '^\+?[1-9]\d{1,14}$'
+                  description: Park manager phone number
+      responses:
+        '200':
+          description: OTP sent successfully
+        '400':
+          description: Park Manager already exists
+
+  /api/park-management/auth/verify-otp:
+    post:
+      tags:
+        - Park Management
+      summary: Verify registration OTP
+      description: Verify OTP sent to park manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phoneNumber
+                - otp
+              properties:
+                phoneNumber:
+                  type: string
+                otp:
+                  type: string
+                  minLength: 6
+                  maxLength: 6
+      responses:
+        '200':
+          description: Phone verified successfully
+        '400':
+          description: Invalid or expired OTP
+
+  /api/park-management/auth/complete-profile:
+    post:
+      tags:
+        - Park Management
+      summary: Complete park manager profile
+      description: Complete profile after OTP verification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - firstName
+                - lastName
+                - parkId
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                parkId:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Profile completed successfully
+        '400':
+          description: Invalid input
+        '404':
+          description: Park not found
+
+  /api/park-management/auth/upload-document:
+    post:
+      tags:
+        - Park Management
+      summary: Upload document
+      description: Upload required documents for verification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - documentType
+                - documentUrl
+              properties:
+                documentType:
+                  type: string
+                  enum: [ID_CARD, CERTIFICATE, LICENSE]
+                documentUrl:
+                  type: string
+      responses:
+        '200':
+          description: Document uploaded successfully
+        '400':
+          description: Invalid input
+
+  /api/park-management/auth/submit-biometric:
+    post:
+      tags:
+        - Park Management
+      summary: Submit biometric data
+      description: Submit biometric data to complete registration
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - biometricData
+              properties:
+                biometricData:
+                  type: string
+                  description: Encrypted biometric data
+      responses:
+        '200':
+          description: Registration completed successfully
+        '400':
+          description: Invalid biometric data
+
+  # ==========================================
+  # DASHBOARD & SHIFT MANAGEMENT
+  # ==========================================
+  /api/park-management/dashboard:
+    get:
+      tags:
+        - Park Management
+      summary: Get dashboard
+      description: Get park manager dashboard with stats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  parkManager:
+                    type: object
+                  park:
+                    type: object
+                  stats:
+                    type: object
+                    properties:
+                      revenue:
+                        type: number
+                      activeDrivers:
+                        type: integer
+                      totalDrivers:
+                        type: integer
+                      totalVehicles:
+                        type: integer
+                      todayTrips:
+                        type: integer
+        '404':
+          description: Park Manager not found
+
+  /api/park-management/shift/start:
+    post:
+      tags:
+        - Park Management
+      summary: Start shift
+      description: Start work shift with biometric verification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - biometricData
+              properties:
+                biometricData:
+                  type: string
+      responses:
+        '200':
+          description: Shift started successfully
+        '401':
+          description: Biometric verification failed
+
+  /api/park-management/shift/end:
+    post:
+      tags:
+        - Park Management
+      summary: End shift
+      description: End current work shift
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Shift ended successfully
+
+  /api/park-management/shift/current:
+    get:
+      tags:
+        - Park Management
+      summary: Get current shift
+      description: Get current shift details
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current shift retrieved
+
+  # ==========================================
+  # DRIVER MANAGEMENT
+  # ==========================================
+  /api/park-management/drivers:
+    get:
+      tags:
+        - Park Management
+      summary: Get all drivers
+      description: Get list of drivers with pagination and filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive, all]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Drivers list retrieved
+
+  /api/park-management/drivers/statistics:
+    get:
+      tags:
+        - Park Management
+      summary: Get drivers statistics
+      description: Get overall drivers statistics for the park
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Statistics retrieved
+
+  /api/park-management/drivers/{driverId}:
+    get:
+      tags:
+        - Park Management
+      summary: Get driver details
+      description: Get detailed information about a specific driver
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Driver details retrieved
+        '404':
+          description: Driver not found
+
+  /api/park-management/drivers/{driverId}/activate:
+    post:
+      tags:
+        - Park Management
+      summary: Activate driver
+      description: Activate driver with biometric verification
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - biometricData
+              properties:
+                biometricData:
+                  type: string
+      responses:
+        '200':
+          description: Driver activated
+        '401':
+          description: Biometric verification failed
+
+  /api/park-management/drivers/{driverId}/deactivate:
+    post:
+      tags:
+        - Park Management
+      summary: Deactivate driver
+      description: Deactivate a driver
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Driver deactivated
+
+  /api/park-management/drivers/{driverId}/approve:
+    post:
+      tags:
+        - Park Management
+      summary: Approve driver
+      description: Approve driver registration
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Driver approved
+
+  /api/park-management/drivers/{driverId}/suspend:
+    post:
+      tags:
+        - Park Management
+      summary: Suspend driver
+      description: Suspend a driver with reason
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Driver suspended
+
+  /api/park-management/drivers/{driverId}/status:
+    patch:
+      tags:
+        - Park Management
+      summary: Update driver status
+      description: Update driver operational status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [Active, Inactive, OnRoute, Closed, OnQueue]
+      responses:
+        '200':
+          description: Status updated
+
+  /api/park-management/drivers/{driverId}/statistics:
+    get:
+      tags:
+        - Park Management
+      summary: Get driver statistics
+      description: Get statistics for a specific driver
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Statistics retrieved
+
+  /api/park-management/drivers/{driverId}/assign-route:
+    post:
+      tags:
+        - Park Management
+      summary: Assign route to driver
+      description: Assign a route to a driver
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - routeId
+              properties:
+                routeId:
+                  type: string
+      responses:
+        '200':
+          description: Route assigned
+
+  # ==========================================
+  # VEHICLE MANAGEMENT
+  # ==========================================
+  /api/park-management/vehicles:
+    get:
+      tags:
+        - Park Management
+      summary: Get all vehicles
+      description: Get list of vehicles with pagination
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Vehicles list retrieved
+
+  /api/park-management/vehicles/statistics:
+    get:
+      tags:
+        - Park Management
+      summary: Get vehicle statistics
+      description: Get overall vehicle statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Statistics retrieved
+
+  /api/park-management/vehicles/{vehicleId}:
+    get:
+      tags:
+        - Park Management
+      summary: Get vehicle details
+      description: Get detailed information about a vehicle
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vehicle details retrieved
+
+  /api/park-management/vehicles/{vehicleId}/approve:
+    post:
+      tags:
+        - Park Management
+      summary: Approve vehicle
+      description: Approve vehicle registration
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vehicle approved
+
+  /api/park-management/vehicles/{vehicleId}/deactivate:
+    post:
+      tags:
+        - Park Management
+      summary: Deactivate vehicle
+      description: Deactivate a vehicle
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Vehicle deactivated
+
+  # ==========================================
+  # PASSENGER MANAGEMENT
+  # ==========================================
+  /api/park-management/passengers:
+    get:
+      tags:
+        - Park Management
+      summary: Get all passengers
+      description: Get list of passengers with search and pagination
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Passengers list retrieved
+
+  /api/park-management/passengers/statistics:
+    get:
+      tags:
+        - Park Management
+      summary: Get passenger statistics
+      description: Get overall passenger statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Statistics retrieved
+
+  /api/park-management/passengers/{passengerId}/activate:
+    post:
+      tags:
+        - Park Management
+      summary: Check-in passenger
+      description: Check-in passenger with biometric verification
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: passengerId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - biometricData
+              properties:
+                biometricData:
+                  type: string
+      responses:
+        '200':
+          description: Passenger checked in
+        '401':
+          description: Biometric verification failed
+
+  # ==========================================
+  # WALLET & TRANSACTIONS
+  # ==========================================
+  /api/park-management/wallet:
+    get:
+      tags:
+        - Park Management
+      summary: Get wallet balance
+      description: Get park commission wallet balance
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Wallet details retrieved
+
+  /api/park-management/transactions:
+    get:
+      tags:
+        - Park Management
+      summary: Get transactions
+      description: Get transaction history with filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Transactions retrieved
+
+  /api/park-management/settlements/pending:
+    get:
+      tags:
+        - Park Management
+      summary: Get pending settlements
+      description: Get pending driver settlements for approval
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pending settlements retrieved
+
+  /api/park-management/settlements/approve:
+    post:
+      tags:
+        - Park Management
+      summary: Approve settlement
+      description: Approve driver settlement with biometric/PIN
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settlementData:
+                  type: object
+                biometricData:
+                  type: string
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+      responses:
+        '200':
+          description: Settlement approved
+        '401':
+          description: Verification failed
+
+  /api/park-management/wallet/withdraw:
+    post:
+      tags:
+        - Park Management
+      summary: Withdraw funds
+      description: Withdraw funds to bank account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - pin
+              properties:
+                amount:
+                  type: number
+                bankAccountId:
+                  type: string
+                pin:
+                  type: string
+                  minLength: 4
+                  maxLength: 4
+      responses:
+        '200':
+          description: Withdrawal successful
+        '401':
+          description: Invalid PIN
+
+  # ==========================================
+  # REPORTS
+  # ==========================================
+  /api/park-management/reports/revenue:
+    get:
+      tags:
+        - Park Management
+      summary: Get revenue report
+      description: Get revenue report with date filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: groupBy
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+      responses:
+        '200':
+          description: Revenue report retrieved
+
+  /api/park-management/reports/trips:
+    get:
+      tags:
+        - Park Management
+      summary: Get trip report
+      description: Get trip statistics report
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Trip report retrieved
+
+  /api/park-management/reports/driver-performance:
+    get:
+      tags:
+        - Park Management
+      summary: Get driver performance report
+      description: Get driver performance metrics
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Performance report retrieved
+
+  # ==========================================
+  # SETTINGS
+  # ==========================================
+  /api/park-management/park:
+    get:
+      tags:
+        - Park Management
+      summary: Get park details
+      description: Get park information and settings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Park details retrieved
+
+  /api/park-management/park/settings:
+    patch:
+      tags:
+        - Park Management
+      summary: Update park settings
+      description: Update park configuration settings
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                commissionRate:
+                  type: number
+                  description: Commission rate percentage
+      responses:
+        '200':
+          description: Settings updated

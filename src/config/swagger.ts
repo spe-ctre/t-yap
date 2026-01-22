@@ -18,7 +18,10 @@ const options = {
       { name: 'Electricity', description: 'Electricity meter validation and payments' },
       { name: 'Airtime', description: 'Airtime purchase services' },
       { name: 'Data', description: 'Data subscription purchase services' },
-      { name: 'TV Subscription', description: 'TV subscription purchase and renewal services' }
+      { name: 'TV Subscription', description: 'TV subscription purchase and renewal services' },
+      { name: 'Park Management', description: 'Park manager onboarding, dashboard, driver/vehicle/passenger management' },
+      { name: 'Agent', description: 'Agent onboarding and commission management' },
+      { name: 'Driver', description: 'Driver dashboard, trips, wallet, and transactions' }  
     ],
     servers: [
       { url: 'https://t-yap-d0rj.onrender.com', description: 'Production server' },
@@ -446,8 +449,8 @@ const options = {
     }
   },
   apis: process.env.NODE_ENV === 'production' 
-  ? ['./dist/routes/*.js']
-  : ['./src/routes/*.ts']
+  ? ['./dist/routes/*.js', './dist/swagger/*.yaml']
+  : ['./src/routes/*.ts', './src/swagger/*.yaml']
 };
 
 export const specs = swaggerJsdoc(options);
