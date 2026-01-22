@@ -6,7 +6,7 @@ import { prisma } from '../config/database'; // Use shared instance
 
 interface ReconciliationResult {
   userId: string;
-  UserRole: UserRole;
+  userType: UserRole;
   calculatedBalance: number;
   currentBalance: number;
   discrepancy: number;
@@ -21,13 +21,13 @@ export class BalanceReconciliationService {
    */
   static async reconcileUserBalance(
     userId: string,
-    UserRole: UserRole
+    userType: UserRole
   ): Promise<ReconciliationResult> {
     // Get user's profile based on type
     let currentBalance = 0;
     let userProfile = null;
 
-    switch (UserRole) {
+    switch (userType) {
       case UserRole.PASSENGER:
         userProfile = await prisma.passenger.findUnique({
           where: { userId },
@@ -86,7 +86,7 @@ export class BalanceReconciliationService {
     await prisma.balanceHistory.create({
       data: {
         userId,
-        UserRole,
+        userType,
         balance: new Decimal(currentBalance),
         reconciled: isReconciled,
         discrepancy: isReconciled ? null : new Decimal(discrepancy),
@@ -100,7 +100,7 @@ export class BalanceReconciliationService {
 
     return {
       userId,
-      UserRole,
+      userType,
       calculatedBalance,
       currentBalance,
       discrepancy,
@@ -132,21 +132,21 @@ export class BalanceReconciliationService {
 
       // Process passengers in batches
       const passengerResults = await this.reconcileBatch(
-        passengers.map(p => ({ userId: p.userId, UserRole: UserRole.PASSENGER }))
+        passengers.map(p => ({ userId: p.userId, userType: UserRole.PASSENGER }))
       );
       results.push(...passengerResults.results);
       errors.push(...passengerResults.errors);
 
       // Process drivers in batches
       const driverResults = await this.reconcileBatch(
-        drivers.map(d => ({ userId: d.userId, UserRole: UserRole.DRIVER }))
+        drivers.map(d => ({ userId: d.userId, userType: UserRole.DRIVER }))
       );
       results.push(...driverResults.results);
       errors.push(...driverResults.errors);
 
       // Process agents in batches
       const agentResults = await this.reconcileBatch(
-        agents.map(a => ({ userId: a.userId, UserRole: UserRole.AGENT }))
+        agents.map(a => ({ userId: a.userId, userType: UserRole.AGENT }))
       );
       results.push(...agentResults.results);
       errors.push(...agentResults.errors);
@@ -175,7 +175,7 @@ export class BalanceReconciliationService {
    * Reconcile users in batches for better performance
    */
   private static async reconcileBatch(
-    users: { userId: string; UserRole: UserRole }[]
+    users: { userId: string; userType: UserRole }[]
   ): Promise<{
     results: ReconciliationResult[];
     errors: { userId: string; error: string }[];
@@ -188,7 +188,7 @@ export class BalanceReconciliationService {
       const batch = users.slice(i, i + BATCH_SIZE);
       
       const batchResults = await Promise.allSettled(
-        batch.map(user => this.reconcileUserBalance(user.userId, user.UserRole))
+        batch.map(user => this.reconcileUserBalance(user.userId, user.userType))
       );
 
       batchResults.forEach((result, index) => {
@@ -321,7 +321,7 @@ export class BalanceReconciliationService {
       userId: record.userId,
       userEmail: record.user.email,
       userPhone: record.user.phoneNumber,
-      UserRole: record.UserRole,
+      userType: record.userType,
       balance: record.balance.toNumber(),
       discrepancy: record.discrepancy?.toNumber() || 0,
       snapshotDate: record.snapshotDate,
