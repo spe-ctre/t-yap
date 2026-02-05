@@ -122,7 +122,7 @@ Each row is a major feature: API base path, controller(s), and service(s) that i
 
 ---
 
-## 1. Environment configuration variables
+## Environment configuration variables
 
 Set these in `.env` (use `.env.example` as a template). Do not commit `.env` to version control.
 
@@ -171,7 +171,7 @@ Set these in `.env` (use `.env.example` as a template). Do not commit `.env` to 
 
 ---
 
-## 2. Database schema and migration notes
+## Database schema and migration notes
 
 **Database:** PostgreSQL 14+  
 **ORM:** Prisma. Schema: `prisma/schema.prisma`.
@@ -216,16 +216,16 @@ Migrations live under `prisma/migrations/`. Apply with `npx prisma migrate deplo
 
 ---
 
-## 3. Deployment guide (step-by-step)
+## Deployment guide (step-by-step)
 
-### 3.1 Prerequisites
+### Prerequisites
 
 - Node.js 20+ (LTS).
 - PostgreSQL 14+ (hosted or self-hosted).
 - Git.
 - Accounts and credentials for Monnify (and optionally VTpass, Firebase, Cloudinary, SMTP) for production.
 
-### 3.2 Build and run locally (smoke test)
+### Build and run locally (smoke test)
 
 1. Clone repo: `git clone <repo-url>` then `cd t-yap` (or into the backend folder).
 2. Install: `npm install`.
@@ -237,7 +237,7 @@ Migrations live under `prisma/migrations/`. Apply with `npx prisma migrate deplo
 8. Start: `npm start`. Server listens on `PORT` (default 3000).  
    Health: `GET /health`. Docs: `GET /api-docs`.
 
-### 3.3 Deploy to Render.com (web service)
+### Deploy to Render.com (web service)
 
 1. **Render dashboard:** New → Web Service. Connect the GitHub repo and select the branch.
 2. **Build:**
@@ -261,7 +261,7 @@ Migrations live under `prisma/migrations/`. Apply with `npx prisma migrate deplo
 2. **App on host:** Same as 3.2: `npm install`, `.env`, `npx prisma migrate deploy`, `npx prisma generate`, `npm run build`, `npm start`.
 3. **App in Docker:** Add a Dockerfile that copies the app, runs `npm install`, `npx prisma generate`, `npm run build`, and runs `node dist/server.js`. In production, run migrations in an init container or release step, then start the app container. Point `DATABASE_URL` to the Postgres service (e.g. `postgres` hostname if in same Docker network).
 
-### 3.5 Post-deploy checks
+### Post-deploy checks
 
 - `GET /health` returns 200.
 - `GET /api-docs` loads Swagger.
@@ -288,7 +288,7 @@ Migrations live under `prisma/migrations/`. Apply with `npx prisma migrate deplo
 
 ---
 
-## 5. Troubleshooting
+## Troubleshooting
 
 **Database connection fails**  
 - Check PostgreSQL is running and reachable.  
@@ -338,7 +338,7 @@ Migrations live under `prisma/migrations/`. Apply with `npx prisma migrate deplo
 
 ---
 
-## 6. Third-party services and credentials
+## Third-party services and credentials
 
 **Monnify (payments)**  
 - Used for: wallet top-up, payment initiation, webhooks.  
