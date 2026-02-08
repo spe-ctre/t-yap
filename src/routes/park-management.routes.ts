@@ -67,7 +67,17 @@ import {
   addBankAccount,
   deleteBankAccount,
   getDeviceStatus,
-  contactSupport  
+  contactSupport,
+  enrollBiometric, 
+  verifyBiometric,
+  driverBiometricCheckIn,
+  enrollDriverBiometric,
+  enrollAgentBiometric,          
+  verifyAgentBiometric,          
+  enrollParkManagerBiometric,   
+  verifyParkManagerBiometric,    
+  getEnrolledBiometrics,      
+  deactivateBiometric   
 } from '../controllers/park-management.controller';
 
 const router = Router();
@@ -248,5 +258,17 @@ router.get('/device/status', getDeviceStatus);
 
 //Support contact
 router.post('/support/contact', contactSupport);
+
+// Biometric endpoints
+router.post('/passenger/enroll-biometric', enrollBiometric);
+router.post('/passenger/verify-biometric', verifyBiometric);
+router.post('/driver/biometric-check-in', driverBiometricCheckIn);
+router.post('/driver/enroll-biometric', enrollDriverBiometric);           
+router.post('/agent/enroll-biometric', enrollAgentBiometric);             
+router.post('/agent/verify-biometric', verifyAgentBiometric);             
+router.post('/enroll-own-biometric', enrollParkManagerBiometric);         
+router.post('/verify-own-biometric', verifyParkManagerBiometric);         
+router.get('/biometric/enrolled', getEnrolledBiometrics);                 
+router.put('/biometric/:biometricId/deactivate', deactivateBiometric);
 
 export default router;

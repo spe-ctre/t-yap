@@ -2363,3 +2363,645 @@ export const contactSupport = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Failed to create support ticket' });
   }
 };
+
+export const enrollBiometric = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { passengerId, templateData, deviceId } = req.body;
+
+    if (!passengerId || !templateData) {
+      return res.status(400).json({ 
+        error: 'passengerId and templateData are required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Verify passenger exists
+    const passenger = await prisma.passenger.findUnique({
+      where: { id: passengerId },
+    });
+
+    if (!passenger) {
+      return res.status(404).json({ error: 'Passenger not found' });
+    }
+
+    // Check if passenger already has biometric enrolled
+    const existing = await prisma.biometricData.findFirst({
+      where: {
+        userId: passengerId,
+        userType: 'PASSENGER',
+        isActive: true,
+      },
+    });
+
+    if (existing) {
+      return res.status(400).json({ 
+        error: 'Passenger already has fingerprint enrolled' 
+      });
+    }
+
+    // Store biometric template
+    const biometric = await prisma.biometricData.create({
+      data: {
+        userId: passengerId,
+        userType: 'PASSENGER',
+        templateData,
+        deviceId: deviceId || null,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Fingerprint enrolled successfully',
+      biometricId: biometric.id,
+    });
+  } catch (error) {
+    console.error('Enroll biometric error:', error);
+    return res.status(500).json({ error: 'Failed to enroll biometric' });
+  }
+};
+
+export const verifyBiometric = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { templateData, deviceId } = req.body;
+
+    if (!templateData) {
+      return res.status(400).json({ 
+        error: 'templateData is required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // MOCK MODE: Just return first passenger with biometric for now
+    // Real matching will be implemented later with X-Telcom Java SDK
+    const anyBiometric = await prisma.biometricData.findFirst({
+      where: {
+        userType: 'PASSENGER',
+        isActive: true,
+      },
+    });
+
+    if (!anyBiometric) {
+      return res.json({
+        success: true,
+        verified: false,
+        message: 'No enrolled fingerprints found in system',
+      });
+    }
+
+    // Get passenger details
+  // Get passenger details with user info
+    const passenger = await prisma.passenger.findUnique({
+      where: { id: anyBiometric.userId },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!passenger) {
+      return res.json({
+        success: true,
+        verified: false,
+        message: 'Fingerprint not recognized',
+      });
+    }
+
+    // Update last verified time
+    await prisma.biometricData.update({
+      where: { id: anyBiometric.id },
+      data: { lastVerifiedAt: new Date() },
+    });
+
+    // MOCK: Always return success with passenger data
+    return res.json({
+      success: true,
+      verified: true,
+      matchScore: 95, // Mock score
+      passenger: {
+        id: passenger.id,
+        firstName: passenger.firstName || '',
+        lastName: passenger.lastName || '',
+        phoneNumber: passenger.user.phoneNumber,
+        walletBalance: Number(passenger.walletBalance),
+      },
+    });
+  } catch (error) {
+    console.error('Verify biometric error:', error);
+    return res.status(500).json({ error: 'Failed to verify biometric' });
+  }
+};
+
+export const driverBiometricCheckIn = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { templateData, deviceId } = req.body;
+
+    if (!templateData) {
+      return res.status(400).json({ 
+        error: 'templateData is required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // MOCK MODE: Find any driver with enrolled biometric
+    // Real matching will compare templateData with stored templates
+    const driverBiometric = await prisma.biometricData.findFirst({
+      where: {
+        userType: 'DRIVER',
+        isActive: true,
+      },
+    });
+
+    if (!driverBiometric) {
+      return res.json({
+        success: true,
+        verified: false,
+        message: 'No enrolled driver fingerprints found',
+      });
+    }
+
+    // Get driver details
+    const driver = await prisma.driver.findUnique({
+      where: { id: driverBiometric.userId },
+      include: {
+        user: true,
+        vehicle: true,
+      },
+    });
+
+    if (!driver) {
+      return res.json({
+        success: true,
+        verified: false,
+        message: 'Driver not found',
+      });
+    }
+
+    // Update last verified time
+    await prisma.biometricData.update({
+      where: { id: driverBiometric.id },
+      data: { lastVerifiedAt: new Date() },
+    });
+
+    // Record driver check-in
+    // TODO: Create DriverCheckIn table to track daily check-ins
+    // For now, just return driver info
+
+    return res.json({
+      success: true,
+      verified: true,
+      matchScore: 95, // Mock score
+      driver: {
+        id: driver.id,
+        firstName: driver.firstName,
+        lastName: driver.lastName,
+        phoneNumber: driver.user.phoneNumber,
+        licenseNumber: driver.licenseNumber,
+        vehicle: driver.vehicle ? {
+          plateNumber: driver.vehicle.plateNumber,
+          model: driver.vehicle.model,
+        } : null,
+      },
+      message: 'Driver checked in successfully',
+    });
+  } catch (error) {
+    console.error('Driver biometric check-in error:', error);
+    return res.status(500).json({ error: 'Failed to process driver check-in' });
+  }
+};
+
+// Driver Enrollment
+export const enrollDriverBiometric = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { driverId, templateData, deviceId } = req.body;
+
+    if (!driverId || !templateData) {
+      return res.status(400).json({ 
+        error: 'driverId and templateData are required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Verify driver exists
+    const driver = await prisma.driver.findUnique({
+      where: { id: driverId },
+    });
+
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    // Check if driver already has biometric enrolled
+    const existing = await prisma.biometricData.findFirst({
+      where: {
+        userId: driverId,
+        userType: 'DRIVER',
+        isActive: true,
+      },
+    });
+
+    if (existing) {
+      return res.status(400).json({ 
+        error: 'Driver already has fingerprint enrolled' 
+      });
+    }
+
+    // Store biometric template
+    const biometric = await prisma.biometricData.create({
+      data: {
+        userId: driverId,
+        userType: 'DRIVER',
+        templateData,
+        deviceId: deviceId || null,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Driver fingerprint enrolled successfully',
+      biometricId: biometric.id,
+    });
+  } catch (error) {
+    console.error('Enroll driver biometric error:', error);
+    return res.status(500).json({ error: 'Failed to enroll driver biometric' });
+  }
+};
+
+// Agent Enrollment
+export const enrollAgentBiometric = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { agentId, templateData, deviceId } = req.body;
+
+    if (!agentId || !templateData) {
+      return res.status(400).json({ 
+        error: 'agentId and templateData are required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Verify agent exists
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+    });
+
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    // Check if agent already has biometric enrolled
+    const existing = await prisma.biometricData.findFirst({
+      where: {
+        userId: agentId,
+        userType: 'AGENT',
+        isActive: true,
+      },
+    });
+
+    if (existing) {
+      return res.status(400).json({ 
+        error: 'Agent already has fingerprint enrolled' 
+      });
+    }
+
+    // Store biometric template
+    const biometric = await prisma.biometricData.create({
+      data: {
+        userId: agentId,
+        userType: 'AGENT',
+        templateData,
+        deviceId: deviceId || null,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Agent fingerprint enrolled successfully',
+      biometricId: biometric.id,
+    });
+  } catch (error) {
+    console.error('Enroll agent biometric error:', error);
+    return res.status(500).json({ error: 'Failed to enroll agent biometric' });
+  }
+};
+
+// Agent Verification
+export const verifyAgentBiometric = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { templateData, deviceId } = req.body;
+
+    if (!templateData) {
+      return res.status(400).json({ 
+        error: 'templateData is required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // MOCK MODE: Find any agent with biometric
+    const agentBiometric = await prisma.biometricData.findFirst({
+      where: {
+        userType: 'AGENT',
+        isActive: true,
+      },
+    });
+
+    if (!agentBiometric) {
+      return res.json({
+        success: true,
+        verified: false,
+        message: 'No enrolled agent fingerprints found',
+      });
+    }
+
+    // Get agent details
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentBiometric.userId },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!agent) {
+      return res.json({
+        success: true,
+        verified: false,
+        message: 'Agent not found',
+      });
+    }
+
+    // Update last verified time
+    await prisma.biometricData.update({
+      where: { id: agentBiometric.id },
+      data: { lastVerifiedAt: new Date() },
+    });
+
+    return res.json({
+      success: true,
+      verified: true,
+      matchScore: 95, // Mock score
+      agent: {
+        id: agent.id,
+        firstName: agent.firstName,
+        lastName: agent.lastName,
+        phoneNumber: agent.user.phoneNumber,
+        agentCode: agent.agentCode,
+      },
+      message: 'Agent verified successfully',
+    });
+  } catch (error) {
+    console.error('Verify agent biometric error:', error);
+    return res.status(500).json({ error: 'Failed to verify agent biometric' });
+  }
+};
+
+// Park Manager Self-Enrollment
+export const enrollParkManagerBiometric = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { templateData, deviceId } = req.body;
+
+    if (!templateData) {
+      return res.status(400).json({ 
+        error: 'templateData is required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Check if park manager already has biometric enrolled
+    const existing = await prisma.biometricData.findFirst({
+      where: {
+        userId: parkManager.id,
+        userType: 'PARK_MANAGER',
+        isActive: true,
+      },
+    });
+
+    if (existing) {
+      return res.status(400).json({ 
+        error: 'You already have fingerprint enrolled' 
+      });
+    }
+
+    // Store biometric template
+    const biometric = await prisma.biometricData.create({
+      data: {
+        userId: parkManager.id,
+        userType: 'PARK_MANAGER',
+        templateData,
+        deviceId: deviceId || null,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Your fingerprint enrolled successfully',
+      biometricId: biometric.id,
+    });
+  } catch (error) {
+    console.error('Enroll park manager biometric error:', error);
+    return res.status(500).json({ error: 'Failed to enroll fingerprint' });
+  }
+};
+
+// Park Manager Self-Verification
+export const verifyParkManagerBiometric = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { templateData, deviceId } = req.body;
+
+    if (!templateData) {
+      return res.status(400).json({ 
+        error: 'templateData is required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+      include: {
+        user: true,
+        park: true, 
+      },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // MOCK MODE: Check if this park manager has biometric enrolled
+    const pmBiometric = await prisma.biometricData.findFirst({
+      where: {
+        userId: parkManager.id,
+        userType: 'PARK_MANAGER',
+        isActive: true,
+      },
+    });
+
+    if (!pmBiometric) {
+      return res.json({
+        success: true,
+        verified: false,
+        message: 'No fingerprint enrolled. Please enroll first.',
+      });
+    }
+
+    // Update last verified time
+    await prisma.biometricData.update({
+      where: { id: pmBiometric.id },
+      data: { lastVerifiedAt: new Date() },
+    });
+
+    return res.json({
+      success: true,
+      verified: true,
+      matchScore: 95, // Mock score
+      parkManager: {
+        id: parkManager.id,
+        firstName: parkManager.firstName,
+        lastName: parkManager.lastName,
+        phoneNumber: parkManager.user.phoneNumber,
+        parkName: parkManager.park?.name || 'No park assigned',
+      },
+      message: 'Verification successful',
+    });
+  } catch (error) {
+    console.error('Verify park manager biometric error:', error);
+    return res.status(500).json({ error: 'Failed to verify fingerprint' });
+  }
+};
+
+// List All Enrolled Biometrics (Management)
+export const getEnrolledBiometrics = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { userType } = req.query;
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    const whereClause: any = {
+      isActive: true,
+    };
+
+    if (userType && ['PASSENGER', 'DRIVER', 'AGENT', 'PARK_MANAGER'].includes(userType as string)) {
+      whereClause.userType = userType;
+    }
+
+    const biometrics = await prisma.biometricData.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        userId: true,
+        userType: true,
+        deviceId: true,
+        enrolledAt: true,
+        lastVerifiedAt: true,
+      },
+      orderBy: {
+        enrolledAt: 'desc',
+      },
+    });
+
+    return res.json({
+      success: true,
+      count: biometrics.length,
+      biometrics,
+    });
+  } catch (error) {
+    console.error('Get enrolled biometrics error:', error);
+    return res.status(500).json({ error: 'Failed to fetch biometrics' });
+  }
+};
+
+// Deactivate Biometric
+export const deactivateBiometric = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { biometricId } = req.params;
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    const biometric = await prisma.biometricData.findUnique({
+      where: { id: biometricId },
+    });
+
+    if (!biometric) {
+      return res.status(404).json({ error: 'Biometric record not found' });
+    }
+
+    await prisma.biometricData.update({
+      where: { id: biometricId },
+      data: { isActive: false },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Biometric deactivated successfully',
+    });
+  } catch (error) {
+    console.error('Deactivate biometric error:', error);
+    return res.status(500).json({ error: 'Failed to deactivate biometric' });
+  }
+};

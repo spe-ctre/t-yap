@@ -91,6 +91,22 @@ model Document {
   @@map("documents")
 }
 
+model BiometricData {
+  id              String    @id @default(cuid())
+  userType        String    // "PASSENGER" | "PARK_MANAGER" | "AGENT" | "DRIVER"
+  userId          String    // Points to any user type's ID
+  templateData    String    @db.Text
+  deviceId        String?
+  enrolledAt      DateTime  @default(now())
+  lastVerifiedAt  DateTime?
+  isActive        Boolean   @default(true)
+  
+  @@index([userId])
+  @@index([userType, userId])
+  @@index([deviceId])
+  @@map("biometric_data")
+}
+
 model Passenger {
   id             String   @id @default(cuid())
   userId         String   @unique
