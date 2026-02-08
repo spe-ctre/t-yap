@@ -15,6 +15,7 @@ export class AuthService {
     this.emailService = new EmailService();
     this.sessionService = new SessionService();
   }
+  
   async signup(data: { email: string; phoneNumber: string; password: string; role?: string }) {
     // Normalize phone number
     const normalizedPhone = normalizePhoneNumber(data.phoneNumber);
@@ -78,7 +79,7 @@ export class AuthService {
       message: 'Verification code sent to email. Please verify your email to continue.'
     };
   }
-  
+
   async login(data: { username: string; password: string; deviceName?: string; deviceType?: string; deviceId?: string; ipAddress?: string; userAgent?: string }) {
     const user = await prisma.user.findFirst({
       where: { OR: [{ email: data.username }, { phoneNumber: data.username }] },

@@ -199,7 +199,6 @@ export const getParkManagerDashboard = async (req: Request, res: Response) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get today's revenue
     const todayRevenue = await prisma.transaction.aggregate({
       where: {
         createdAt: { gte: today },
@@ -209,7 +208,6 @@ export const getParkManagerDashboard = async (req: Request, res: Response) => {
       _sum: { amount: true },
     });
 
-    // Count active drivers today
     const activeDrivers = await prisma.driver.count({
       where: {
         isAvailableToday: true,
@@ -217,23 +215,81 @@ export const getParkManagerDashboard = async (req: Request, res: Response) => {
       },
     });
 
-    // Total drivers
     const totalDrivers = await prisma.driver.count({
       where: { vehicle: { currentParkId: parkManager.parkId } },
     });
 
-    // Total vehicles
     const totalVehicles = await prisma.vehicle.count({
       where: { currentParkId: parkManager.parkId },
     });
 
-    // Today's trips
     const todayTrips = await prisma.trip.count({
       where: {
         createdAt: { gte: today },
         vehicle: { currentParkId: parkManager.parkId },
       },
     });
+
+    const recentTransactions = await prisma.transaction.findMany({
+      where: {
+        category: 'FARE_PAYMENT',
+        status: 'SUCCESS',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 10,
+    });
+
+    const formattedTransactions = await Promise.all(
+      recentTransactions.map(async (transaction) => {
+        const trip = await prisma.trip.findFirst({
+          where: {
+            passengerId: transaction.userId,
+            createdAt: {
+              gte: new Date(transaction.createdAt.getTime() - 60000),
+              lte: new Date(transaction.createdAt.getTime() + 60000),
+            },
+          },
+          include: {
+            driver: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+            route: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+
+        return {
+          time: transaction.createdAt.toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          driverName: trip?.driver
+            ? `${trip.driver.firstName} ${trip.driver.lastName}`
+            : 'N/A',
+          route: trip?.route?.name || 'N/A',
+          amount: `₦${Number(transaction.amount).toLocaleString()}`,
+          paymentStatus: 'Paid',
+        };
+      })
+    );
 
     return res.json({
       parkManager: {
@@ -243,12 +299,12 @@ export const getParkManagerDashboard = async (req: Request, res: Response) => {
       },
       park: parkManager.park,
       stats: {
-        revenue: todayRevenue._sum.amount || 0,
+        transactionsToday: todayRevenue._sum.amount || 0,
+        totalTripsToday: todayTrips,
         activeDrivers,
         totalDrivers,
-        totalVehicles,
-        todayTrips,
       },
+      recentTransactions: formattedTransactions,
     });
   } catch (error) {
     console.error('Get dashboard error:', error);
@@ -992,41 +1048,6 @@ export const getWallet = async (req: Request, res: Response) => {
     }
   };
   
-  export const approveSettlement = async (req: Request, res: Response) => {
-    try {
-      const userId = req.user?.id;
-      const { settlementData, biometricData, pin } = req.body;
-  
-      if (!biometricData && !pin) {
-        return res.status(400).json({ error: 'Biometric or PIN verification required' });
-      }
-  
-      const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
-      if (!parkManager) return res.status(404).json({ error: 'Park Manager not found' });
-  
-      // Verify biometric or PIN
-      if (biometricData && parkManager.biometricData !== biometricData) {
-        return res.status(401).json({ error: 'Biometric verification failed' });
-      }
-  
-      if (pin && parkManager.transactionPin) {
-        const isPinValid = await bcrypt.compare(pin, parkManager.transactionPin);
-        if (!isPinValid) return res.status(401).json({ error: 'Invalid PIN' });
-      }
-  
-      // TODO: Process settlement - transfer funds to drivers
-      // Mark trips as settled, create settlement records
-  
-      return res.json({
-        message: 'Settlement approved successfully',
-        settlementId: `SETTLE-${Date.now()}`,
-      });
-    } catch (error) {
-      console.error('Approve settlement error:', error);
-      return res.status(500).json({ error: 'Failed to approve settlement' });
-    }
-  };
-  
   export const withdrawFunds = async (req: Request, res: Response) => {
     try {
       const userId = req.user?.id;
@@ -1241,3 +1262,1104 @@ export const getWallet = async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to update settings' });
     }
   };
+
+  export const getParksList = async (req: Request, res: Response) => {
+    try {
+      const parks = await prisma.park.findMany({
+        select: {
+          id: true,
+          name: true,
+          address: true, 
+        },
+        where: {
+          isActive: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      });
+  
+      // Format the response to include location field for frontend
+      const formattedParks = parks.map(park => ({
+        id: park.id,
+        name: park.name,
+        location: park.address,  // Map address to location for consistency
+      }));
+  
+      return res.json({
+        parks: formattedParks,
+      });
+    } catch (error) {
+      console.error('Get parks list error:', error);
+      return res.status(500).json({ error: 'Failed to fetch parks list' });
+    }
+  };
+
+  export const getAvailableVehicles = async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { destination } = req.query;
+  
+      if (!destination) {
+        return res.status(400).json({ error: 'Destination is required' });
+      }
+  
+      const parkManager = await prisma.parkManager.findUnique({
+        where: { userId },
+      });
+  
+      if (!parkManager) {
+        return res.status(404).json({ error: 'Park Manager not found' });
+      }
+  
+      // Get all active trips for this destination
+      const activeTrips = await prisma.trip.findMany({
+        where: {
+          status: 'PENDING',
+          route: {
+            destination: destination as string,
+          },
+        },
+        include: {
+          vehicle: {
+            include: {
+              driver: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+          route: {
+            select: {
+              id: true,
+              name: true,
+              destination: true,
+            },
+          },
+        },
+      });
+  
+      // Filter trips for vehicles at this park that are available
+      const formattedVehicles = activeTrips
+        .filter((trip) => {
+          return (
+            trip.vehicle.currentParkId === parkManager.parkId &&
+            trip.vehicle.isActive &&
+            trip.vehicle.isAvailableForBoarding
+          );
+        })
+        .map((trip) => {
+          const passengerCount = 0; // Will calculate when TripPassenger table exists
+  
+          return {
+            id: trip.vehicle.id,
+            plateNumber: trip.vehicle.plateNumber,
+            capacity: trip.vehicle.capacity,
+            currentPassengers: passengerCount,
+            availableSeats: trip.vehicle.capacity - passengerCount,
+            driver: trip.vehicle.driver,
+            route: trip.route,
+          };
+        });
+  
+      return res.json({
+        vehicles: formattedVehicles,
+      });
+    } catch (error) {
+      console.error('Get available vehicles error:', error);
+      return res.status(500).json({ error: 'Failed to fetch available vehicles' });
+    }
+  };
+
+  export const checkPassengerWallet = async (req: Request, res: Response) => {
+    try {
+      const { passengerId, biometricData } = req.body;
+  
+      if (!passengerId || !biometricData) {
+        return res.status(400).json({ 
+          error: 'Passenger ID and biometric data are required' 
+        });
+      }
+  
+      // Get passenger
+      const passenger = await prisma.passenger.findUnique({
+        where: { id: passengerId },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          walletBalance: true,
+          biometricData: true,
+        },
+      });
+  
+      if (!passenger) {
+        return res.status(404).json({ error: 'Passenger not found' });
+      }
+  
+      // TODO: Verify biometric data matches passenger
+      // For now, we'll skip biometric verification
+      // if (passenger.biometricData !== biometricData) {
+      //   return res.status(401).json({ error: 'Biometric verification failed' });
+      // }
+  
+      // Get wallet balance
+      const balance = passenger.walletBalance || 0;
+  
+      // Get fare (for now, use a default fare - will be dynamic later)
+      const fareRequired = 250; // Default fare - will come from route/trip later
+  
+      return res.json({
+        success: true,
+        balance: Number(balance),
+        fareRequired,
+        canPay: Number(balance) >= fareRequired,
+        passenger: {
+          id: passenger.id,
+          firstName: passenger.firstName,
+          lastName: passenger.lastName,
+        },
+      });
+    } catch (error) {
+      console.error('Check passenger wallet error:', error);
+      return res.status(500).json({ error: 'Failed to check wallet balance' });
+    }
+  };
+
+  export const fundWalletWithCash = async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { passengerId, amount } = req.body;
+  
+      if (!passengerId || !amount) {
+        return res.status(400).json({ 
+          error: 'Passenger ID and amount are required' 
+        });
+      }
+  
+      if (amount <= 0) {
+        return res.status(400).json({ error: 'Amount must be greater than 0' });
+      }
+  
+      const parkManager = await prisma.parkManager.findUnique({
+        where: { userId },
+      });
+  
+      if (!parkManager) {
+        return res.status(404).json({ error: 'Park Manager not found' });
+      }
+  
+      // Get passenger
+      const passenger = await prisma.passenger.findUnique({
+        where: { id: passengerId },
+      });
+  
+      if (!passenger) {
+        return res.status(404).json({ error: 'Passenger not found' });
+      }
+  
+      const previousBalance = Number(passenger.walletBalance);
+  
+      // Create transaction and update wallet in a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // Create transaction record
+        // Create transaction record
+        const transaction = await tx.transaction.create({
+          data: {
+            type: 'CREDIT',
+            category: 'WALLET_TOPUP',
+            status: 'SUCCESS',
+            amount: amount,
+            description: `Cash deposit by Park Manager`,
+            reference: `CASH-${Date.now()}`,
+            userType: 'PASSENGER',  // Added
+            balanceBefore: previousBalance,  // Added
+            balanceAfter: previousBalance + amount,  // Added
+            user: {
+              connect: { id: passengerId }
+            }
+          },
+        });
+        // Update passenger wallet balance
+        const updatedPassenger = await tx.passenger.update({
+          where: { id: passengerId },
+          data: {
+            walletBalance: {
+              increment: amount,
+            },
+          },
+        });
+  
+        return { transaction, updatedPassenger };
+      });
+  
+      return res.json({
+        success: true,
+        previousBalance,
+        amountAdded: amount,
+        newBalance: Number(result.updatedPassenger.walletBalance),
+        transactionId: result.transaction.id,
+      });
+    } catch (error) {
+      console.error('Fund wallet with cash error:', error);
+      return res.status(500).json({ error: 'Failed to fund wallet' });
+    }
+  };
+
+  export const passengerCheckInAndPay = async (req: Request, res: Response) => {
+    try {
+      const { passengerId, tripId, vehicleId, biometricData } = req.body;
+  
+      if (!passengerId || !tripId || !vehicleId || !biometricData) {
+        return res.status(400).json({ 
+          error: 'Passenger ID, trip ID, vehicle ID, and biometric data are required' 
+        });
+      }
+  
+      // Get passenger
+      const passenger = await prisma.passenger.findUnique({
+        where: { id: passengerId },
+      });
+  
+      if (!passenger) {
+        return res.status(404).json({ error: 'Passenger not found' });
+      }
+  
+      // TODO: Verify biometric data
+      // if (passenger.biometricData !== biometricData) {
+      //   return res.status(401).json({ error: 'Biometric verification failed' });
+      // }
+  
+      // Get trip details to calculate fare
+      const trip = await prisma.trip.findUnique({
+        where: { id: tripId },
+        include: {
+          route: true,
+        },
+      });
+  
+      if (!trip) {
+        return res.status(404).json({ error: 'Trip not found' });
+      }
+  
+      // Get fare from route (baseFare, not fare)
+      const fare = Number(trip.route.baseFare) || 250;
+  
+      // Check if passenger has enough balance
+      const currentBalance = Number(passenger.walletBalance);
+      if (currentBalance < fare) {
+        return res.status(400).json({ 
+          error: 'Insufficient balance',
+          balance: currentBalance,
+          fareRequired: fare,
+        });
+      }
+  
+      const previousBalance = currentBalance;
+  
+      // Process payment and check-in in a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // Create transaction record
+        const transaction = await tx.transaction.create({
+          data: {
+            type: 'DEBIT',
+            category: 'FARE_PAYMENT',
+            status: 'SUCCESS',
+            amount: fare,
+            description: `Fare payment for trip ${trip.route.name}`,
+            reference: `FARE-${Date.now()}`,
+            userType: 'PASSENGER',
+            balanceBefore: previousBalance,
+            balanceAfter: previousBalance - fare,
+            user: {
+              connect: { id: passengerId }
+            }
+          },
+        });
+  
+        // Deduct fare from passenger wallet
+        const updatedPassenger = await tx.passenger.update({
+          where: { id: passengerId },
+          data: {
+            walletBalance: {
+              decrement: fare,
+            },
+          },
+        });
+  
+        // Create TripPassenger record (check-in)
+        const tripPassengerRecord = await tx.tripPassenger.create({
+          data: {
+            tripId,
+            passengerId,
+            vehicleId,
+            isPaid: true,
+            checkInTime: new Date(),
+            hasFilledDetails: false,
+          },
+        });
+  
+        // Count total passengers for this trip
+        const passengerCount = await tx.tripPassenger.count({
+          where: { tripId },
+        });
+  
+        return { transaction, updatedPassenger, tripPassengerRecord, passengerCount };
+      });
+  
+      return res.json({
+        success: true,
+        message: 'Payment successful. Please fill passenger details.',
+        transactionId: result.transaction.id,
+        amountDeducted: fare,
+        newBalance: Number(result.updatedPassenger.walletBalance),
+        nextOfKinFormRequired: true,
+        currentPassengerCount: result.passengerCount,
+        passenger: {
+          id: passenger.id,
+          firstName: passenger.firstName,
+          lastName: passenger.lastName,
+        },
+      });
+    } catch (error) {
+      console.error('Passenger check-in and payment error:', error);
+      return res.status(500).json({ error: 'Failed to process check-in and payment' });
+    }
+  };
+
+  export const savePassengerDetails = async (req: Request, res: Response) => {
+  try {
+    const { passengerId, tripId, nextOfKinName, nextOfKinPhone, relationship } = req.body;
+
+    if (!passengerId || !tripId || !nextOfKinName || !nextOfKinPhone || !relationship) {
+      return res.status(400).json({ 
+        error: 'All fields are required (passengerId, tripId, nextOfKinName, nextOfKinPhone, relationship)' 
+      });
+    }
+
+    // Verify passenger is checked in for this trip
+    const tripPassenger = await prisma.tripPassenger.findFirst({
+      where: {
+        tripId,
+        passengerId,
+      },
+    });
+
+    if (!tripPassenger) {
+      return res.status(404).json({ 
+        error: 'Passenger not checked in for this trip' 
+      });
+    }
+
+    if (tripPassenger.hasFilledDetails) {
+      return res.status(400).json({ 
+        error: 'Passenger details already submitted for this trip' 
+      });
+    }
+
+    // Save passenger details and update tripPassenger in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create passenger details record
+      const passengerDetails = await tx.passengerDetails.create({
+        data: {
+          tripId,
+          passengerId,
+          nextOfKinName,
+          nextOfKinPhone,
+          relationship,
+        },
+      });
+
+      // Update tripPassenger to mark details as filled
+      await tx.tripPassenger.update({
+        where: { id: tripPassenger.id },
+        data: {
+          hasFilledDetails: true,
+        },
+      });
+
+      return passengerDetails;
+    });
+
+    return res.json({
+      success: true,
+      message: 'Passenger details saved successfully. Passenger can now board.',
+      passengerDetailsId: result.id,
+    });
+  } catch (error) {
+    console.error('Save passenger details error:', error);
+    return res.status(500).json({ error: 'Failed to save passenger details' });
+  }
+};
+
+export const getTripPassengers = async (req: Request, res: Response) => {
+  try {
+    const { tripId } = req.params;
+
+    // Get trip details
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        vehicle: true,
+        route: true,
+      },
+    });
+
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+
+    // Get all passengers for this trip
+    const tripPassengers = await prisma.tripPassenger.findMany({
+      where: { 
+        tripId,
+        isPaid: true,
+      },
+      include: {
+        passenger: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // Get passenger details for each passenger
+    const passengersWithDetails = await Promise.all(
+      tripPassengers.map(async (tp) => {
+        const details = await prisma.passengerDetails.findFirst({
+          where: {
+            tripId,
+            passengerId: tp.passengerId,
+          },
+        });
+
+        return {
+          name: `${tp.passenger.firstName} ${tp.passenger.lastName}`,
+          destination: trip.route.destination,
+          nextOfKinName: details?.nextOfKinName || 'N/A',
+          nextOfKinPhone: details?.nextOfKinPhone || 'N/A',
+          relationship: details?.relationship || 'N/A',
+          checkInTime: tp.checkInTime
+            ? tp.checkInTime.toLocaleString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : 'N/A',
+          amountPaid: `₦${Number(trip.route.baseFare).toLocaleString()}`,
+        };
+      })
+    );
+
+    const passengerCount = tripPassengers.length;
+    const capacity = trip.vehicle.capacity;
+
+    return res.json({
+      tripId: trip.id,
+      vehicleId: trip.vehicleId,
+      passengerCount,
+      capacity,
+      isFull: passengerCount >= capacity,
+      passengers: passengersWithDetails,
+    });
+  } catch (error) {
+    console.error('Get trip passengers error:', error);
+    return res.status(500).json({ error: 'Failed to fetch trip passengers' });
+  }
+};
+
+export const getSettlementPreview = async (req: Request, res: Response) => {
+  try {
+    const { tripId } = req.params;
+    const userId = req.user?.id;
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Get trip details
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        vehicle: true,
+        route: true,
+        driver: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+
+    // Count passengers who have paid
+    const passengerCount = await prisma.tripPassenger.count({
+      where: {
+        tripId,
+        isPaid: true,
+      },
+    });
+
+    // Calculate total fares collected
+    const farePerPassenger = Number(trip.route.baseFare);
+    const totalFares = passengerCount * farePerPassenger;
+
+    // Get commission rates (using defaults for now - can be from parkManager settings later)
+    const driverPercentage = 95;
+    const parkPercentage = 5;
+    const tyapPercentage = 2;
+
+    // Calculate breakdown
+    const driverPayout = (totalFares * driverPercentage) / 100;
+    const parkCommission = (totalFares * parkPercentage) / 100;
+    const tyapServiceCharge = (totalFares * tyapPercentage) / 100;
+
+    // Check if vehicle is full (can approve settlement)
+    const canApprove = passengerCount >= trip.vehicle.capacity;
+
+    return res.json({
+      tripId: trip.id,
+      vehicleId: trip.vehicleId,
+      passengerCount,
+      totalFares,
+      breakdown: {
+        driverPayout,
+        driverPayoutPercentage: driverPercentage,
+        parkCommission,
+        parkCommissionPercentage: parkPercentage,
+        tyapServiceCharge,
+        tyapServiceChargePercentage: tyapPercentage,
+      },
+      driver: trip.driver,
+      canApprove,
+    });
+  } catch (error) {
+    console.error('Get settlement preview error:', error);
+    return res.status(500).json({ error: 'Failed to fetch settlement preview' });
+  }
+};
+
+export const approveSettlement = async (req: Request, res: Response) => {
+  try {
+    const { tripId } = req.params;
+    const { pin, biometricData } = req.body;
+    const userId = req.user?.id;
+
+    if (!pin) {
+      return res.status(400).json({ error: 'PIN is required' });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Verify PIN (simple comparison for now - enhance with bcrypt later)
+    if (parkManager.transactionPin !== pin) {
+      return res.status(401).json({ error: 'Invalid PIN' });
+    }
+
+    // TODO: Verify biometric if provided
+    // if (biometricData && parkManager.biometricData !== biometricData) {
+    //   return res.status(401).json({ error: 'Biometric verification failed' });
+    // }
+
+    // Get trip details
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        vehicle: true,
+        route: true,
+        driver: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+
+    // Check if settlement already exists
+    const existingSettlement = await prisma.settlement.findUnique({
+      where: { tripId },
+    });
+
+    if (existingSettlement && existingSettlement.status === 'APPROVED') {
+      return res.status(400).json({ error: 'Settlement already approved for this trip' });
+    }
+
+    // Count passengers
+    const passengerCount = await prisma.tripPassenger.count({
+      where: { tripId, isPaid: true },
+    });
+
+    if (passengerCount < trip.vehicle.capacity) {
+      return res.status(400).json({ 
+        error: 'Vehicle not full. Cannot approve settlement.',
+        currentPassengers: passengerCount,
+        capacity: trip.vehicle.capacity,
+      });
+    }
+
+    // Calculate settlement amounts
+    const farePerPassenger = Number(trip.route.baseFare);
+    const totalFares = passengerCount * farePerPassenger;
+
+    const driverPercentage = 95;
+    const parkPercentage = 5;
+    const tyapPercentage = 2;
+
+    const driverPayout = (totalFares * driverPercentage) / 100;
+    const parkCommission = (totalFares * parkPercentage) / 100;
+    const tyapFee = (totalFares * tyapPercentage) / 100;
+
+    // Process settlement and distribute funds
+    const result = await prisma.$transaction(async (tx) => {
+      // Create settlement record
+      const settlement = await tx.settlement.create({
+        data: {
+          tripId,
+          totalAmount: totalFares,
+          driverPayout,
+          parkCommission,
+          tyapFee,
+          status: 'APPROVED',
+          approvedBy: parkManager.id,
+          approvedAt: new Date(),
+        },
+      });
+
+      // Get current wallet balances from User table
+      const driverUser = await tx.user.findUnique({
+        where: { id: trip.driver.userId },
+      });
+
+      const parkManagerUser = await tx.user.findUnique({
+        where: { id: parkManager.userId },
+      });
+
+      const driverBalanceBefore = Number(driverUser?.walletBalance || 0);
+      const parkManagerBalanceBefore = Number(parkManagerUser?.walletBalance || 0);
+
+      // 1. Credit Driver Wallet
+      await tx.transaction.create({
+        data: {
+          type: 'CREDIT',
+          category: 'COMMISSION',
+          status: 'SUCCESS',
+          amount: driverPayout,
+          description: `Driver payout for trip ${trip.route.name}`,
+          reference: `SETTLEMENT-DRIVER-${Date.now()}`,
+          userType: 'DRIVER',
+          balanceBefore: driverBalanceBefore,
+          balanceAfter: driverBalanceBefore + driverPayout,
+          user: {
+            connect: { id: trip.driver.userId }
+          }
+        },
+      });
+
+      await tx.user.update({
+        where: { id: trip.driver.userId },
+        data: {
+          walletBalance: {
+            increment: driverPayout,
+          },
+        },
+      });
+
+      // 2. Credit Park Manager Wallet
+      await tx.transaction.create({
+        data: {
+          type: 'CREDIT',
+          category: 'COMMISSION',
+          status: 'SUCCESS',
+          amount: parkCommission,
+          description: `Park commission for trip ${trip.route.name}`,
+          reference: `SETTLEMENT-PARK-${Date.now()}`,
+          userType: 'PARK_MANAGER',
+          balanceBefore: parkManagerBalanceBefore,
+          balanceAfter: parkManagerBalanceBefore + parkCommission,
+          user: {
+            connect: { id: parkManager.userId }
+          }
+        },
+      });
+
+      await tx.user.update({
+        where: { id: parkManager.userId },
+        data: {
+          walletBalance: {
+            increment: parkCommission,
+          },
+        },
+      });
+
+      // 3. T-YAP Fee Transaction (just record it)
+      await tx.transaction.create({
+        data: {
+          type: 'CREDIT',
+          category: 'COMMISSION',
+          status: 'SUCCESS',
+          amount: tyapFee,
+          description: `T-YAP service fee for trip ${trip.route.name}`,
+          reference: `SETTLEMENT-TYAP-${Date.now()}`,
+          userType: 'PARK_MANAGER', // Using existing type since ADMIN doesn't exist
+          balanceBefore: 0,
+          balanceAfter: tyapFee,
+          user: {
+            connect: { id: parkManager.userId } // Placeholder for now
+          }
+        },
+      });
+
+      // Get updated balances
+      const updatedDriverUser = await tx.user.findUnique({
+        where: { id: trip.driver.userId },
+      });
+
+      const updatedParkManagerUser = await tx.user.findUnique({
+        where: { id: parkManager.userId },
+      });
+
+      return {
+        settlement,
+        driverWalletBalance: Number(updatedDriverUser?.walletBalance || 0),
+        parkManagerWalletBalance: Number(updatedParkManagerUser?.walletBalance || 0),
+      };
+    });
+
+    return res.json({
+      success: true,
+      message: 'Settlement approved successfully. Driver can now start trip.',
+      settlementId: result.settlement.id,
+      timestamp: result.settlement.approvedAt,
+      distribution: {
+        driver: {
+          amount: driverPayout,
+          walletBalance: result.driverWalletBalance,
+        },
+        parkManager: {
+          amount: parkCommission,
+          walletBalance: result.parkManagerWalletBalance,
+        },
+        tyap: {
+          amount: tyapFee,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Approve settlement error:', error);
+    return res.status(500).json({ error: 'Failed to approve settlement' });
+  }
+};
+
+export const getTransactionFilterOptions = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Get all drivers at this park
+    const drivers = await prisma.driver.findMany({
+      where: {
+        vehicle: {
+          currentParkId: parkManager.parkId,
+        },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    const formattedDrivers = drivers.map(driver => ({
+      id: driver.id,
+      name: `${driver.firstName} ${driver.lastName}`,
+    }));
+
+    // Get all routes serving this park
+    const routes = await prisma.route.findMany({
+      where: {
+        OR: [
+          { originParkId: parkManager.parkId },
+          { destinationParkId: parkManager.parkId },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    // Static time range options
+    const timeRanges = [
+      { value: 'today', label: 'Today' },
+      { value: 'yesterday', label: 'Yesterday' },
+      { value: 'last7days', label: 'Last 7 Days' },
+      { value: 'last30days', label: 'Last 30 Days' },
+      { value: 'custom', label: 'Custom Range' },
+    ];
+
+    return res.json({
+      drivers: formattedDrivers,
+      routes,
+      timeRanges,
+    });
+  } catch (error) {
+    console.error('Get transaction filter options error:', error);
+    return res.status(500).json({ error: 'Failed to fetch filter options' });
+  }
+};
+
+export const getBankAccounts = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Get bank accounts through the user relationship
+    const bankAccounts = await prisma.bankAccount.findMany({
+      where: { userId },
+      orderBy: [
+        { isDefault: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    return res.json({
+      bankAccounts,
+    });
+  } catch (error) {
+    console.error('Get bank accounts error:', error);
+    return res.status(500).json({ error: 'Failed to fetch bank accounts' });
+  }
+};
+
+export const addBankAccount = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { accountName, accountNumber, bankName, bankCode, isDefault } = req.body;
+
+    if (!accountName || !accountNumber || !bankName || !bankCode) {
+      return res.status(400).json({ 
+        error: 'All fields are required (accountName, accountNumber, bankName, bankCode)' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // If setting as default, unset all other defaults
+    if (isDefault) {
+      await prisma.bankAccount.updateMany({
+        where: { userId },
+        data: { isDefault: false },
+      });
+    }
+
+    const bankAccount = await prisma.bankAccount.create({
+      data: {
+        userId,
+        accountName,
+        accountNumber,
+        bankName,
+        bankCode,
+        isDefault: isDefault || false,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Bank account added successfully',
+      bankAccount,
+    });
+  } catch (error) {
+    console.error('Add bank account error:', error);
+    return res.status(500).json({ error: 'Failed to add bank account' });
+  }
+};
+
+export const deleteBankAccount = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Verify bank account belongs to this user
+    const bankAccount = await prisma.bankAccount.findUnique({
+      where: { id },
+    });
+
+    if (!bankAccount) {
+      return res.status(404).json({ error: 'Bank account not found' });
+    }
+
+    if (bankAccount.userId !== userId) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Check if this is the only account
+    const accountCount = await prisma.bankAccount.count({
+      where: { userId },
+    });
+
+    if (accountCount === 1) {
+      return res.status(400).json({ 
+        error: 'Cannot delete the only bank account. Add another account first.' 
+      });
+    }
+
+    // If deleting default account, set another as default
+    if (bankAccount.isDefault) {
+      const firstOtherAccount = await prisma.bankAccount.findFirst({
+        where: {
+          userId,
+          id: { not: id },
+        },
+      });
+
+      if (firstOtherAccount) {
+        await prisma.bankAccount.update({
+          where: { id: firstOtherAccount.id },
+          data: { isDefault: true },
+        });
+      }
+    }
+
+    // Delete the account
+    await prisma.bankAccount.delete({
+      where: { id },
+    });
+
+    return res.json({
+      success: true,
+      message: 'Bank account removed successfully',
+    });
+  } catch (error) {
+    console.error('Delete bank account error:', error);
+    return res.status(500).json({ error: 'Failed to delete bank account' });
+  }
+};
+
+export const getDeviceStatus = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    // Mock device status for now - actual device integration later
+    return res.json({
+      deviceId: 'AG-001',
+      status: 'online',
+      lastSync: new Date().toISOString(),
+      batteryLevel: 85,
+      networkStatus: 'wifi',
+      biometricScannerStatus: 'connected',
+    });
+  } catch (error) {
+    console.error('Get device status error:', error);
+    return res.status(500).json({ error: 'Failed to fetch device status' });
+  }
+};
+
+export const contactSupport = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { subject, message, priority, category } = req.body;
+
+    if (!subject || !message) {
+      return res.status(400).json({ 
+        error: 'Subject and message are required' 
+      });
+    }
+
+    const parkManager = await prisma.parkManager.findUnique({
+      where: { userId },
+    });
+
+    if (!parkManager) {
+      return res.status(404).json({ error: 'Park Manager not found' });
+    }
+
+    const supportTicket = await prisma.supportTicket.create({
+      data: {
+        userId,
+        subject,
+        message,
+        priority: priority || 'NORMAL',
+        category: category || 'TECHNICAL', // Adjust based on your enum
+        status: 'OPEN',
+      },
+    });
+
+    // TODO: Send email notification to support team
+    // await sendSupportEmail(supportTicket);
+
+    return res.json({
+      success: true,
+      message: 'Support ticket created successfully',
+      ticketId: supportTicket.id,
+      estimatedResponse: 'Within 24 hours',
+    });
+  } catch (error) {
+    console.error('Contact support error:', error);
+    return res.status(500).json({ error: 'Failed to create support ticket' });
+  }
+};

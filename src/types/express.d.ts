@@ -1,4 +1,4 @@
-import { UserRole } from '../middleware/auth.middleware';
+import { UserRole } from '@prisma/client';
 
 declare global {
   namespace Express {
@@ -21,11 +21,3 @@ declare global {
 }
 
 export {};
-declare namespace Express {
-    interface Request {
-        user?: {
-            id: string;
-            role: string;
-        };
-    } 
-}

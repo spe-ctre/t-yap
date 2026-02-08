@@ -53,7 +53,21 @@ import {
   
   // Part 8: Settings
   getParkDetails,
-  updateParkSettings
+  updateParkSettings,
+  getParksList,
+  getAvailableVehicles,
+  checkPassengerWallet,
+  fundWalletWithCash,
+  passengerCheckInAndPay,
+  savePassengerDetails,
+  getTripPassengers,
+  getSettlementPreview,
+  getTransactionFilterOptions,
+  getBankAccounts,
+  addBankAccount,
+  deleteBankAccount,
+  getDeviceStatus,
+  contactSupport  
 } from '../controllers/park-management.controller';
 
 const router = Router();
@@ -149,6 +163,8 @@ router.post('/vehicles/:vehicleId/approve', authenticateToken, approveVehicle);
 // Deactivate Vehicle - Requires auth
 router.post('/vehicles/:vehicleId/deactivate', authenticateToken, deactivateVehicle);
 
+router.get('/available-vehicles', getAvailableVehicles);
+
 // ============================================
 // PART 5: PASSENGER MANAGEMENT (3 endpoints)
 // ============================================
@@ -161,6 +177,18 @@ router.get('/passengers/statistics', authenticateToken, getPassengerStatistics);
 
 // Activate Passenger (Check-in) - Requires auth + biometric
 router.post('/passengers/:passengerId/activate', authenticateToken, activatePassenger);
+
+router.post('/passenger/check-wallet', checkPassengerWallet);
+
+router.post('/passenger/fund-wallet-cash', fundWalletWithCash);
+
+router.post('/passenger/check-in-and-pay', passengerCheckInAndPay);
+
+router.post('/passenger/passenger-details', savePassengerDetails);
+
+router.get('/trip/:tripId/passengers', getTripPassengers);
+
+router.get('/trip/:tripId/settlement-preview', getSettlementPreview);
 
 // ============================================
 // PART 6: WALLET & TRANSACTIONS (5 endpoints)
@@ -176,10 +204,18 @@ router.get('/transactions', authenticateToken, getTransactions);
 router.get('/settlements/pending', authenticateToken, getPendingSettlements);
 
 // Approve Settlement - Requires auth + biometric/PIN
-router.post('/settlements/approve', authenticateToken, approveSettlement);
+router.post('/trip/:tripId/approve-settlement', approveSettlement);
 
 // Withdraw Funds - Requires auth
 router.post('/wallet/withdraw', authenticateToken, withdrawFunds);
+
+router.get('/transactions/filter-options', getTransactionFilterOptions);
+
+router.get('/bank-accounts', getBankAccounts);
+
+router.post('/bank-accounts', addBankAccount);
+
+router.delete('/bank-accounts/:id', deleteBankAccount);
 
 // ============================================
 // PART 7: REPORTS (3 endpoints)
@@ -201,7 +237,16 @@ router.get('/reports/driver-performance', authenticateToken, getDriverPerformanc
 // Get Park Details - Requires auth
 router.get('/park', authenticateToken, getParkDetails);
 
+router.get('/parks/list', getParksList);
+
 // Update Park Settings - Requires auth
 router.patch('/park/settings', authenticateToken, updateParkSettings);
+
+//Device checkUp status
+router.get('/device/status', getDeviceStatus);
+
+
+//Support contact
+router.post('/support/contact', contactSupport);
 
 export default router;

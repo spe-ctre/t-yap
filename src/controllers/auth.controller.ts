@@ -71,7 +71,7 @@ export class AuthController {
    * POST /api/auth/verify
    * Requires authentication
    */
-  verifyCode = async (req: Request, res: Response, next: NextFunction) => {
+  verifyCode = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = verifyCodeSchema.validate(req.body);
       if (error) {
@@ -112,7 +112,7 @@ export class AuthController {
     }
   };
 
-  changePassword = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  changePassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = changePasswordSchema.validate(req.body);
       if (error) {
@@ -121,7 +121,7 @@ export class AuthController {
       }
 
       const result = await this.authService.changePassword(
-        req.user.id,
+        req.user!.id,
         req.body.currentPassword,
         req.body.newPassword
       );
@@ -131,7 +131,7 @@ export class AuthController {
     }
   };
 
-  updatePin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  updatePin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = updatePinSchema.validate(req.body);
       if (error) {
@@ -140,7 +140,7 @@ export class AuthController {
       }
 
       const result = await this.authService.updateTransactionPin(
-        req.user.id,
+        req.user!.id,
         req.body.currentPin,
         req.body.newPin
       );
@@ -150,7 +150,7 @@ export class AuthController {
     }
   };
 
-  verifyPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  verifyPin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = verifyPinSchema.validate(req.body);
       if (error) {
@@ -158,23 +158,23 @@ export class AuthController {
         throw createError(message, 400);
       }
 
-      const result = await this.authService.verifyTransactionPin(req.user.id, req.body.pin);
+      const result = await this.authService.verifyTransactionPin(req.user!.id, req.body.pin);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (error) {
       next(error);
     }
   };
 
-  requestPinReset = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  requestPinReset = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.authService.requestPinReset(req.user.id);
+      const result = await this.authService.requestPinReset(req.user!.id);
       res.json({ success: true, statusCode: 200, data: result });
     } catch (error) {
       next(error);
     }
   };
 
-  resetPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  resetPin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = resetPinSchema.validate(req.body);
       if (error) {
@@ -183,7 +183,7 @@ export class AuthController {
       }
 
       const result = await this.authService.resetTransactionPin(
-        req.user.id,
+        req.user!.id,
         req.body.code,
         req.body.newPin
       );

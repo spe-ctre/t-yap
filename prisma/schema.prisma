@@ -98,6 +98,8 @@ model Passenger {
   lastName       String?
   biometricData  String?
   transactionPin String?
+  tripPassengers TripPassenger[]
+  passengerDetails  PassengerDetails[]
   walletBalance  Decimal  @default(0) @db.Decimal(10, 2)
   profilePicture String?
   
@@ -194,6 +196,7 @@ model ParkManager {
   parkId         String?
   biometricData  String?
   transactionPin String?
+  settlements  Settlement[]
   
   // NEW FIELD ADDED
   commissionRate Decimal? @db.Decimal(5, 2)
@@ -382,6 +385,25 @@ model BalanceHistory {
   @@map("balance_history")
 }
 
+model Settlement {
+  id              String       @id @default(cuid())
+  tripId          String       @unique
+  totalAmount     Decimal
+  driverPayout    Decimal
+  parkCommission  Decimal
+  tyapFee         Decimal
+  status          String       @default("PENDING")
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  
+  trip            Trip         @relation(fields: [tripId], references: [id])
+  parkManager     ParkManager? @relation(fields: [approvedBy], references: [id])
+  
+  @@index([tripId])
+  @@index([approvedBy])
+}
+
 // ============================================
 // TRANSPORT MODELS (T-RIDE)
 // ============================================
@@ -442,6 +464,7 @@ model Vehicle {
   plateNumber            String      @unique
   make                   String
   model                  String
+  tripPassengers TripPassenger[]
   year                   Int?
   color                  String?
   capacity               Int
@@ -471,6 +494,9 @@ model Trip {
   driverId        String
   vehicleId       String
   passengerId     String
+  tripPassengers TripPassenger[]
+  passengerDetails  PassengerDetails[]
+  settlements  Settlement[]
   fare            Decimal    @db.Decimal(10, 2)
   status          TripStatus @default(PENDING)
   isLongDistance  Boolean    @default(false)
@@ -497,6 +523,22 @@ model Trip {
   @@index([createdAt])
   @@index([isLongDistance])
   @@map("trips")
+}
+
+model PassengerDetails {
+  id              String    @id @default(cuid())
+  tripId          String
+  passengerId     String
+  nextOfKinName   String
+  nextOfKinPhone  String
+  relationship    String
+  createdAt       DateTime  @default(now())
+  
+  trip            Trip      @relation(fields: [tripId], references: [id])
+  passenger       Passenger @relation(fields: [passengerId], references: [id])
+  
+  @@index([tripId])
+  @@index([passengerId])
 }
 
 // ============================================
@@ -620,6 +662,25 @@ model UserSession {
   @@index([token])
   @@index([deviceId])
   @@map("user_sessions")
+}
+
+model TripPassenger {
+  id                String    @id @default(cuid())
+  tripId            String
+  passengerId       String
+  vehicleId         String
+  isPaid            Boolean   @default(false)
+  checkInTime       DateTime?
+  hasFilledDetails  Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  
+  trip              Trip      @relation(fields: [tripId], references: [id])
+  passenger         Passenger @relation(fields: [passengerId], references: [id])
+  vehicle           Vehicle   @relation(fields: [vehicleId], references: [id])
+  
+  @@index([tripId])
+  @@index([passengerId])
+  @@index([vehicleId])
 }
 
 model DeviceToken {
