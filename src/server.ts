@@ -124,8 +124,35 @@ if (process.env.NODE_ENV === 'production' || process.env.ENABLE_CRON === 'true')
   console.log('⏸️  Cron jobs disabled (set ENABLE_CRON=true to enable)');
 }
 
+// Bootstrap superadmin account
+async function bootstrapSuperAdmin() {
+  try {
+    const { prisma } = await import('./config/database');
+    const bcrypt = await import('bcryptjs');
+    const existing = await prisma.user.findFirst({ where: { email: 'superadmin@tyap.com' } });
+    if (!existing) {
+      const hashedPassword = await bcrypt.hash('SuperAdmin123!', 12);
+      await prisma.user.create({
+        data: {
+          email: 'superadmin@tyap.com',
+          phoneNumber: '+2348000000000',
+          password: hashedPassword,
+          isEmailVerified: true,
+          role: 'SUPER_ADMIN' as any,
+        }
+      });
+      console.log('✅ Superadmin account created');
+    } else {
+      console.log('✅ Superadmin account already exists');
+    }
+  } catch (e) {
+    console.error('❌ Superadmin bootstrap failed:', e);
+  }
+}
+
 // Start server with error handling
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
+  await bootstrapSuperAdmin();
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Balance reconciliation routes available at /api/balance`);
   console.log(`📈 Analytics routes available at /api/analytics`);
