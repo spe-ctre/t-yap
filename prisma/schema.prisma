@@ -868,6 +868,7 @@ model AuditLog {
 // ============================================
 
 enum UserRole {
+  SUPER_ADMIN
   PASSENGER
   DRIVER
   AGENT
