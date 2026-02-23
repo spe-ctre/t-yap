@@ -51,8 +51,8 @@ const limiter = rateLimit({
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://t-yap-d0rj.onrender.com']
+origin: process.env.NODE_ENV === 'production'
+    ? ['https://t-yap-d0rj.onrender.com', 'https://tyap-admin.vercel.app']
     : ['http://localhost:3001', 'http://localhost:5173'], // Frontend ports
   credentials: true
 }));
