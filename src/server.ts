@@ -33,11 +33,14 @@ import settingsRoutes from './routes/settings.routes';
 import tRideRoutes from './routes/t-ride.routes';
 import tripRoutes from './routes/trip.routes';
 import driverRoutes from './routes/driver.routes';
-import agentRoutes from './routes/agent.routes'; 
+import agentRoutes from './routes/agent.routes';
 import parkManagementRoutes from './routes/park-management.routes';
+import adminRoutes from './routes/admin.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 import { setupCronJobs } from './jobs/cron-jobs';
+import twoFactorRoutes from './routes/twoFactor.routes';
+import auditLogRoutes from './routes/auditLog.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,9 +54,9 @@ const limiter = rateLimit({
 // Middleware
 app.use(helmet());
 app.use(cors({
-origin: process.env.NODE_ENV === 'production'
+  origin: process.env.NODE_ENV === 'production'
     ? ['https://t-yap-d0rj.onrender.com', 'https://tyap-admin.vercel.app']
-    : ['http://localhost:3001', 'http://localhost:5173'], // Frontend ports
+    : ['http://localhost:3001', 'http://localhost:5173'],
   credentials: true
 }));
 app.use(limiter);
@@ -91,8 +94,11 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/t-ride', tRideRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/driver', driverRoutes);
-app.use('/api/agent', agentRoutes); 
+app.use('/api/agent', agentRoutes);
 app.use('/api/park-management', parkManagementRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -123,7 +129,7 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Balance reconciliation routes available at /api/balance`);
   console.log(`📈 Analytics routes available at /api/analytics`);
-  console.log(`🎯 Agent routes available at /api/agent`); 
+  console.log(`🎯 Agent routes available at /api/agent`);
   console.log(`🏞️  Park Management routes available at /api/park-management`);
   console.log(`📖 API Documentation available at http://localhost:${PORT}/api-docs`);
 });
