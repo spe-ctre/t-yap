@@ -20,11 +20,11 @@ export class AuditLogController {
 }
 
 // Helper function to log actions from any controller
-export const logAction = async (adminEmail: string, action: string, details?: string) => {
-  try {
-    await prisma.auditLog.create({
-      data: { adminEmail, action, details }
-    });
+export const logAction = async (userId: string, action: string, details?: string) => {
+    try {
+      await prisma.auditLog.create({
+        data: { userId, action, details }
+      });
   } catch (error) {
     console.error('Failed to log action:', error);
   }
