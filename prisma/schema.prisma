@@ -45,6 +45,8 @@ model User {
   securityQuestion  SecurityQuestion?
   deviceTokens      DeviceToken[]
   supportTickets    SupportTicket[]
+  twoFactorSecret    String?
+  isTwoFactorEnabled Boolean @default(false)
 
   @@map("users")
 }
@@ -847,6 +849,18 @@ model HelpContent {
   @@index([slug])
   @@index([isPublished])
   @@map("help_content")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 // ============================================
