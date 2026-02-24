@@ -15,7 +15,7 @@ export const isAdmin = (
     const userRole = req.user?.role;
 
     // Check if user has PARK_MANAGER role (acting as admin)
-    if (!userRole || userRole !== 'PARK_MANAGER') {
+    if (!userRole || (userRole as string) !== 'PARK_MANAGER' && (userRole as string) !== 'SUPER_ADMIN') {
       return res.status(403).json({ 
         success: false,
         message: 'Access denied. Admin privileges required.' 
