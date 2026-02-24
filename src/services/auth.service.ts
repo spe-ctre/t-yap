@@ -106,7 +106,7 @@ export class AuthService {
     }, user.role as any);
     
     return {
-      user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber },
+      user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
       token: session.token,
       isEmailVerified: user.isEmailVerified,
       hasTransactionPin: !!user.passenger?.transactionPin
