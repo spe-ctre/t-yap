@@ -8,7 +8,18 @@ export class AuditLogController {
         orderBy: { createdAt: 'desc' },
         take: 100,
       });
-      res.json({ success: true, statusCode: 200, data: logs });
+
+      const logsWithEmail = await Promise.all(
+        logs.map(async (log) => {
+          const user = await prisma.user.findUnique({
+            where: { id: log.userId },
+            select: { email: true },
+          });
+          return { ...log, adminEmail: user?.email || 'Unknown' };
+        })
+      );
+
+      res.json({ success: true, statusCode: 200, data: logsWithEmail });
     } catch (error) {
       next(error);
     }
