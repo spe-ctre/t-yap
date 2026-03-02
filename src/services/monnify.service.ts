@@ -258,4 +258,91 @@ export class MonnifyService {
       return false;
     }
   }
+
+  /**
+   * Get list of banks
+   */
+  async getBanks(): Promise<{ name: string; code: string }[]> {
+    try {
+      const token = await this.getAccessToken();
+      const response = await axios.get(
+        `${this.baseUrl}/sdk/transactions/banks`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 30000,
+        }
+      );
+      return response.data.responseBody;
+    } catch (error: any) {
+      console.error('Monnify getBanks error:', error.response?.data || error.message);
+      throw createError('Failed to fetch banks', 500);
+    }
+  }
+
+  /**
+   * Resolve bank account number to get account name
+   */
+  async resolveAccount(accountNumber: string, bankCode: string): Promise<{ accountName: string; accountNumber: string }> {
+    try {
+      const token = await this.getAccessToken();
+      const response = await axios.get(
+        `${this.baseUrl}/disbursements/account/validate`,
+        {
+          params: { accountNumber, bankCode },
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 30000,
+        }
+      );
+      if (!response.data.requestSuccessful) {
+        throw new Error(response.data.responseMessage || 'Failed to resolve account');
+      }
+      return response.data.responseBody;
+    } catch (error: any) {
+      console.error('Monnify resolveAccount error:', error.response?.data || error.message);
+      throw createError('Failed to resolve bank account', 500);
+    }
+  }
+
+  /**
+   * Initiate bank transfer disbursement
+   */
+  async initiateDisbursement(params: {
+    amount: number;
+    reference: string;
+    narration: string;
+    destinationAccountNumber: string;
+    destinationBankCode: string;
+    destinationAccountName: string;
+    destinationEmail?: string;
+  }): Promise<any> {
+    try {
+      const token = await this.getAccessToken();
+      const payload = {
+        amount: params.amount,
+        reference: params.reference,
+        narration: params.narration,
+        destinationBankCode: params.destinationBankCode,
+        destinationAccountNumber: params.destinationAccountNumber,
+        destinationAccountName: params.destinationAccountName,
+        destinationEmail: params.destinationEmail || '',
+        currency: 'NGN',
+        sourceAccountNumber: process.env.MONNIFY_WALLET_ACCOUNT_NUMBER,
+      };
+      const response = await axios.post(
+        `${this.baseUrl}/disbursements/single`,
+        payload,
+        {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          timeout: 30000,
+        }
+      );
+      if (!response.data.requestSuccessful) {
+        throw new Error(response.data.responseMessage || 'Failed to initiate disbursement');
+      }
+      return response.data.responseBody;
+    } catch (error: any) {
+      console.error('Monnify initiateDisbursement error:', error.response?.data || error.message);
+      throw createError('Failed to initiate bank transfer', 500);
+    }
+  }
 }
