@@ -67,11 +67,17 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 
 // Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+}
 
 // Routes
 app.get('/', (req, res) => {
-  res.redirect('/api-docs');
+  if (process.env.NODE_ENV !== 'production') {
+    res.redirect('/api-docs');
+  } else {
+    res.json({ message: 'T-YAP API is running' });
+  }
 });
 
 app.use('/api/auth', authRoutes);
