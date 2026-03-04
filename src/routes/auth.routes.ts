@@ -5,6 +5,23 @@ import { extractDeviceInfo } from '../middleware/device.middleware';
 import { requireEmailVerification } from '../middleware/verification.middleware';
 import { requirePassenger } from '../middleware/role.middleware';
 import { requirePinExists } from '../middleware/pin.middleware';
+import rateLimit from 'express-rate-limit';
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: 'Too many accounts created from this IP. Please try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const router = Router();
 const authController = new AuthController();
@@ -34,7 +51,7 @@ const authController = new AuthController();
  *       400:
  *         description: Validation error
  */
-router.post('/signup', extractDeviceInfo, (req, res, next) => authController.signup(req, res, next));
+router.post('/signup', signupLimiter, extractDeviceInfo, (req, res, next) => authController.signup(req, res, next));
 
 /**
  * @swagger
@@ -56,7 +73,7 @@ router.post('/signup', extractDeviceInfo, (req, res, next) => authController.sig
  *       401:
  *         description: Invalid credentials or verification required
  */
-router.post('/login', extractDeviceInfo, (req, res, next) => authController.login(req, res, next));
+router.post('/login', loginLimiter, extractDeviceInfo, (req, res, next) => authController.login(req, res, next));
 
 /**
  * @swagger
