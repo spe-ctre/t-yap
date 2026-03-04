@@ -19,7 +19,6 @@ router.get('/', authMiddleware as any, (async (req, res, next) => {
     const lng = parseFloat(longitude as string);
     const radiusKm = parseFloat(radius as string);
 
-    // Get all active parks with coordinates
     const parks = await prisma.park.findMany({
       where: {
         isActive: true,
@@ -32,25 +31,14 @@ router.get('/', authMiddleware as any, (async (req, res, next) => {
         address: true,
         latitude: true,
         longitude: true,
-        routes: {
-          select: {
-            id: true,
-            name: true,
-            fare: true,
-            originPark: { select: { name: true } },
-            destinationPark: { select: { name: true } },
-          },
-          take: 3,
-        },
       },
     });
 
-    // Calculate distance using Haversine formula
     const parksWithDistance = parks
       .map((park) => {
         const parkLat = Number(park.latitude);
         const parkLng = Number(park.longitude);
-        const R = 6371; // Earth radius in km
+        const R = 6371;
         const dLat = ((parkLat - lat) * Math.PI) / 180;
         const dLng = ((parkLng - lng) * Math.PI) / 180;
         const a =

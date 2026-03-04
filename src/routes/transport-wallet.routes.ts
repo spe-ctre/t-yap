@@ -74,7 +74,7 @@ router.get('/history', (async (req, res, next) => {
     const transactions = await prisma.transaction.findMany({
       where: {
         userId: req.user!.id,
-        category: 'TRANSPORT',
+        category: 'TRANSFER',
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
