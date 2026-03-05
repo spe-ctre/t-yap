@@ -67,13 +67,13 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 
 // Swagger Documentation
-if (process.env.NODE_ENV !== 'production') {
+if (true) {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 }
 
 // Routes
 app.get('/', (req, res) => {
-  if (process.env.NODE_ENV !== 'production') {
+  if (true) {
     res.redirect('/api-docs');
   } else {
     res.json({ message: 'T-YAP API is running' });
