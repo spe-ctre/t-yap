@@ -6,13 +6,16 @@ import { EmailService } from './email.service';
 import { SessionService } from './session.service';
 import { prisma } from '../config/database';
 import { normalizePhoneNumber, isValidNigerianPhone } from '../utils/phone';
+import { SMSService } from './sms.service';
 
 export class AuthService {
   private emailService: EmailService;
+  private smsService: SMSService;
   private sessionService: SessionService;
 
   constructor() {
     this.emailService = new EmailService();
+    this.smsService = new SMSService();
     this.sessionService = new SessionService();
   }
   
@@ -494,7 +497,9 @@ export class AuthService {
     if (data.type === 'EMAIL_VERIFICATION') {
       await this.emailService.sendVerificationEmail(user.email, verificationCode);
     }
-    // TODO: Add SMS service for phone verification
+    if (data.type === 'PHONE_VERIFICATION') {
+      await this.smsService.sendVerificationSMS(user.phoneNumber, verificationCode);
+    }
 
     return { message: 'Verification code sent successfully' };
   }

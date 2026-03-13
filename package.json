@@ -50,6 +50,7 @@
     "speakeasy": "^2.0.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
+    "twilio": "^5.13.0",
     "typescript": "^5.2.2",
     "uuid": "^9.0.1"
   },
