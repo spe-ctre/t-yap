@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
+import { SMSService } from './sms.service';
+const smsService = new SMSService();
 
 // ============================================
 // AGENT AUTHENTICATION & ONBOARDING
