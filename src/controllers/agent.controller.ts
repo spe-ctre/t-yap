@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
-import { SMSService } from './sms.service';
+import { SMSService } from '../services/sms.service';
 const smsService = new SMSService();
 
 // ============================================
