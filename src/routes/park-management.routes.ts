@@ -1,274 +1,91 @@
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth.middleware';
-import {
-  // Part 1: Authentication & Onboarding
-  deviceSetup,
-  sendParkManagerRegistrationOTP,
-  verifyParkManagerRegistrationOTP,
-  completeParkManagerProfile,
-  uploadParkManagerDocument,
-  submitParkManagerBiometric,
-  
-  // Part 2: Dashboard & Shift Management
-  getParkManagerDashboard,
-  startShift,
-  endShift,
-  getCurrentShift,
-  
-  // Part 3: Driver Management
-  getAllDrivers,
-  getDriverDetails,
-  activateDriver,
-  deactivateDriver,
-  approveDriver,
-  suspendDriver,
-  updateDriverStatus,
-  getDriverStatistics,
-  assignDriverToRoute,
-  getDriversStatistics,
-  
-  // Part 4: Vehicle Management
-  getAllVehicles,
-  getVehicleDetails,
-  approveVehicle,
-  deactivateVehicle,
-  getVehicleStatistics,
-  
-  // Part 5: Passenger Management
-  getAllPassengers,
-  activatePassenger,
-  getPassengerStatistics,
-  
-  // Part 6: Wallet & Transactions
-  getWallet,
-  getTransactions,
-  getPendingSettlements,
-  approveSettlement,
-  withdrawFunds,
-  
-  // Part 7: Reports
-  getRevenueReport,
-  getTripReport,
-  getDriverPerformanceReport,
-  
-  // Part 8: Settings
-  getParkDetails,
-  updateParkSettings,
-  getParksList,
-  getAvailableVehicles,
-  checkPassengerWallet,
-  fundWalletWithCash,
-  passengerCheckInAndPay,
-  savePassengerDetails,
-  getTripPassengers,
-  getSettlementPreview,
-  getTransactionFilterOptions,
-  getBankAccounts,
-  addBankAccount,
-  deleteBankAccount,
-  getDeviceStatus,
-  contactSupport,
-  enrollBiometric, 
-  verifyBiometric,
-  driverBiometricCheckIn,
-  enrollDriverBiometric,
-  enrollAgentBiometric,          
-  verifyAgentBiometric,          
-  enrollParkManagerBiometric,   
-  verifyParkManagerBiometric,    
-  getEnrolledBiometrics,      
-  deactivateBiometric   
-} from '../controllers/park-management.controller';
+import { PMAuthController } from '../controllers/park-management/pm-auth.controller';
+import { PMDashboardController } from '../controllers/park-management/pm-dashboard.controller';
+import { PMDriverController } from '../controllers/park-management/pm-driver.controller';
+import { PMVehicleController } from '../controllers/park-management/pm-vehicle.controller';
+import { PMPassengerController } from '../controllers/park-management/pm-passenger.controller';
+import { PMWalletController } from '../controllers/park-management/pm-wallet.controller';
+import { PMReportController } from '../controllers/park-management/pm-report.controller';
+import { PMSettingsController } from '../controllers/park-management/pm-settings.controller';
+import { PMBiometricController } from '../controllers/park-management/pm-biometric.controller';
+import { PMTripController } from '../controllers/park-management/pm-trip.controller';
 
 const router = Router();
 
 // ============================================
-// PART 1: AUTHENTICATION & ONBOARDING (6 endpoints)
+// PART 1: AUTHENTICATION & ONBOARDING
 // ============================================
-
-// Device Setup - No auth required (first time setup)
-router.post('/auth/device-setup', deviceSetup);
-
-// Send Registration OTP - No auth required
-router.post('/auth/send-otp', sendParkManagerRegistrationOTP);
-
-// Verify Registration OTP - No auth required
-router.post('/auth/verify-otp', verifyParkManagerRegistrationOTP);
-
-// Complete Profile - Requires auth (after OTP verification)
-router.post('/auth/complete-profile', authenticateToken, completeParkManagerProfile);
-
-// Upload Document - Requires auth
-router.post('/auth/upload-document', authenticateToken, uploadParkManagerDocument);
-
-// Submit Biometric - Requires auth
-router.post('/auth/submit-biometric', authenticateToken, submitParkManagerBiometric);
+router.post('/auth/device-setup', PMAuthController.deviceSetup);
+router.post('/auth/send-otp', PMAuthController.sendRegistrationOTP);
+router.post('/auth/verify-otp', PMAuthController.verifyRegistrationOTP);
+router.post('/auth/complete-profile', authenticateToken, PMAuthController.completeProfile);
+router.post('/auth/upload-document', authenticateToken, PMAuthController.uploadDocument);
+router.post('/auth/submit-biometric', authenticateToken, PMAuthController.submitBiometric);
 
 // ============================================
-// PART 2: DASHBOARD & SHIFT MANAGEMENT (4 endpoints)
+// PART 2: DASHBOARD & SHIFT MANAGEMENT
 // ============================================
-
-// Get Dashboard - Requires auth
-router.get('/dashboard', authenticateToken, getParkManagerDashboard);
-
-// Start Shift - Requires auth + biometric verification
-router.post('/shift/start', authenticateToken, startShift);
-
-// End Shift - Requires auth
-router.post('/shift/end', authenticateToken, endShift);
-
-// Get Current Shift - Requires auth
-router.get('/shift/current', authenticateToken, getCurrentShift);
+router.get('/dashboard', authenticateToken, PMDashboardController.getDashboard);
+router.post('/shift/start', authenticateToken, PMDashboardController.startShift);
+router.post('/shift/end', authenticateToken, PMDashboardController.endShift);
 
 // ============================================
-// PART 3: DRIVER MANAGEMENT (10 endpoints)
+// PART 3: DRIVER MANAGEMENT
 // ============================================
-
-// Get All Drivers - Requires auth
-router.get('/drivers', authenticateToken, getAllDrivers);
-
-// Get Drivers Statistics - Requires auth
-router.get('/drivers/statistics', authenticateToken, getDriversStatistics);
-
-// Get Driver Details - Requires auth
-router.get('/drivers/:driverId', authenticateToken, getDriverDetails);
-
-// Activate Driver - Requires auth + biometric
-router.post('/drivers/:driverId/activate', authenticateToken, activateDriver);
-
-// Deactivate Driver - Requires auth
-router.post('/drivers/:driverId/deactivate', authenticateToken, deactivateDriver);
-
-// Approve Driver - Requires auth
-router.post('/drivers/:driverId/approve', authenticateToken, approveDriver);
-
-// Suspend Driver - Requires auth
-router.post('/drivers/:driverId/suspend', authenticateToken, suspendDriver);
-
-// Update Driver Status - Requires auth
-router.patch('/drivers/:driverId/status', authenticateToken, updateDriverStatus);
-
-// Get Driver Statistics - Requires auth
-router.get('/drivers/:driverId/statistics', authenticateToken, getDriverStatistics);
-
-// Assign Driver to Route - Requires auth
-router.post('/drivers/:driverId/assign-route', authenticateToken, assignDriverToRoute);
+router.get('/drivers', authenticateToken, PMDriverController.getAllDrivers);
+router.get('/drivers/:driverId', authenticateToken, PMDriverController.getDriverDetails);
+router.post('/drivers/:driverId/activate', authenticateToken, PMDriverController.activateDriver);
+router.post('/drivers/:driverId/deactivate', authenticateToken, PMDriverController.deactivateDriver);
+router.post('/drivers/:driverId/assign-route', authenticateToken, PMDriverController.assignRoute);
 
 // ============================================
-// PART 4: VEHICLE MANAGEMENT (5 endpoints)
+// PART 4: VEHICLE MANAGEMENT
 // ============================================
-
-// Get All Vehicles - Requires auth
-router.get('/vehicles', authenticateToken, getAllVehicles);
-
-// Get Vehicle Statistics - Requires auth
-router.get('/vehicles/statistics', authenticateToken, getVehicleStatistics);
-
-// Get Vehicle Details - Requires auth
-router.get('/vehicles/:vehicleId', authenticateToken, getVehicleDetails);
-
-// Approve Vehicle - Requires auth
-router.post('/vehicles/:vehicleId/approve', authenticateToken, approveVehicle);
-
-// Deactivate Vehicle - Requires auth
-router.post('/vehicles/:vehicleId/deactivate', authenticateToken, deactivateVehicle);
-
-router.get('/available-vehicles', getAvailableVehicles);
+router.get('/vehicles', authenticateToken, PMVehicleController.getAllVehicles);
+router.get('/vehicles/:vehicleId', authenticateToken, PMVehicleController.getVehicleDetails);
+router.post('/vehicles/:vehicleId/approve', authenticateToken, PMVehicleController.approveVehicle);
+router.post('/vehicles/:vehicleId/deactivate', authenticateToken, PMVehicleController.deactivateVehicle);
+router.get('/available-vehicles', authenticateToken, PMTripController.getAvailableVehicles);
 
 // ============================================
-// PART 5: PASSENGER MANAGEMENT (3 endpoints)
+// PART 5: PASSENGER MANAGEMENT
 // ============================================
-
-// Get All Passengers - Requires auth
-router.get('/passengers', authenticateToken, getAllPassengers);
-
-// Get Passenger Statistics - Requires auth
-router.get('/passengers/statistics', authenticateToken, getPassengerStatistics);
-
-// Activate Passenger (Check-in) - Requires auth + biometric
-router.post('/passengers/:passengerId/activate', authenticateToken, activatePassenger);
-
-router.post('/passenger/check-wallet', checkPassengerWallet);
-
-router.post('/passenger/fund-wallet-cash', fundWalletWithCash);
-
-router.post('/passenger/check-in-and-pay', passengerCheckInAndPay);
-
-router.post('/passenger/passenger-details', savePassengerDetails);
-
-router.get('/trip/:tripId/passengers', getTripPassengers);
-
-router.get('/trip/:tripId/settlement-preview', getSettlementPreview);
+router.get('/passengers', authenticateToken, PMPassengerController.getAllPassengers);
+router.post('/passengers/:passengerId/activate', authenticateToken, PMPassengerController.activatePassenger);
+router.post('/passenger/check-wallet', authenticateToken, PMPassengerController.checkPassengerWallet);
+router.post('/passenger/fund-wallet-cash', authenticateToken, PMWalletController.fundWalletWithCash);
+router.post('/passenger/check-in-and-pay', authenticateToken, PMTripController.passengerCheckInAndPay);
 
 // ============================================
-// PART 6: WALLET & TRANSACTIONS (5 endpoints)
+// PART 6: WALLET & TRANSACTIONS
 // ============================================
-
-// Get Wallet - Requires auth
-router.get('/wallet', authenticateToken, getWallet);
-
-// Get Transactions - Requires auth
-router.get('/transactions', authenticateToken, getTransactions);
-
-// Get Pending Settlements - Requires auth
-router.get('/settlements/pending', authenticateToken, getPendingSettlements);
-
-// Approve Settlement - Requires auth + biometric/PIN
-router.post('/trip/:tripId/approve-settlement', approveSettlement);
-
-// Withdraw Funds - Requires auth
-router.post('/wallet/withdraw', authenticateToken, withdrawFunds);
-
-router.get('/transactions/filter-options', getTransactionFilterOptions);
-
-router.get('/bank-accounts', getBankAccounts);
-
-router.post('/bank-accounts', addBankAccount);
-
-router.delete('/bank-accounts/:id', deleteBankAccount);
+router.get('/wallet', authenticateToken, PMWalletController.getWallet);
+router.post('/wallet/withdraw', authenticateToken, PMWalletController.withdrawFunds);
 
 // ============================================
-// PART 7: REPORTS (3 endpoints)
+// PART 7: REPORTS
 // ============================================
-
-// Get Revenue Report - Requires auth
-router.get('/reports/revenue', authenticateToken, getRevenueReport);
-
-// Get Trip Report - Requires auth
-router.get('/reports/trips', authenticateToken, getTripReport);
-
-// Get Driver Performance Report - Requires auth
-router.get('/reports/driver-performance', authenticateToken, getDriverPerformanceReport);
+router.get('/reports/revenue', authenticateToken, PMReportController.getRevenueReport);
+router.get('/reports/trips', authenticateToken, PMReportController.getTripReport);
 
 // ============================================
-// PART 8: SETTINGS (2 endpoints)
+// PART 8: SETTINGS & MISC
 // ============================================
+router.get('/park', authenticateToken, PMSettingsController.getParkDetails);
+router.get('/parks/list', PMSettingsController.getParksList);
+router.patch('/park/settings', authenticateToken, PMSettingsController.updateParkSettings);
 
-// Get Park Details - Requires auth
-router.get('/park', authenticateToken, getParkDetails);
-
-router.get('/parks/list', getParksList);
-
-// Update Park Settings - Requires auth
-router.patch('/park/settings', authenticateToken, updateParkSettings);
-
-//Device checkUp status
-router.get('/device/status', getDeviceStatus);
-
-
-//Support contact
-router.post('/support/contact', contactSupport);
-
-// Biometric endpoints
-router.post('/passenger/enroll-biometric', enrollBiometric);
-router.post('/passenger/verify-biometric', verifyBiometric);
-router.post('/driver/biometric-check-in', driverBiometricCheckIn);
-router.post('/driver/enroll-biometric', enrollDriverBiometric);           
-router.post('/agent/enroll-biometric', enrollAgentBiometric);             
-router.post('/agent/verify-biometric', verifyAgentBiometric);             
-router.post('/enroll-own-biometric', enrollParkManagerBiometric);         
-router.post('/verify-own-biometric', verifyParkManagerBiometric);         
-router.get('/biometric/enrolled', getEnrolledBiometrics);                 
-router.put('/biometric/:biometricId/deactivate', deactivateBiometric);
+// ============================================
+// BIOMETRIC ENDPOINTS
+// ============================================
+router.post('/passenger/enroll-biometric', authenticateToken, PMBiometricController.enrollBiometric);
+router.post('/passenger/verify-biometric', authenticateToken, PMBiometricController.verifyBiometric);
+router.post('/driver/biometric-check-in', authenticateToken, PMBiometricController.driverCheckIn);
+router.post('/driver/enroll-biometric', authenticateToken, PMBiometricController.enrollDriverBiometric);
+router.post('/agent/enroll-biometric', authenticateToken, PMBiometricController.enrollAgentBiometric);
+router.post('/agent/verify-biometric', authenticateToken, PMBiometricController.verifyAgentBiometric);
+router.post('/enroll-own-biometric', authenticateToken, PMBiometricController.enrollOwnBiometric);
+router.post('/verify-own-biometric', authenticateToken, PMBiometricController.verifyOwnBiometric);
 
 export default router;

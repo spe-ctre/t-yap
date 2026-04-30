@@ -1,6 +1,7 @@
 // src/services/transaction-analytics.service.ts
 
-import { PrismaClient, TransactionStatus, TransactionType, TransactionCategory } from '@prisma/client';
+import { prisma } from '../config/database';
+import { TransactionStatus, TransactionType, TransactionCategory } from '@prisma/client';
 import {
   TransactionSummary,
   CategoryBreakdown,
@@ -10,8 +11,6 @@ import {
   AnalyticsPeriod,
   ExportData,
 } from '../types/analytics.types';
-
-const prisma = new PrismaClient();
 
 export class TransactionAnalyticsService {
   /**

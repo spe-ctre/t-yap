@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from './auth.middleware';
 import { createError } from './error.middleware';
 
 /**
  * Middleware to require email verification
  * Usage: router.post('/endpoint', authMiddleware, requireEmailVerification, controller.method)
  */
-export const requireEmailVerification = (req: Request, res: Response, next: NextFunction) => {
+export const requireEmailVerification = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
       throw createError('User not authenticated', 401);
@@ -25,7 +26,7 @@ export const requireEmailVerification = (req: Request, res: Response, next: Next
  * Middleware to require phone verification
  * Usage: router.post('/endpoint', authMiddleware, requirePhoneVerification, controller.method)
  */
-export const requirePhoneVerification = (req: Request, res: Response, next: NextFunction) => {
+export const requirePhoneVerification = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
       throw createError('User not authenticated', 401);
@@ -44,7 +45,7 @@ export const requirePhoneVerification = (req: Request, res: Response, next: Next
 /**
  * Middleware to require both email and phone verification
  */
-export const requireFullVerification = (req: Request, res: Response, next: NextFunction) => {
+export const requireFullVerification = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
       throw createError('User not authenticated', 401);

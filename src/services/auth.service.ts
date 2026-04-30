@@ -6,16 +6,13 @@ import { EmailService } from './email.service';
 import { SessionService } from './session.service';
 import { prisma } from '../config/database';
 import { normalizePhoneNumber, isValidNigerianPhone } from '../utils/phone';
-import { SMSService } from './sms.service';
 
 export class AuthService {
   private emailService: EmailService;
-  private smsService: SMSService;
   private sessionService: SessionService;
 
   constructor() {
     this.emailService = new EmailService();
-    this.smsService = new SMSService();
     this.sessionService = new SessionService();
   }
   
@@ -84,14 +81,25 @@ export class AuthService {
   }
 
   async login(data: { username: string; password: string; deviceName?: string; deviceType?: string; deviceId?: string; ipAddress?: string; userAgent?: string }) {
+    // Normalize username if it's a phone number
+    let username = data.username;
+    if (isValidNigerianPhone(username)) {
+      username = normalizePhoneNumber(username);
+    }
+
     const user = await prisma.user.findFirst({
-      where: { OR: [{ email: data.username }, { phoneNumber: data.username }] },
+      where: { OR: [{ email: username }, { phoneNumber: username }] },
       include: { passenger: true }
     });
     
     // Use bcrypt.compare to check hashed password
     if (!user || !(await bcrypt.compare(data.password, user.password))) {
       throw createError('Invalid credentials', 401);
+    }
+
+    // Check if account is deleted
+    if (user.deletedAt) {
+      throw createError('Account has been deleted. Please contact support if you believe this is an error.', 403);
     }
 
     // Check if user is active (has at least email or phone verified)
@@ -497,9 +505,7 @@ export class AuthService {
     if (data.type === 'EMAIL_VERIFICATION') {
       await this.emailService.sendVerificationEmail(user.email, verificationCode);
     }
-    if (data.type === 'PHONE_VERIFICATION') {
-      await this.smsService.sendVerificationSMS(user.phoneNumber, verificationCode);
-    }
+    // TODO: Add SMS service for phone verification
 
     return { message: 'Verification code sent successfully' };
   }

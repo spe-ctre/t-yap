@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ProfileService } from '../services/profile.service';
 import { updateProfileSchema, updateSettingsSchema } from '../utils/validation';
 import { createError } from '../middleware/error.middleware';
@@ -12,7 +13,7 @@ export class ProfileController {
     this.profileService = new ProfileService();
   }
 
-  getProfile = async (req: Request, res: Response, next: NextFunction) => {
+  getProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const profile = await this.profileService.getProfile(req.user!.id);
       res.json({ success: true, statusCode: 200, data: profile });
@@ -21,7 +22,7 @@ export class ProfileController {
     }
   };
 
-  updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+  updateProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = updateProfileSchema.validate(req.body);
       if (error) {
@@ -36,7 +37,7 @@ export class ProfileController {
     }
   };
 
-  uploadProfilePicture = async (req: Request, res: Response, next: NextFunction) => {
+  uploadProfilePicture = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.file) {
         throw createError('No file provided', 400);
@@ -54,7 +55,7 @@ export class ProfileController {
     }
   };
 
-  deleteProfilePicture = async (req: Request, res: Response, next: NextFunction) => {
+  deleteProfilePicture = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const result = await this.profileService.deleteProfilePicture(req.user!.id);
       res.json({ success: true, statusCode: 200, data: result });
@@ -63,7 +64,7 @@ export class ProfileController {
     }
   };
 
-  getSettings = async (req: Request, res: Response, next: NextFunction) => {
+  getSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const settings = await this.profileService.getSettings(req.user!.id);
       res.json({ success: true, statusCode: 200, data: settings });
@@ -72,7 +73,7 @@ export class ProfileController {
     }
   };
 
-  updateSettings = async (req: Request, res: Response, next: NextFunction) => {
+  updateSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = updateSettingsSchema.validate(req.body);
       if (error) {
@@ -82,6 +83,70 @@ export class ProfileController {
 
       const settings = await this.profileService.updateSettings(req.user!.id, req.body);
       res.json({ success: true, statusCode: 200, data: settings });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deactivateAccount = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const { password } = req.body;
+      if (!password) throw createError('Password is required', 400);
+      const result = await this.profileService.deactivateAccount(userId, password);
+      res.json({ success: true, statusCode: 200, data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteAccount = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const { password } = req.body;
+      if (!password) throw createError('Password is required', 400);
+      const result = await this.profileService.deleteAccount(userId, password);
+      res.json({ success: true, statusCode: 200, data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getTiersAndLimits = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const { prisma } = require('../config/database');
+      const passenger = await prisma.passenger.findUnique({
+        where: { userId },
+        select: { tier: true }
+      });
+      const tiers = [
+        {
+          tier: 'TIER_1',
+          name: 'Tier 1',
+          dailyTransactionLimit: 50000,
+          maxAccountBalance: 50000,
+          requirements: ['Email verification'],
+          current: passenger?.tier === 'TIER_1' || !passenger?.tier
+        },
+        {
+          tier: 'TIER_2',
+          name: 'Tier 2',
+          dailyTransactionLimit: 200000,
+          maxAccountBalance: 500000,
+          requirements: ['BVN verification', 'NIN verification'],
+          current: passenger?.tier === 'TIER_2'
+        },
+        {
+          tier: 'TIER_3',
+          name: 'Tier 3',
+          dailyTransactionLimit: 2000000,
+          maxAccountBalance: null,
+          requirements: ['Proof of address', 'NIN photo', 'Face recognition'],
+          current: passenger?.tier === 'TIER_3'
+        }
+      ];
+      res.json({ success: true, statusCode: 200, data: { tiers, currentTier: passenger?.tier || 'TIER_1' } });
     } catch (error) {
       next(error);
     }

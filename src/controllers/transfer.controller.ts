@@ -1,6 +1,10 @@
 // src/controllers/transfer.controller.ts
+import { MonnifyService } from '../services/monnify.service';
+import { prisma } from '../config/database';
 
+const monnifyService = new MonnifyService();
 import { Request, Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { TransferService } from '../services/transfer.service';
 import { AppError } from '../utils/errors';
 
@@ -9,7 +13,7 @@ export class TransferController {
    * POST /api/transfers/p2p
    * Process peer-to-peer transfer
    */
-  static async processTransfer(req: Request, res: Response, next: NextFunction) {
+  static async processTransfer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const senderId = req.user?.id; // From auth middleware
       const { recipientId, amount, description, pin } = req.body;
@@ -69,7 +73,7 @@ export class TransferController {
    * GET /api/transfers/limits/remaining
    * Get user's remaining daily transfer limit
    */
-  static async getRemainingLimit(req: Request, res: Response, next: NextFunction) {
+  static async getRemainingLimit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
 
@@ -88,7 +92,7 @@ export class TransferController {
    * POST /api/transfers/validate
    * Validate transfer before processing (pre-check)
    */
-  static async validateTransfer(req: Request, res: Response, next: NextFunction) {
+  static async validateTransfer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const senderId = req.user?.id;
       const { recipientId, amount } = req.body;
@@ -189,7 +193,7 @@ export class TransferController {
    * GET /api/transfers/history
    * Get user's transfer history
    */
-  static async getTransferHistory(req: Request, res: Response, next: NextFunction) {
+  static async getTransferHistory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
@@ -212,7 +216,7 @@ export class TransferController {
    * GET /api/transfers/:transferId
    * Get single transfer details
    */
-  static async getTransferById(req: Request, res: Response, next: NextFunction) {
+  static async getTransferById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
       const { transferId } = req.params;
@@ -236,7 +240,7 @@ export class TransferController {
    * GET /api/transfers/:transferId/receipt
    * Download transfer receipt as PDF
    */
-  static async downloadReceipt(req: Request, res: Response, next: NextFunction) {
+  static async downloadReceipt(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
       const { transferId } = req.params;
@@ -275,6 +279,148 @@ export class TransferController {
 
       // Send PDF
       res.send(pdfBuffer);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/transfers/banks
+   * Get list of Nigerian banks
+   */
+  static async getBanks(req: Request, res: Response, next: NextFunction) {
+    try {
+      const banks = await monnifyService.getBanks();
+      res.status(200).json({
+        success: true,
+        statusCode: 200,
+        data: banks,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/transfers/resolve-account
+   * Resolve account name from account number + bank code
+   */
+  static async resolveAccount(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { accountNumber, bankCode } = req.body;
+      if (!accountNumber || !bankCode) {
+        throw new AppError('Account number and bank code are required', 400);
+      }
+      const result = await monnifyService.resolveAccount(accountNumber, bankCode);
+      res.status(200).json({
+        success: true,
+        statusCode: 200,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/transfers/bank
+   * Send money to external Nigerian bank account
+   */
+  static async bankTransfer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const senderId = req.user?.id;
+      const { accountNumber, bankCode, bankName, accountName, amount, narration, pin } = req.body;
+
+      if (!accountNumber || !bankCode || !accountName || !amount || !pin) {
+        throw new AppError('Account number, bank code, account name, amount and PIN are required', 400);
+      }
+
+      if (typeof amount !== 'number' || amount <= 0) {
+        throw new AppError('Amount must be a positive number', 400);
+      }
+
+      // Get user and verify PIN
+      const user = await prisma.user.findUnique({
+        where: { id: senderId },
+        include: { passenger: true },
+      });
+
+      if (!user || !user.passenger) {
+        throw new AppError('Passenger profile not found', 404);
+      }
+
+      // Verify PIN
+      const bcrypt = require('bcryptjs');
+      const isPinValid = await bcrypt.compare(pin, user.passenger.transactionPin || '');
+      if (!isPinValid) {
+        throw new AppError('Invalid transaction PIN', 401);
+      }
+
+      // Check balance
+      const balance = Number(user.passenger.walletBalance);
+      if (balance < amount) {
+        throw new AppError('Insufficient wallet balance', 400);
+      }
+
+      // Generate unique reference
+      const reference = `BANK-TRF-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+
+      // Initiate disbursement via Monnify
+      const disbursement = await monnifyService.initiateDisbursement({
+        amount,
+        reference,
+        narration: narration || `Transfer to ${accountName}`,
+        destinationAccountNumber: accountNumber,
+        destinationBankCode: bankCode,
+        destinationAccountName: accountName,
+        destinationEmail: user.email,
+      });
+
+      // Debit wallet and create transaction record
+      const newBalance = balance - amount;
+      await prisma.$transaction([
+        prisma.passenger.update({
+          where: { userId: senderId },
+          data: { walletBalance: newBalance },
+        }),
+        prisma.transaction.create({
+          data: {
+            userId: senderId!,
+            userType: 'PASSENGER',
+            type: 'DEBIT',
+            category: 'TRANSFER',
+            amount,
+            balanceBefore: balance,
+            balanceAfter: newBalance,
+            status: 'SUCCESS',
+            reference,
+            description: narration || `Transfer to ${accountName}`,
+            metadata: {
+              accountNumber,
+              bankCode,
+              bankName,
+              accountName,
+              monnifyReference: disbursement?.reference,
+              disbursement,
+            },
+          },
+        }),
+      ]);
+
+      res.status(200).json({
+        success: true,
+        statusCode: 200,
+        message: 'Bank transfer successful',
+        data: {
+          reference,
+          amount,
+          accountNumber,
+          bankName,
+          accountName,
+          newBalance,
+          disbursement,
+        },
+      });
     } catch (error) {
       next(error);
     }

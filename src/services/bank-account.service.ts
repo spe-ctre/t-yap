@@ -1,10 +1,9 @@
 // src/services/bank-account.service.ts
 
-import { PrismaClient, BankAccountType } from '@prisma/client';
+import { prisma } from '../config/database';
+import { BankAccountType } from '@prisma/client';
 import { AppError } from '../utils/errors';
 import { getBanks, verifyBankAccount as verifyBankAccountMonnify } from '../utils/monnify.utils';
-
-const prisma = new PrismaClient();
 
 interface AddBankAccountRequest {
   userId: string;

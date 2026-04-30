@@ -1,8 +1,14 @@
 import Joi from 'joi';
 
+// Accepts Nigerian phone numbers in local or international format:
+// - 08012345678
+// - 2348012345678
+// - +2348012345678
+const NIGERIAN_PHONE_REGEX = /^(?:\+234|234|0)\d{10}$/;
+
 export const signupSchema = Joi.object({
   email: Joi.string().email().required(),
-  phoneNumber: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).required(),
+  phoneNumber: Joi.string().pattern(NIGERIAN_PHONE_REGEX).required(),
   password: Joi.string().min(8).required(),
   confirmPassword: Joi.string().valid(Joi.ref('password')).required(),
   role: Joi.string().valid('PASSENGER', 'DRIVER', 'AGENT', 'PARK_MANAGER').optional().default('PASSENGER')
@@ -18,7 +24,7 @@ export const verifyCodeSchema = Joi.object({
   code: Joi.string().length(6).required(),
   type: Joi.string().valid('EMAIL_VERIFICATION', 'PHONE_VERIFICATION').required(),
   email: Joi.string().email().optional(),
-  phoneNumber: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).optional()
+  phoneNumber: Joi.string().pattern(NIGERIAN_PHONE_REGEX).optional()
 }).or('email', 'phoneNumber'); // At least one is required
 
 export const createPinSchema = Joi.object({
@@ -29,7 +35,7 @@ export const createPinSchema = Joi.object({
 export const updateProfileSchema = Joi.object({
   firstName: Joi.string().min(1).max(100).optional(),
   lastName: Joi.string().min(1).max(100).optional(),
-  phoneNumber: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).optional()
+  phoneNumber: Joi.string().pattern(NIGERIAN_PHONE_REGEX).optional()
 });
 
 export const updateSettingsSchema = Joi.object({

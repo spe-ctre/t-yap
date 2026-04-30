@@ -1,11 +1,13 @@
 // src/services/transfer.service.ts
 
-import { PrismaClient, TransactionStatus, TransactionType, TransactionCategory, UserRole, TransferStatus } from '@prisma/client';
+import { prisma } from '../config/database';
+import { TransactionStatus, TransactionType, TransactionCategory, UserRole, TransferStatus } from '@prisma/client';
 import { AppError } from '../utils/errors';
 import bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
+import { logAction } from '../controllers/auditLog.controller';
 
-const prisma = new PrismaClient();
+const HIGH_VALUE_THRESHOLD = 50000;
 
 interface TransferRequest {
   senderId: string;
@@ -41,53 +43,53 @@ export class TransferService {
   static async processTransfer(data: TransferRequest) {
     const { senderId, recipientId, amount, description, pin } = data;
 
-    // Start transaction to ensure atomicity
+    // 1. Get sender (user + passenger profile) OUTSIDE transaction for PIN check
+    const sender = await prisma.user.findUnique({
+      where: { id: senderId },
+      include: { passenger: true },
+    });
+
+    if (!sender) {
+      throw new AppError('Sender not found', 404);
+    }
+
+    if (!sender.passenger) {
+      throw new AppError('Sender does not have a passenger profile', 400);
+    }
+
+    if (!sender.passenger.transactionPin) {
+      throw new AppError('Transaction PIN not set. Please set your PIN first.', 400);
+    }
+
+    // Verify PIN outside transaction to avoid blocking DB
+    const isPinValid = await bcrypt.compare(pin, sender.passenger.transactionPin);
+    if (!isPinValid) {
+      throw new AppError('Invalid transaction PIN', 401);
+    }
+
+    if (senderId === recipientId) {
+      throw new AppError('Cannot transfer to yourself', 400);
+    }
+
+    // Validate amount limits
+    this.validateTransferAmount(amount);
+
+    // 2. Get recipient (user + passenger profile)
+    const recipient = await prisma.user.findUnique({
+      where: { id: recipientId },
+      include: { passenger: true },
+    });
+
+    if (!recipient) {
+      throw new AppError('Recipient not found', 404);
+    }
+
+    if (!recipient.passenger) {
+      throw new AppError('Recipient does not have a passenger profile', 400);
+    }
+
+    // Start transaction for atomic updates only
     return await prisma.$transaction(async (tx) => {
-      // 1. Get sender (user + passenger profile)
-      const sender = await tx.user.findUnique({
-        where: { id: senderId },
-        include: { passenger: true },
-      });
-
-      if (!sender) {
-        throw new AppError('Sender not found', 404);
-      }
-
-      if (!sender.passenger) {
-        throw new AppError('Sender does not have a passenger profile', 400);
-      }
-
-      if (!sender.passenger.transactionPin) {
-        throw new AppError('Transaction PIN not set. Please set your PIN first.', 400);
-      }
-
-      // Verify PIN
-      const isPinValid = await bcrypt.compare(pin, sender.passenger.transactionPin);
-      if (!isPinValid) {
-        throw new AppError('Invalid transaction PIN', 401);
-      }
-
-      // 2. Get recipient (user + passenger profile)
-      const recipient = await tx.user.findUnique({
-        where: { id: recipientId },
-        include: { passenger: true },
-      });
-
-      if (!recipient) {
-        throw new AppError('Recipient not found', 404);
-      }
-
-      if (!recipient.passenger) {
-        throw new AppError('Recipient does not have a passenger profile', 400);
-      }
-
-      if (senderId === recipientId) {
-        throw new AppError('Cannot transfer to yourself', 400);
-      }
-
-      // 3. Validate amount
-      this.validateTransferAmount(amount);
-
       // 4. Check sender's daily limits
       await this.checkDailyLimits(senderId, amount, tx);
 
@@ -96,7 +98,12 @@ export class TransferService {
       const totalDeduction = amount + fee;
 
       // 6. Check sender has sufficient balance
-      const senderBalance = sender.passenger.walletBalance.toNumber();
+      const currentSender = await tx.passenger.findUnique({
+        where: { id: sender.passenger!.id },
+        select: { walletBalance: true }
+      });
+
+      const senderBalance = currentSender?.walletBalance.toNumber() || 0;
       if (senderBalance < totalDeduction) {
         throw new AppError(
           `Insufficient balance. Required: ₦${totalDeduction.toFixed(2)}, Available: ₦${senderBalance.toFixed(2)}`,
@@ -104,29 +111,20 @@ export class TransferService {
         );
       }
 
-      // 7. Deduct from sender
-      const newSenderBalance = new Decimal(senderBalance - totalDeduction);
-      await tx.passenger.update({
-        where: { id: sender.passenger.id },
-        data: {
-          walletBalance: newSenderBalance,
-        },
+      // 7. Atomic update balances
+      const updatedSender = await tx.passenger.update({
+        where: { id: sender.passenger!.id },
+        data: { walletBalance: { decrement: totalDeduction } },
       });
 
-      // 8. Credit recipient
-      const recipientBalance = recipient.passenger.walletBalance.toNumber();
-      const newRecipientBalance = new Decimal(recipientBalance + amount);
-      await tx.passenger.update({
-        where: { id: recipient.passenger.id },
-        data: {
-          walletBalance: newRecipientBalance,
-        },
+      const updatedRecipient = await tx.passenger.update({
+        where: { id: recipient.passenger!.id },
+        data: { walletBalance: { increment: amount } },
       });
 
-      // 9. Generate unique reference for this transfer
       const transferReference = this.generateTransferReference();
 
-      // 10. Create debit transaction for sender
+      // 8. Create transactions
       const debitTransaction = await tx.transaction.create({
         data: {
           userId: senderId,
@@ -135,41 +133,41 @@ export class TransferService {
           category: TransactionCategory.TRANSFER,
           amount: new Decimal(-totalDeduction),
           balanceBefore: new Decimal(senderBalance),
-          balanceAfter: newSenderBalance,
+          balanceAfter: updatedSender.walletBalance,
           status: TransactionStatus.SUCCESS,
           reference: transferReference,
-          description: description || `Transfer to ${recipient.passenger.firstName || ''} ${recipient.passenger.lastName || ''}`.trim(),
+          description: description || `Transfer to ${recipient.passenger!.firstName || ''} ${recipient.passenger!.lastName || ''}`.trim(),
           metadata: {
             recipientId,
-            recipientName: `${recipient.passenger.firstName || ''} ${recipient.passenger.lastName || ''}`.trim(),
+            recipientName: `${recipient.passenger!.firstName || ''} ${recipient.passenger!.lastName || ''}`.trim(),
             fee,
             transferType: 'P2P',
           },
         },
       });
 
-      // 11. Create credit transaction for recipient
-      const creditTransaction = await tx.transaction.create({
+      // Credit transaction for recipient
+      await tx.transaction.create({
         data: {
           userId: recipientId,
           userType: UserRole.PASSENGER,
           type: TransactionType.CREDIT,
           category: TransactionCategory.TRANSFER,
           amount: new Decimal(amount),
-          balanceBefore: new Decimal(recipientBalance),
-          balanceAfter: newRecipientBalance,
+          balanceBefore: updatedRecipient.walletBalance.minus(amount),
+          balanceAfter: updatedRecipient.walletBalance,
           status: TransactionStatus.SUCCESS,
-          reference: `${transferReference}-CR`,
-          description: description || `Transfer from ${sender.passenger.firstName || ''} ${sender.passenger.lastName || ''}`.trim(),
+          reference: `REC-${transferReference}`,
+          description: `Transfer from ${sender.passenger!.firstName || ''} ${sender.passenger!.lastName || ''}`.trim(),
           metadata: {
             senderId,
-            senderName: `${sender.passenger.firstName || ''} ${sender.passenger.lastName || ''}`.trim(),
+            senderName: `${sender.passenger!.firstName || ''} ${sender.passenger!.lastName || ''}`.trim(),
             transferType: 'P2P',
           },
         },
       });
 
-      // 12. Create Transfer record to track P2P relationship
+      // 9. Create transfer record
       const transfer = await tx.transfer.create({
         data: {
           senderId,
@@ -179,12 +177,11 @@ export class TransferService {
           reference: transferReference,
           status: TransferStatus.COMPLETED,
           debitTransactionId: debitTransaction.id,
-          creditTransactionId: creditTransaction.id,
           completedAt: new Date(),
         },
       });
 
-      // 13. If there's a fee, create fee transaction
+      // 10. Handle fee transaction if applicable
       if (fee > 0) {
         await tx.transaction.create({
           data: {
@@ -193,10 +190,10 @@ export class TransferService {
             type: TransactionType.DEBIT,
             category: TransactionCategory.TRANSFER,
             amount: new Decimal(-fee),
-            balanceBefore: new Decimal(senderBalance - amount),
-            balanceAfter: newSenderBalance,
+            balanceBefore: updatedSender.walletBalance.plus(fee),
+            balanceAfter: updatedSender.walletBalance,
             status: TransactionStatus.SUCCESS,
-            reference: `${transferReference}-FEE`,
+            reference: `FEE-${transferReference}`,
             description: 'Transfer fee',
             metadata: {
               relatedTransactionId: debitTransaction.id,
@@ -206,11 +203,10 @@ export class TransferService {
         });
       }
 
-      // 14. Send notifications (async, won't block response)
-      const senderName = `${sender.passenger.firstName || ''} ${sender.passenger.lastName || ''}`.trim();
-      const recipientName = `${recipient.passenger.firstName || ''} ${recipient.passenger.lastName || ''}`.trim();
+      // 11. Notifications
+      const senderName = `${sender.passenger!.firstName || ''} ${sender.passenger!.lastName || ''}`.trim();
+      const recipientName = `${recipient.passenger!.firstName || ''} ${recipient.passenger!.lastName || ''}`.trim();
       
-      // Call notification method with tx context to ensure it's part of the transaction
       await this.sendTransferNotifications(
         senderId,
         recipientId,
@@ -220,6 +216,23 @@ export class TransferService {
         recipientName,
         tx
       );
+
+      // 12. Audit high-value transfers
+      if (amount >= HIGH_VALUE_THRESHOLD) {
+        // Fire and forget audit log outside the transaction to not slow it down
+        setImmediate(() => {
+          logAction(
+            senderId,
+            'HIGH_VALUE_TRANSFER_SENT',
+            `Amount: ₦${amount}. Recipient: ${recipientId} (${recipientName}). Ref: ${transferReference}`
+          );
+          logAction(
+            recipientId,
+            'HIGH_VALUE_TRANSFER_RECEIVED',
+            `Amount: ₦${amount}. Sender: ${senderId} (${senderName}). Ref: ${transferReference}`
+          );
+        });
+      }
 
       return {
         success: true,
@@ -239,11 +252,13 @@ export class TransferService {
           sender: {
             id: sender.id,
             name: senderName,
-            newBalance: newSenderBalance.toNumber(),
+            newBalance: updatedSender.walletBalance.toNumber(),
           },
           timestamp: debitTransaction.createdAt,
         },
       };
+    }, {
+      timeout: 15000 // Increase timeout to 15s for Supabase
     });
   }
 

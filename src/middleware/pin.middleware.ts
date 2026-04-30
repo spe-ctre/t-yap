@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from './auth.middleware';
 import { prisma } from '../config/database';
 import { createError } from './error.middleware';
 import bcrypt from 'bcryptjs';
@@ -8,7 +9,7 @@ import bcrypt from 'bcryptjs';
  * Expects PIN in request body: { pin: string }
  * Usage: router.post('/endpoint', authMiddleware, requirePinVerification, controller.method)
  */
-export const requirePinVerification = async (req: Request, res: Response, next: NextFunction) => {
+export const requirePinVerification = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
       throw createError('User not authenticated', 401);
@@ -50,7 +51,7 @@ export const requirePinVerification = async (req: Request, res: Response, next: 
  * Middleware to check if transaction PIN is set (doesn't verify, just checks existence)
  * Usage: router.get('/endpoint', authMiddleware, requirePinExists, controller.method)
  */
-export const requirePinExists = async (req: Request, res: Response, next: NextFunction) => {
+export const requirePinExists = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
       throw createError('User not authenticated', 401);

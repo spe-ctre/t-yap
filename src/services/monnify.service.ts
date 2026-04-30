@@ -77,6 +77,43 @@ export class MonnifyService {
       console.warn('   Please configure MONNIFY_BASE_URL, MONNIFY_API_KEY, MONNIFY_SECRET_KEY, and MONNIFY_CONTRACT_CODE to enable wallet top-up.');
     } else {
       console.log('✅ Monnify payment service initialized successfully');
+      
+      // Add debug interceptors
+      if (process.env.NODE_ENV === 'development') {
+        axios.interceptors.request.use(request => {
+          if (request.url?.includes('monnify')) {
+            console.log('🚀 Monnify Request:', {
+              method: request.method?.toUpperCase(),
+              url: request.url,
+              params: request.params,
+              data: request.data ? 'PRESENT' : 'EMPTY'
+            });
+          }
+          return request;
+        });
+
+        axios.interceptors.response.use(
+          response => {
+            if (response.config.url?.includes('monnify')) {
+              console.log('✅ Monnify Response:', {
+                status: response.status,
+                data: response.data
+              });
+            }
+            return response;
+          },
+          error => {
+            if (error.config?.url?.includes('monnify')) {
+              console.error('❌ Monnify Error:', {
+                status: error.response?.status,
+                data: error.response?.data,
+                message: error.message
+              });
+            }
+            return Promise.reject(error);
+          }
+        );
+      }
     }
   }
 
@@ -206,19 +243,27 @@ export class MonnifyService {
     try {
       const token = await this.getAccessToken();
 
+      // Monnify allows querying by paymentReference or transactionReference
+      const params: any = {};
+      if (transactionReference.startsWith('TOPUP_')) {
+        params.paymentReference = transactionReference;
+      } else {
+        params.transactionReference = transactionReference;
+      }
+
       const response = await axios.get<VerifyPaymentResponse>(
         `${this.baseUrl}/merchant/transactions/query`,
         {
-          params: { transactionReference },
+          params,
           headers: {
             Authorization: `Bearer ${token}`,
           },
-          timeout: 30000, // 30 seconds timeout
+          timeout: 30000,
         }
       );
 
       if (!response.data.requestSuccessful) {
-        throw new Error(response.data.responseMessage || 'Failed to verify payment');
+        throw createError(response.data.responseMessage || 'Failed to verify payment', 400);
       }
 
       if (process.env.NODE_ENV === 'development') {
@@ -230,8 +275,36 @@ export class MonnifyService {
 
       return response.data.responseBody;
     } catch (error: any) {
+      const status = error?.statusCode || error?.status || error?.response?.status;
+      const providerMessage =
+        error?.response?.data?.responseMessage ||
+        error?.response?.data?.message ||
+        error?.message;
+
       console.error('Monnify verify payment error:', error.response?.data || error.message);
-      throw createError('Failed to verify payment', 500);
+
+      // If provider responds with 404, surface a clearer message than axios' generic one.
+      if (status === 404) {
+        throw createError(
+          providerMessage && !providerMessage.includes('status code 404')
+            ? providerMessage
+            : 'Transaction reference not found on payment provider',
+          404
+        );
+      }
+
+      // If we already wrapped it as an HTTP error, pass through
+      if (typeof status === 'number' && status >= 400 && status < 500 && error?.message) {
+        throw createError(error.message, status);
+      }
+
+      // Provider returned a message (often "transaction not found" or "pending")
+      if (typeof status === 'number' && status >= 400 && status < 500) {
+        throw createError(providerMessage || 'Payment not completed or invalid', status);
+      }
+
+      // Network/provider errors
+      throw createError(providerMessage || 'Failed to verify payment', 502);
     }
   }
 
@@ -262,7 +335,7 @@ export class MonnifyService {
   /**
    * Get list of banks
    */
-  async getBanks(): Promise<{ name: string; code: string }[]> {
+  async getBankList(): Promise<{ name: string; code: string }[]> {
     try {
       const token = await this.getAccessToken();
       const response = await axios.get(
@@ -274,7 +347,7 @@ export class MonnifyService {
       );
       return response.data.responseBody;
     } catch (error: any) {
-      console.error('Monnify getBanks error:', error.response?.data || error.message);
+      console.error('Monnify getBankList error:', error.response?.data || error.message);
       throw createError('Failed to fetch banks', 500);
     }
   }
@@ -282,7 +355,7 @@ export class MonnifyService {
   /**
    * Resolve bank account number to get account name
    */
-  async resolveAccount(accountNumber: string, bankCode: string): Promise<{ accountName: string; accountNumber: string }> {
+  async verifyBankAccount(accountNumber: string, bankCode: string): Promise<{ accountName: string; accountNumber: string; bankCode: string }> {
     try {
       const token = await this.getAccessToken();
       const response = await axios.get(
@@ -296,17 +369,33 @@ export class MonnifyService {
       if (!response.data.requestSuccessful) {
         throw new Error(response.data.responseMessage || 'Failed to resolve account');
       }
-      return response.data.responseBody;
+      return {
+        ...response.data.responseBody,
+        bankCode
+      };
     } catch (error: any) {
-      console.error('Monnify resolveAccount error:', error.response?.data || error.message);
-      throw createError('Failed to resolve bank account', 500);
+      console.error('Monnify verifyBankAccount error:', error.response?.data || error.message);
+      
+      // Strict toggle for sandbox mocks to ensure QA testing integrity
+      const useMocks = process.env.ENABLE_SANDBOX_MOCKS === 'true';
+      
+      if (useMocks && (process.env.NODE_ENV === 'development' || this.baseUrl.includes('sandbox'))) {
+        console.warn(`⚠️ [MOCK ENABLED] Using mocked bank account for ${accountNumber} (${bankCode}).`);
+        return {
+          accountName: 'Monnify Test User',
+          accountNumber,
+          bankCode
+        };
+      }
+
+      throw createError('Failed to resolve bank account. Please ensure the account details are valid.', 400);
     }
   }
 
   /**
    * Initiate bank transfer disbursement
    */
-  async initiateDisbursement(params: {
+  async initiateTransfer(params: {
     amount: number;
     reference: string;
     narration: string;
@@ -324,24 +413,43 @@ export class MonnifyService {
         destinationBankCode: params.destinationBankCode,
         destinationAccountNumber: params.destinationAccountNumber,
         destinationAccountName: params.destinationAccountName,
+        bankCode: params.destinationBankCode, // v2 fallback
+        accountNumber: params.destinationAccountNumber, // v2 fallback
         destinationEmail: params.destinationEmail || '',
         currency: 'NGN',
-        sourceAccountNumber: process.env.MONNIFY_WALLET_ACCOUNT_NUMBER,
+        sourceAccountNumber: process.env.MONNIFY_WALLET_ACCOUNT || '',
+        walletId: process.env.MONNIFY_WALLET_ACCOUNT || ''
       };
+
       const response = await axios.post(
         `${this.baseUrl}/disbursements/single`,
         payload,
         {
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          headers: { Authorization: `Bearer ${token}` },
           timeout: 30000,
         }
       );
-      if (!response.data.requestSuccessful) {
-        throw new Error(response.data.responseMessage || 'Failed to initiate disbursement');
-      }
-      return response.data.responseBody;
+
+      return {
+        reference: response.data.responseBody.reference,
+        status: response.data.responseBody.status,
+        message: response.data.responseMessage || 'Transfer initiated successfully'
+      };
     } catch (error: any) {
-      console.error('Monnify initiateDisbursement error:', error.response?.data || error.message);
+      console.error('Monnify initiateTransfer error:', error.response?.data || error.message);
+      
+      // Strict toggle for sandbox mocks to ensure QA testing integrity
+      const useMocks = process.env.ENABLE_SANDBOX_MOCKS === 'true';
+      
+      if (useMocks && (process.env.NODE_ENV === 'development' || this.baseUrl.includes('sandbox'))) {
+        console.warn(`⚠️ [MOCK ENABLED] Simulating successful transfer for ${params.amount} to ${params.destinationAccountNumber}.`);
+        return {
+          reference: `MOCK_TRF_${Date.now()}`,
+          status: 'SUCCESS',
+          message: 'Transfer simulated successfully in sandbox'
+        };
+      }
+
       throw createError('Failed to initiate bank transfer', 500);
     }
   }

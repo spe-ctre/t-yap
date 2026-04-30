@@ -1,12 +1,14 @@
 // src/services/withdrawal.service.ts
 
-import { PrismaClient, TransactionStatus, TransactionType, TransactionCategory, UserRole } from '@prisma/client';
+import { prisma } from '../config/database';
+import { TransactionStatus, TransactionType, TransactionCategory, UserRole } from '@prisma/client';
 import { AppError } from '../utils/errors';
 import bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { initiateBankTransfer } from '../utils/monnify.utils';
+import { logAction } from '../controllers/auditLog.controller';
 
-const prisma = new PrismaClient();
+const HIGH_VALUE_THRESHOLD = 50000;
 
 interface WithdrawalRequest {
   userId: string;
@@ -42,32 +44,32 @@ export class WithdrawalService {
   static async processWithdrawal(data: WithdrawalRequest) {
     const { userId, amount, bankAccountId, pin, description } = data;
 
+    // 1. Get user with passenger profile OUTSIDE transaction for PIN check
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { passenger: true },
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    if (!user.passenger) {
+      throw new AppError('Passenger profile not found', 400);
+    }
+
+    if (!user.passenger.transactionPin) {
+      throw new AppError('Transaction PIN not set. Please set your PIN first.', 400);
+    }
+
+    // Verify PIN outside transaction to avoid blocking DB
+    const isPinValid = await bcrypt.compare(pin, user.passenger.transactionPin);
+    if (!isPinValid) {
+      throw new AppError('Invalid transaction PIN', 401);
+    }
+
     // Start transaction to ensure atomicity
-    return await prisma.$transaction(async (tx) => {
-      // 1. Get user with passenger profile
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-        include: { passenger: true },
-      });
-
-      if (!user) {
-        throw new AppError('User not found', 404);
-      }
-
-      if (!user.passenger) {
-        throw new AppError('Passenger profile not found', 400);
-      }
-
-      if (!user.passenger.transactionPin) {
-        throw new AppError('Transaction PIN not set. Please set your PIN first.', 400);
-      }
-
-      // Verify PIN
-      const isPinValid = await bcrypt.compare(pin, user.passenger.transactionPin);
-      if (!isPinValid) {
-        throw new AppError('Invalid transaction PIN', 401);
-      }
-
+    const dbResult = await prisma.$transaction(async (tx) => {
       // 2. Get bank account (default or specified)
       let bankAccount;
       if (bankAccountId) {
@@ -109,7 +111,12 @@ export class WithdrawalService {
       const totalDeduction = amount + fee;
 
       // 6. Check user has sufficient balance
-      const userBalance = user.passenger.walletBalance.toNumber();
+      const currentPassenger = await tx.passenger.findUnique({
+        where: { id: user.passenger!.id },
+        select: { walletBalance: true }
+      });
+      const userBalance = currentPassenger?.walletBalance.toNumber() || 0;
+      
       if (userBalance < totalDeduction) {
         throw new AppError(
           `Insufficient balance. Required: ₦${totalDeduction.toFixed(2)}, Available: ₦${userBalance.toFixed(2)}`,
@@ -120,14 +127,12 @@ export class WithdrawalService {
       // 7. Generate unique reference
       const reference = this.generateWithdrawalReference();
 
-      // 8. Deduct from user's wallet
-      const newBalance = new Decimal(userBalance - totalDeduction);
-      await tx.passenger.update({
-        where: { id: user.passenger.id },
-        data: {
-          walletBalance: newBalance,
-        },
+      // 8. Deduct from user's wallet atomically
+      const updatedPassenger = await tx.passenger.update({
+        where: { id: user.passenger!.id },
+        data: { walletBalance: { decrement: totalDeduction } },
       });
+      const newBalance = updatedPassenger.walletBalance;
 
       // 9. Create debit transaction
       const transaction = await tx.transaction.create({
@@ -164,10 +169,10 @@ export class WithdrawalService {
             type: TransactionType.DEBIT,
             category: TransactionCategory.TRANSFER,
             amount: new Decimal(-fee),
-            balanceBefore: new Decimal(userBalance - amount),
+            balanceBefore: newBalance.plus(fee), // Reconstruct balance before fee
             balanceAfter: newBalance,
             status: TransactionStatus.SUCCESS,
-            reference,
+            reference: `FEE-${reference}`,
             description: 'Withdrawal fee',
             metadata: {
               relatedTransactionId: transaction.id,
@@ -177,77 +182,114 @@ export class WithdrawalService {
         });
       }
 
-      // 11. Initiate bank transfer via Monnify (outside transaction to avoid long-running operations)
-      let transferResult;
-      try {
-        transferResult = await initiateBankTransfer({
-          amount,
-          destinationAccountNumber: bankAccount.accountNumber,
-          destinationBankCode: bankAccount.bankCode,
-          destinationAccountName: bankAccount.accountName,
-          narration: description || 'Wallet withdrawal',
-          reference,
-        });
+      // 11. Return everything needed for the Monnify call
+      return {
+        transactionId: transaction.id,
+        reference,
+        amount,
+        fee,
+        totalDeduction,
+        newBalance: newBalance.toNumber(),
+        bankAccount,
+        userBalance, // Saved for potential rollback
+        createdAt: transaction.createdAt
+      };
+    }); // End of transaction
 
-        // Update transaction status to SUCCESS
-        await prisma.transaction.update({
-          where: { id: transaction.id },
-          data: {
-            status: TransactionStatus.SUCCESS,
-            metadata: {
-              ...(typeof transaction.metadata === 'object' ? transaction.metadata : {}),
-              monnifyResponse: transferResult,
-              completedAt: new Date().toISOString(),
-            },
-          },
-        });
-      } catch (error: any) {
-        // Rollback: Credit user's wallet back
-        await prisma.passenger.update({
-          where: { id: user.passenger.id },
-          data: {
-            walletBalance: new Decimal(userBalance),
-          },
-        });
+    // 12. Initiate bank transfer via Monnify (TRULY outside transaction)
+    try {
+      const transferResult = await initiateBankTransfer({
+        amount,
+        destinationAccountNumber: dbResult.bankAccount.accountNumber,
+        destinationBankCode: dbResult.bankAccount.bankCode,
+        destinationAccountName: dbResult.bankAccount.accountName,
+        narration: description || 'Wallet withdrawal',
+        reference: dbResult.reference,
+      });
 
-        // Update transaction status to FAILED
-        await prisma.transaction.update({
-          where: { id: transaction.id },
-          data: {
-            status: TransactionStatus.FAILED,
-            metadata: {
-              ...(typeof transaction.metadata === 'object' ? transaction.metadata : {}),
-              error: error.message,
-              failedAt: new Date().toISOString(),
-            },
+      // Update transaction status to SUCCESS
+      const updatedTx = await prisma.transaction.update({
+        where: { id: dbResult.transactionId },
+        data: {
+          status: TransactionStatus.SUCCESS,
+          metadata: {
+            withdrawalType: 'BANK_TRANSFER',
+            bankAccountId: dbResult.bankAccount.id,
+            accountNumber: dbResult.bankAccount.accountNumber,
+            accountName: dbResult.bankAccount.accountName,
+            bankName: dbResult.bankAccount.bankName,
+            bankCode: dbResult.bankAccount.bankCode,
+            fee: dbResult.fee,
+            amount: dbResult.amount,
+            monnifyResponse: transferResult,
+            completedAt: new Date().toISOString(),
           },
-        });
+        },
+      });
 
-        throw new AppError('Withdrawal failed. Your balance has been restored.', 500);
+      // Send notification
+      await this.sendWithdrawalNotification(userId, amount, dbResult.bankAccount.bankName, dbResult.reference, prisma);
+
+      // Audit high-value withdrawals
+      if (amount >= HIGH_VALUE_THRESHOLD) {
+        setImmediate(() => {
+          logAction(
+            userId,
+            'HIGH_VALUE_WITHDRAWAL',
+            `Amount: ₦${amount}. Bank: ${dbResult.bankAccount.bankName} (${dbResult.bankAccount.accountNumber}). Ref: ${dbResult.reference}`
+          );
+        });
       }
-
-      // 12. Send notification
-      await this.sendWithdrawalNotification(userId, amount, bankAccount.bankName, reference, tx);
 
       return {
         success: true,
         message: 'Withdrawal processed successfully',
         data: {
-          transactionId: transaction.id,
-          reference,
+          transactionId: dbResult.transactionId,
+          reference: dbResult.reference,
           amount,
-          fee,
-          totalDeducted: totalDeduction,
+          fee: dbResult.fee,
+          totalDeducted: dbResult.totalDeduction,
           bankAccount: {
-            accountNumber: bankAccount.accountNumber,
-            accountName: bankAccount.accountName,
-            bankName: bankAccount.bankName,
+            accountNumber: dbResult.bankAccount.accountNumber,
+            accountName: dbResult.bankAccount.accountName,
+            bankName: dbResult.bankAccount.bankName,
           },
-          newBalance: newBalance.toNumber(),
-          timestamp: transaction.createdAt,
+          newBalance: dbResult.newBalance,
+          timestamp: updatedTx.createdAt,
         },
       };
-    });
+    } catch (error: any) {
+      // Rollback: Credit user's wallet back and mark as FAILED
+      await prisma.$transaction([
+        prisma.passenger.update({
+          where: { id: user.passenger!.id },
+          data: {
+            walletBalance: { increment: dbResult.totalDeduction },
+          },
+        }),
+        prisma.transaction.update({
+          where: { id: dbResult.transactionId },
+          data: {
+            status: TransactionStatus.FAILED,
+            metadata: {
+              withdrawalType: 'BANK_TRANSFER',
+              bankAccountId: dbResult.bankAccount.id,
+              accountNumber: dbResult.bankAccount.accountNumber,
+              accountName: dbResult.bankAccount.accountName,
+              bankName: dbResult.bankAccount.bankName,
+              bankCode: dbResult.bankAccount.bankCode,
+              fee: dbResult.fee,
+              amount: dbResult.amount,
+              error: error.message,
+              failedAt: new Date().toISOString(),
+            },
+          },
+        })
+      ]);
+
+      throw new AppError('Withdrawal failed. Your balance has been restored.', 500);
+    }
   }
 
   /**

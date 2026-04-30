@@ -14,6 +14,13 @@ export interface AuthenticatedRequest extends Request {
     isEmailVerified?: boolean;
     isPhoneVerified?: boolean;
   };
+  deviceInfo?: {
+    deviceName?: string;
+    deviceType?: string;
+    deviceId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  };
 }
 
 // Middleware to authenticate JWT token
@@ -57,13 +64,13 @@ export const authMiddleware = async (
     // Check user existence in DB
     const userExists = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, role: true, isEmailVerified: true, isPhoneVerified: true }
+      select: { id: true, role: true, isEmailVerified: true, isPhoneVerified: true, deletedAt: true }
     });
 
-    if (!userExists) {
+    if (!userExists || userExists.deletedAt) {
       return res.status(401).json({
         success: false,
-        message: 'User not found'
+        message: userExists?.deletedAt ? 'Account deleted' : 'User not found'
       });
     }
 

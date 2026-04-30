@@ -141,4 +141,68 @@ export class WalletController {
       next(error);
     }
   };
+  /**
+   * GET /api/wallet/transport/balance
+   * Get transport wallet balance
+   */
+  getTransportBalance = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user.id;
+      const { prisma } = require('../config/database');
+      const passenger = await prisma.passenger.findUnique({
+        where: { userId },
+        select: { transportWalletBalance: true }
+      });
+      if (!passenger) throw createError('Passenger profile not found', 404);
+      res.json({
+        success: true,
+        statusCode: 200,
+        data: { transportWalletBalance: Number(passenger.transportWalletBalance) }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/wallet/transport/fund
+   * Fund transport wallet from main wallet
+   */
+  fundTransportWallet = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user.id;
+      const { amount, pin } = req.body;
+      if (!amount || !pin) throw createError('Amount and PIN are required', 400);
+      if (amount <= 0) throw createError('Amount must be greater than 0', 400);
+      const { prisma } = require('../config/database');
+      const bcrypt = require('bcryptjs');
+      const passenger = await prisma.passenger.findUnique({ where: { userId } });
+      if (!passenger) throw createError('Passenger profile not found', 404);
+      const isPinValid = await bcrypt.compare(pin, passenger.transactionPin || '');
+      if (!isPinValid) throw createError('Invalid transaction PIN', 401);
+      const mainBalance = Number(passenger.walletBalance);
+      if (mainBalance < amount) throw createError('Insufficient wallet balance', 400);
+      const newMainBalance = mainBalance - amount;
+      const newTransportBalance = Number(passenger.transportWalletBalance) + amount;
+      await prisma.passenger.update({
+        where: { userId },
+        data: {
+          walletBalance: newMainBalance,
+          transportWalletBalance: newTransportBalance
+        }
+      });
+      res.json({
+        success: true,
+        statusCode: 200,
+        message: 'Transport wallet funded successfully',
+        data: {
+          mainWalletBalance: newMainBalance,
+          transportWalletBalance: newTransportBalance,
+          amountFunded: amount
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

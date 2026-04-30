@@ -169,6 +169,17 @@ export class WalletService {
       paymentDescription: `Wallet top-up for ${user.email}`,
     });
 
+    // Update transaction with Monnify's own reference
+    await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: {
+        metadata: {
+          ...(transaction.metadata as any),
+          monnifyReference: paymentData.transactionReference
+        }
+      }
+    });
+
     return {
       transactionId: transaction.id,
       paymentReference,
@@ -188,13 +199,40 @@ export class WalletService {
     }
 
     // Get the pending transaction
-    const transaction = await prisma.transaction.findFirst({
+    // Get the pending transaction
+    let transaction = await prisma.transaction.findFirst({
       where: {
         userId,
-        reference: transactionReference,
-        status: TransactionStatus.PENDING
+        status: TransactionStatus.PENDING,
+        category: TransactionCategory.WALLET_TOPUP,
+        OR: [
+          { reference: transactionReference },
+          { 
+            metadata: {
+              path: ['monnifyReference'],
+              equals: transactionReference
+            }
+          }
+        ]
       }
     });
+
+    // FALLBACK: If not found by reference (e.g. using Monnify's ID for the first time), 
+    // get the most recent pending top-up for this user
+    if (!transaction) {
+      transaction = await prisma.transaction.findFirst({
+        where: {
+          userId,
+          status: TransactionStatus.PENDING,
+          category: TransactionCategory.WALLET_TOPUP
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
+    if (!transaction) {
+      throw createError('No pending top-up transaction found for this user', 404);
+    }
 
     if (!transaction) {
       throw createError('Transaction not found or already processed', 404);
@@ -205,20 +243,30 @@ export class WalletService {
 
     // Check payment status
     if (paymentData.paymentStatus !== 'PAID') {
-      // Update transaction as failed
+      // Keep PENDING if it's still in progress, mark FAILED only for terminal states.
+      const terminalFailureStates = new Set(['FAILED', 'EXPIRED', 'CANCELLED', 'REVERSED']);
+      const nextStatus = terminalFailureStates.has(paymentData.paymentStatus)
+        ? TransactionStatus.FAILED
+        : TransactionStatus.PENDING;
+
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: {
-          status: TransactionStatus.FAILED,
+          status: nextStatus,
           metadata: {
-            ...transaction.metadata as any,
+            ...(transaction.metadata as any),
             paymentStatus: paymentData.paymentStatus,
-            verifiedAt: new Date().toISOString()
-          }
-        }
+            verifiedAt: new Date().toISOString(),
+          },
+        },
       });
 
-      throw createError('Payment not completed', 400);
+      throw createError(
+        paymentData.paymentStatus === 'PENDING'
+          ? 'Payment is still pending. Complete checkout and try again.'
+          : 'Payment not completed',
+        400
+      );
     }
 
     // Verify amount matches

@@ -191,4 +191,7 @@ router.post('/topup/verify', authMiddleware as unknown as RequestHandler, wallet
  */
 router.get('/topup/status/:reference', authMiddleware as unknown as RequestHandler, walletController.getTopUpStatus as unknown as RequestHandler);
 
+router.get('/transport/balance', authMiddleware as unknown as RequestHandler, walletController.getTransportBalance as unknown as RequestHandler);
+router.post('/transport/fund', authMiddleware as unknown as RequestHandler, walletController.fundTransportWallet as unknown as RequestHandler);
+
 export default router;

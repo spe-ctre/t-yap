@@ -4,7 +4,7 @@ import { createError } from '../middleware/error.middleware';
 
 export class NotificationService {
   
-  async getNotifications(userId: string, options: { page?: number; limit?: number; unreadOnly?: boolean }) {
+  async getNotifications(userId: string, options: { page?: number; limit?: number; unreadOnly?: boolean; type?: string }) {
     const page = options.page || 1;
     const limit = options.limit || 20;
     const skip = (page - 1) * limit;

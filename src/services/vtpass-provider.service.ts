@@ -41,15 +41,14 @@ export class VTpassProviderService {
     return {
       'api-key': this.config.apiKey,
       'public-key': this.config.publicKey,
-    //   'Content-Type': 'application/json'
     };
   }
 
   private getPostHeaders() {
+    const credentials = Buffer.from(`${this.config.apiKey}:${this.config.secretKey}`).toString('base64');
     return {
-      'api-key': this.config.apiKey,
-      'secret-key': this.config.secretKey,
-    //   'Content-Type': 'application/json'
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/json',
     };
   }
 
@@ -115,6 +114,16 @@ export class VTpassProviderService {
     amount: number;
     phone: string;
   }) {
+    if (process.env.ENABLE_SANDBOX_MOCKS === 'true') {
+      console.warn(`⚠️ [MOCK ENABLED] Simulating VTpass electricity purchase for ${payload.phone}`);
+      return { 
+        code: '000', 
+        response_description: 'TRANSACTION SUCCESSFUL', 
+        content: { transactions: { transactionId: `MOCK_ELEC_${Date.now()}` } },
+        purchased_token: `1234-5678-9012-${Math.floor(1000 + Math.random() * 9000)}` 
+      };
+    }
+
     try {
       const response = await this.client.post(
         '/api/pay',
@@ -189,6 +198,15 @@ export class VTpassProviderService {
     amount: number;
     phone: string;
   }) {
+    if (process.env.ENABLE_SANDBOX_MOCKS === 'true') {
+      console.warn(`⚠️ [MOCK ENABLED] Simulating VTpass airtime purchase for ${payload.phone}`);
+      return { 
+        code: '000', 
+        response_description: 'TRANSACTION SUCCESSFUL', 
+        content: { transactions: { transactionId: `MOCK_AIR_${Date.now()}` } } 
+      };
+    }
+
     try {
       const response = await this.client.post(
         '/api/pay',
@@ -350,6 +368,15 @@ export class VTpassProviderService {
     amount?: number; // Optional, VTpass uses variation_code price
     phone: string;
   }) {
+    if (process.env.ENABLE_SANDBOX_MOCKS === 'true') {
+      console.warn(`⚠️ [MOCK ENABLED] Simulating VTpass data purchase for ${payload.phone}`);
+      return { 
+        code: '000', 
+        response_description: 'TRANSACTION SUCCESSFUL', 
+        content: { transactions: { transactionId: `MOCK_DATA_${Date.now()}` } } 
+      };
+    }
+
     try {
       const response = await this.client.post(
         '/api/pay',
@@ -515,6 +542,15 @@ export class VTpassProviderService {
     phone: string;
     quantity?: number; // Optional, number of months
   }) {
+    if (process.env.ENABLE_SANDBOX_MOCKS === 'true') {
+      console.warn(`⚠️ [MOCK ENABLED] Simulating VTpass TV subscription for ${payload.phone}`);
+      return { 
+        code: '000', 
+        response_description: 'TRANSACTION SUCCESSFUL', 
+        content: { transactions: { transactionId: `MOCK_TV_${Date.now()}` } } 
+      };
+    }
+
     try {
       const response = await this.client.post(
         '/api/pay',

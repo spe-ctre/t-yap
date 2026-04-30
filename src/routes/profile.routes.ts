@@ -131,6 +131,9 @@ router.get('/settings', authMiddleware, profileController.getSettings);
  *         description: Settings updated successfully
  */
 router.put('/settings', authMiddleware, profileController.updateSettings);
+router.post('/deactivate', authMiddleware, profileController.deactivateAccount);
+router.delete('/delete', authMiddleware, profileController.deleteAccount);
+router.get('/tiers', authMiddleware, profileController.getTiersAndLimits);
 
 export default router;
 

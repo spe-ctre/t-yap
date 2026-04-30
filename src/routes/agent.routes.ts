@@ -90,7 +90,7 @@ router.get('/dashboard', authenticateToken, getAgentDashboard);
 router.post('/passengers/send-otp', authenticateToken, sendPassengerOTP);
 router.post('/passengers/verify-otp', authenticateToken, verifyPassengerOTP);
 router.post('/passengers', authenticateToken, createPassenger);
-router.post('/passengers/:passengerId/biometric', authenticateToken, capturePassengerBiometric);
+router.post('/passengers/:passengerId/biometric', capturePassengerBiometric);
 router.post('/passengers/:passengerId/activate-wallet', authenticateToken, activatePassengerWallet);
 
 /**

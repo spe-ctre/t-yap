@@ -57,5 +57,8 @@ router.get('/history', TransferController.getTransferHistory);
 router.get('/:transferId/receipt', TransferController.downloadReceipt);
 
 router.get('/:transferId', TransferController.getTransferById);
+router.get('/banks', TransferController.getBanks);
+router.post('/resolve-account', TransferController.resolveAccount);
+router.post('/bank', TransferController.bankTransfer);
 
 export default router;

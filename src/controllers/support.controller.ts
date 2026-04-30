@@ -170,4 +170,25 @@ export class SupportController {
       next(error);
     }
   };
+
+  getContactSupport = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.json({
+        success: true,
+        statusCode: 200,
+        data: {
+          liveChat: {
+            available: true,
+            label: 'Start a Conversation'
+          },
+          customerCare: {
+            phone: '070-0007-2545',
+            available: '24/7'
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -3,67 +3,58 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// ============================================
-// USER & AUTHENTICATION MODELS
-// ============================================
-
 model User {
-  id              String   @id @default(cuid())
-  email           String   @unique
-  phoneNumber     String   @unique
-  password        String
-  walletBalance   Float    @default(0)
-  isEmailVerified Boolean  @default(false)
-  isPhoneVerified Boolean  @default(false)
-  role            UserRole @default(PASSENGER)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  // Relations
-  passenger         Passenger?
-  driver            Driver?
-  agent             Agent?
-  parkManager       ParkManager?
-  verificationCodes VerificationCode[]
-  transactions      Transaction[]
-  bankAccounts      BankAccount[]
-  beneficiaries     Beneficiary[]
-  notifications     Notification[]
-  userSettings      UserSettings?
-  trips             Trip[]
-  vasPurchases      VASPurchase[]
-  balanceHistory    BalanceHistory[]
-  sentTransfers     Transfer[]         @relation("SentTransfers")
-  receivedTransfers Transfer[]         @relation("ReceivedTransfers")
-  sessions          UserSession[]
-  idempotencyKeys   IdempotencyKey[]
-  transactionLogs   TransactionLog[]
-  securityQuestion  SecurityQuestion?
-  deviceTokens      DeviceToken[]
-  supportTickets    SupportTicket[]
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  phoneNumber        String             @unique
+  password           String
+  isEmailVerified    Boolean            @default(false)
+  isPhoneVerified    Boolean            @default(false)
+  role               UserRole           @default(PASSENGER)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  walletBalance      Float              @default(0)
+  isTwoFactorEnabled Boolean            @default(false)
   twoFactorSecret    String?
-  bvn                String?
-  nin                String?
-  kycStatus          String?  @default("PENDING")
-  idDocumentUrl      String?
-  faceImageUrl       String?
+  referralCode       String?            @unique
   address            String?
-  isTwoFactorEnabled Boolean @default(false)
-
-  referralCode      String?    @unique
-  referrerReferrals Referral[] @relation("ReferrerReferrals")
-  referredReferrals Referral[] @relation("ReferredReferrals")
+  bvn                String?
+  faceImageUrl       String?
+  idDocumentUrl      String?
+  kycStatus          String?            @default("PENDING")
+  nin                String?
+  agent              Agent?
+  balanceHistory     BalanceHistory[]
+  bankAccounts       BankAccount[]
+  beneficiaries      Beneficiary[]
+  deviceTokens       DeviceToken[]
+  driver             Driver?
+  idempotencyKeys    IdempotencyKey[]
+  notifications      Notification[]
+  parkManager        ParkManager?
+  passenger          Passenger?
+  referredReferrals  Referral?          @relation("ReferredReferrals")
+  referrerReferrals  Referral[]         @relation("ReferrerReferrals")
+  securityQuestion   SecurityQuestion?
+  supportTickets     SupportTicket[]
+  transactionLogs    TransactionLog[]
+  transactions       Transaction[]
+  receivedTransfers  Transfer[]         @relation("ReceivedTransfers")
+  sentTransfers      Transfer[]         @relation("SentTransfers")
+  trips              Trip[]
+  sessions           UserSession[]
+  userSettings       UserSettings?
+  vasPurchases       VASPurchase[]
+  verificationCodes  VerificationCode[]
+  deletedAt          DateTime?
 
   @@map("users")
 }
-
-// ============================================
-// DEVICE & DOCUMENT MODELS
-// ============================================
 
 model Device {
   id          String   @id @default(cuid())
@@ -73,9 +64,8 @@ model Device {
   osVersion   String?
   status      String   @default("ACTIVE")
   lastActive  DateTime @default(now())
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([deviceId])
   @@index([userId])
@@ -93,9 +83,8 @@ model Document {
   rejectionNote  String?
   verifiedBy     String?
   verifiedAt     DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -104,15 +93,15 @@ model Document {
 }
 
 model BiometricData {
-  id              String    @id @default(cuid())
-  userType        String    // "PASSENGER" | "PARK_MANAGER" | "AGENT" | "DRIVER"
-  userId          String    // Points to any user type's ID
-  templateData    String    @db.Text
-  deviceId        String?
-  enrolledAt      DateTime  @default(now())
-  lastVerifiedAt  DateTime?
-  isActive        Boolean   @default(true)
-  
+  id             String    @id @default(cuid())
+  userType       String
+  userId         String
+  templateData   String
+  deviceId       String?
+  enrolledAt     DateTime  @default(now())
+  lastVerifiedAt DateTime?
+  isActive       Boolean   @default(true)
+
   @@index([userId])
   @@index([userType, userId])
   @@index([deviceId])
@@ -120,59 +109,51 @@ model BiometricData {
 }
 
 model Passenger {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  firstName      String?
-  lastName       String?
-  biometricData  String?
-  transactionPin String?
-  tripPassengers TripPassenger[]
-  passengerDetails  PassengerDetails[]
-  walletBalance           Decimal  @default(0) @db.Decimal(10, 2)
-  transportWalletBalance  Decimal  @default(0) @db.Decimal(10, 2)
-  profilePicture String?
-  
-  // NEW FIELDS ADDED
-  nextOfKinName         String?
-  nextOfKinPhone        String?
-  nextOfKinRelationship String?
-  tier                  String?  @default("TIER_1")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  firstName              String?
+  lastName               String?
+  biometricData          String?
+  transactionPin         String?
+  walletBalance          Decimal            @default(0) @db.Decimal(10, 2)
+  profilePicture         String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  nextOfKinName          String?
+  nextOfKinPhone         String?
+  nextOfKinRelationship  String?
+  tier                   String?            @default("TIER_1")
+  transportWalletBalance Decimal            @default(0) @db.Decimal(10, 2)
+  passengerDetails       PassengerDetails[]
+  tripPassengers         TripPassenger[]
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("passengers")
 }
 
 model Driver {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  firstName       String
-  lastName        String
-  licenseNumber   String   @unique
-  licenseExpiry   DateTime
-  biometricData   String?
-  transactionPin  String?
-  isVerified      Boolean  @default(false)
-  walletBalance   Decimal  @default(0) @db.Decimal(10, 2)
-  profilePicture  String?
-  
-  // NEW FIELDS ADDED
-  assignedRouteId   String?
-  tier              String?   @default("TIER_1")
-  isAvailableToday  Boolean   @default(false)
-  lastCheckInDate   DateTime?
-
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle        Vehicle?
-  trips          Trip[]   @relation("TripDriver")
-  assignedRoute  Route?   @relation("AssignedDrivers", fields: [assignedRouteId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  firstName        String
+  lastName         String
+  licenseNumber    String    @unique
+  licenseExpiry    DateTime
+  isVerified       Boolean   @default(false)
+  walletBalance    Decimal   @default(0) @db.Decimal(10, 2)
+  profilePicture   String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  biometricData    String?
+  transactionPin   String?
+  assignedRouteId  String?
+  isAvailableToday Boolean   @default(false)
+  lastCheckInDate  DateTime?
+  tier             String?   @default("TIER_1")
+  assignedRoute    Route?    @relation("AssignedDrivers", fields: [assignedRouteId], references: [id])
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips            Trip[]    @relation("TripDriver")
+  vehicle          Vehicle?
 
   @@index([userId])
   @@index([licenseNumber])
@@ -181,34 +162,30 @@ model Driver {
 }
 
 model Agent {
-  id             String     @id @default(cuid())
-  userId         String     @unique
-  firstName      String
-  lastName       String
-  agentCode      String     @unique
-  parkId         String?
-  biometricData  String?
-  transactionPin String?
-  walletBalance  Decimal    @default(0) @db.Decimal(10, 2)
-  isActive       Boolean    @default(true)
-  
-  // NEW FIELDS ADDED
+  id                 String     @id @default(cuid())
+  userId             String     @unique
+  firstName          String
+  lastName           String
+  agentCode          String     @unique
+  parkId             String?
+  walletBalance      Decimal    @default(0) @db.Decimal(10, 2)
+  isActive           Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  biometricData      String?
+  transactionPin     String?
   businessName       String?
   bvn                String?
-  nin                String?
+  commissionRate     Decimal?   @db.Decimal(5, 2)
   idDocumentUrl      String?
+  kycStatus          KYCStatus? @default(PENDING)
+  lga                String?
+  nin                String?
   residentialAddress String?
   state              String?
-  lga                String?
   terminalId         String?    @unique
-  kycStatus          KYCStatus? @default(PENDING)
-  commissionRate     Decimal?   @db.Decimal(5, 2)
-
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  park Park? @relation(fields: [parkId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  park               Park?      @relation(fields: [parkId], references: [id])
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([agentCode])
@@ -218,23 +195,19 @@ model Agent {
 }
 
 model ParkManager {
-  id             String     @id @default(cuid())
-  userId         String     @unique
+  id             String       @id @default(cuid())
+  userId         String       @unique
   firstName      String
   lastName       String
   parkId         String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   biometricData  String?
   transactionPin String?
-  settlements  Settlement[]
-  
-  // NEW FIELD ADDED
-  commissionRate Decimal? @db.Decimal(5, 2)
-
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  park Park? @relation(fields: [parkId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  commissionRate Decimal?     @db.Decimal(5, 2)
+  settlements    Settlement[]
+  park           Park?        @relation(fields: [parkId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("park_managers")
@@ -248,17 +221,12 @@ model VerificationCode {
   expiresAt DateTime
   isUsed    Boolean          @default(false)
   createdAt DateTime         @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, code, type])
   @@index([expiresAt])
   @@map("verification_codes")
 }
-
-// ============================================
-// TRANSACTION & WALLET MODELS
-// ============================================
 
 model Transaction {
   id            String              @id @default(cuid())
@@ -275,13 +243,11 @@ model Transaction {
   metadata      Json?
   tripId        String?             @unique
   vasPurchaseId String?             @unique
-
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trip        Trip?        @relation(fields: [tripId], references: [id])
-  vasPurchase VASPurchase? @relation(fields: [vasPurchaseId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  trip          Trip?               @relation(fields: [tripId], references: [id])
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vasPurchase   VASPurchase?        @relation(fields: [vasPurchaseId], references: [id])
 
   @@index([userId])
   @@index([type])
@@ -294,36 +260,32 @@ model Transaction {
 }
 
 model Transfer {
-  id         String   @id @default(cuid())
-  senderId   String
-  sender     User     @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
-  recipientId String
-  recipient   User    @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: Cascade)
-  amount      Decimal @db.Decimal(10, 2)
-  description String?
-  reference   String  @unique @default(cuid())
-  status TransferStatus @default(PENDING)
-
-  debitTransactionId  String? @unique
-  creditTransactionId String? @unique
-
-  isScheduled  Boolean   @default(false)
-  scheduledFor DateTime?
-
-  isRecurring        Boolean             @default(false)
-  recurringFrequency RecurringFrequency?
-  nextExecutionDate  DateTime?
-  lastExecutionDate  DateTime?
-  recurringEndDate   DateTime?
-  executionCount     Int                 @default(0)
-  maxExecutions      Int?
-  parentTransferId   String?
-  recurringPinHash   String?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-  cancelledAt DateTime?
+  id                  String              @id @default(cuid())
+  senderId            String
+  recipientId         String
+  amount              Decimal             @db.Decimal(10, 2)
+  description         String?
+  reference           String              @unique @default(cuid())
+  status              TransferStatus      @default(PENDING)
+  debitTransactionId  String?             @unique
+  creditTransactionId String?             @unique
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  executionCount      Int                 @default(0)
+  isRecurring         Boolean             @default(false)
+  isScheduled         Boolean             @default(false)
+  lastExecutionDate   DateTime?
+  maxExecutions       Int?
+  nextExecutionDate   DateTime?
+  parentTransferId    String?
+  recurringEndDate    DateTime?
+  recurringFrequency  RecurringFrequency?
+  recurringPinHash    String?
+  scheduledFor        DateTime?
+  recipient           User                @relation("ReceivedTransfers", fields: [recipientId], references: [id], onDelete: Cascade)
+  sender              User                @relation("SentTransfers", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([senderId])
   @@index([recipientId])
@@ -345,11 +307,9 @@ model BankAccount {
   accountType   BankAccountType @default(SAVINGS)
   isDefault     Boolean         @default(false)
   isVerified    Boolean         @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([accountNumber, bankCode])
@@ -357,7 +317,7 @@ model BankAccount {
 }
 
 model BankCard {
-  id             String  @id @default(cuid())
+  id             String   @id @default(cuid())
   userId         String
   cardNumber     String
   cardHolderName String
@@ -365,29 +325,26 @@ model BankCard {
   expiryYear     Int
   cvv            String?
   cardType       String?
-  isDefault      Boolean @default(false)
-  isActive       Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isDefault      Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([userId])
   @@map("bank_cards")
 }
 
 model Beneficiary {
-  id            String  @id @default(cuid())
+  id            String   @id @default(cuid())
   userId        String
   name          String
   phoneNumber   String
   accountNumber String?
   bankName      String?
-  isFavorite    Boolean @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isFavorite    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([phoneNumber])
@@ -397,16 +354,14 @@ model Beneficiary {
 model BalanceHistory {
   id           String   @id @default(cuid())
   userId       String
-  userType      UserRole
+  userType     UserRole
   balance      Decimal  @db.Decimal(10, 2)
   snapshotDate DateTime @default(now())
   reconciled   Boolean  @default(false)
   discrepancy  Decimal? @db.Decimal(10, 2)
   metadata     Json?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([snapshotDate])
@@ -415,47 +370,40 @@ model BalanceHistory {
 }
 
 model Settlement {
-  id              String       @id @default(cuid())
-  tripId          String       @unique
-  totalAmount     Decimal
-  driverPayout    Decimal
-  parkCommission  Decimal
-  tyapFee         Decimal
-  status          String       @default("PENDING")
-  approvedBy      String?
-  approvedAt      DateTime?
-  createdAt       DateTime     @default(now())
-  
-  trip            Trip         @relation(fields: [tripId], references: [id])
-  parkManager     ParkManager? @relation(fields: [approvedBy], references: [id])
-  
+  id             String       @id @default(cuid())
+  tripId         String       @unique
+  totalAmount    Decimal
+  driverPayout   Decimal
+  parkCommission Decimal
+  tyapFee        Decimal
+  status         String       @default("PENDING")
+  approvedBy     String?
+  approvedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  parkManager    ParkManager? @relation(fields: [approvedBy], references: [id])
+  trip           Trip         @relation(fields: [tripId], references: [id])
+
   @@index([tripId])
   @@index([approvedBy])
 }
 
-// ============================================
-// TRANSPORT MODELS (T-RIDE)
-// ============================================
-
 model Park {
-  id        String   @id @default(cuid())
-  name      String
-  address   String
-  city      String
-  state     String
-  country   String   @default("Nigeria")
-  latitude  Decimal? @db.Decimal(10, 8)
-  longitude Decimal? @db.Decimal(11, 8)
-  isActive  Boolean  @default(true)
-
+  id                String        @id @default(cuid())
+  name              String
+  address           String
+  city              String
+  state             String
+  country           String        @default("Nigeria")
+  latitude          Decimal?      @db.Decimal(10, 8)
+  longitude         Decimal?      @db.Decimal(11, 8)
+  isActive          Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
   agents            Agent[]
   parkManagers      ParkManager[]
-  originRoutes      Route[]       @relation("OriginPark")
   destinationRoutes Route[]       @relation("DestinationPark")
+  originRoutes      Route[]       @relation("OriginPark")
   vehicles          Vehicle[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@index([city, state])
   @@index([latitude, longitude])
@@ -473,14 +421,12 @@ model Route {
   estimatedTime     Int?
   baseFare          Decimal  @db.Decimal(10, 2)
   isActive          Boolean  @default(true)
-
-  originPark      Park?    @relation("OriginPark", fields: [originParkId], references: [id])
-  destinationPark Park?    @relation("DestinationPark", fields: [destinationParkId], references: [id])
-  trips           Trip[]
-  assignedDrivers Driver[] @relation("AssignedDrivers")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  assignedDrivers   Driver[] @relation("AssignedDrivers")
+  destinationPark   Park?    @relation("DestinationPark", fields: [destinationParkId], references: [id])
+  originPark        Park?    @relation("OriginPark", fields: [originParkId], references: [id])
+  trips             Trip[]
 
   @@index([origin, destination])
   @@index([isActive])
@@ -488,27 +434,25 @@ model Route {
 }
 
 model Vehicle {
-  id                     String      @id @default(cuid())
-  driverId               String      @unique
-  plateNumber            String      @unique
+  id                     String          @id @default(cuid())
+  driverId               String          @unique
+  plateNumber            String          @unique
   make                   String
   model                  String
-  tripPassengers TripPassenger[]
   year                   Int?
   color                  String?
   capacity               Int
   vehicleType            VehicleType
-  isVerified             Boolean     @default(false)
-  isActive               Boolean     @default(true)
+  isVerified             Boolean         @default(false)
+  isActive               Boolean         @default(true)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
   currentParkId          String?
-  isAvailableForBoarding Boolean     @default(false)
-
-  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  park   Park?  @relation(fields: [currentParkId], references: [id])
-  trips  Trip[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isAvailableForBoarding Boolean         @default(false)
+  tripPassengers         TripPassenger[]
+  trips                  Trip[]
+  park                   Park?           @relation(fields: [currentParkId], references: [id])
+  driver                 Driver          @relation(fields: [driverId], references: [id], onDelete: Cascade)
 
   @@index([driverId])
   @@index([plateNumber])
@@ -518,32 +462,30 @@ model Vehicle {
 }
 
 model Trip {
-  id              String     @id @default(cuid())
-  routeId         String
-  driverId        String
-  vehicleId       String
-  passengerId     String
-  tripPassengers TripPassenger[]
-  passengerDetails  PassengerDetails[]
-  settlements  Settlement[]
-  fare            Decimal    @db.Decimal(10, 2)
-  status          TripStatus @default(PENDING)
-  isLongDistance  Boolean    @default(false)
-  departureTime   DateTime?
-  arrivalTime     DateTime?
-  originLatitude  Decimal?   @db.Decimal(10, 8)
-  originLongitude Decimal?   @db.Decimal(11, 8)
-  destLatitude    Decimal?   @db.Decimal(10, 8)
-  destLongitude   Decimal?   @db.Decimal(11, 8)
-
-  route       Route        @relation(fields: [routeId], references: [id])
-  driver      Driver       @relation("TripDriver", fields: [driverId], references: [id])
-  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id])
-  user        User         @relation(fields: [passengerId], references: [id])
-  transaction Transaction? @relation
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String             @id @default(cuid())
+  routeId          String
+  driverId         String
+  vehicleId        String
+  passengerId      String
+  fare             Decimal            @db.Decimal(10, 2)
+  status           TripStatus         @default(PENDING)
+  departureTime    DateTime?
+  arrivalTime      DateTime?
+  originLatitude   Decimal?           @db.Decimal(10, 8)
+  originLongitude  Decimal?           @db.Decimal(11, 8)
+  destLatitude     Decimal?           @db.Decimal(10, 8)
+  destLongitude    Decimal?           @db.Decimal(11, 8)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  isLongDistance   Boolean            @default(false)
+  passengerDetails PassengerDetails[]
+  settlements      Settlement?
+  tripPassengers   TripPassenger[]
+  transaction      Transaction?
+  driver           Driver             @relation("TripDriver", fields: [driverId], references: [id])
+  user             User               @relation(fields: [passengerId], references: [id])
+  route            Route              @relation(fields: [routeId], references: [id])
+  vehicle          Vehicle            @relation(fields: [vehicleId], references: [id])
 
   @@index([passengerId])
   @@index([driverId])
@@ -555,37 +497,30 @@ model Trip {
 }
 
 model PassengerDetails {
-  id              String    @id @default(cuid())
-  tripId          String
-  passengerId     String
-  nextOfKinName   String
-  nextOfKinPhone  String
-  relationship    String
-  createdAt       DateTime  @default(now())
-  
-  trip            Trip      @relation(fields: [tripId], references: [id])
-  passenger       Passenger @relation(fields: [passengerId], references: [id])
-  
+  id             String    @id @default(cuid())
+  tripId         String
+  passengerId    String
+  nextOfKinName  String
+  nextOfKinPhone String
+  relationship   String
+  createdAt      DateTime  @default(now())
+  passenger      Passenger @relation(fields: [passengerId], references: [id])
+  trip           Trip      @relation(fields: [tripId], references: [id])
+
   @@index([tripId])
   @@index([passengerId])
 }
 
-// ============================================
-// VALUE ADDED SERVICES (VAS) MODELS
-// ============================================
-
 model ServiceProvider {
-  id       String      @id @default(cuid())
-  name     String
-  category VASCategory
-  code     String      @unique
-  logo     String?
-  isActive Boolean     @default(true)
-
+  id           String        @id @default(cuid())
+  name         String
+  category     VASCategory
+  code         String        @unique
+  logo         String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   vasPurchases VASPurchase[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@index([category])
   @@index([code])
@@ -605,16 +540,14 @@ model VASPurchase {
   status            VASPurchaseStatus @default(PENDING)
   providerReference String?
   metadata          Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
   idempotencyKey    String?
-  requestId         String?
   lastRequeryAt     DateTime?
-
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  serviceProvider ServiceProvider @relation(fields: [serviceProviderId], references: [id])
-  transaction     Transaction?    @relation
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  requestId         String?
+  transaction       Transaction?
+  serviceProvider   ServiceProvider   @relation(fields: [serviceProviderId], references: [id])
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([category])
@@ -623,22 +556,16 @@ model VASPurchase {
   @@map("vas_purchases")
 }
 
-// ============================================
-// NOTIFICATION & SETTINGS MODELS
-// ============================================
-
 model Notification {
-  id       String           @id @default(cuid())
-  userId   String
-  type     NotificationType
-  title    String
-  message  String
-  isRead   Boolean          @default(false)
-  metadata Json?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isRead])
@@ -647,27 +574,21 @@ model Notification {
 }
 
 model UserSettings {
-  id                String  @id @default(cuid())
-  userId            String  @unique
-  language          String  @default("en")
-  darkMode          Boolean @default(false)
-  biometricLogin    Boolean @default(false)
-  smsNotification   Boolean @default(true)
-  emailNotification Boolean @default(true)
-  pushNotification  Boolean @default(true)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  language          String   @default("en")
+  darkMode          Boolean  @default(false)
+  biometricLogin    Boolean  @default(false)
+  smsNotification   Boolean  @default(true)
+  emailNotification Boolean  @default(true)
+  pushNotification  Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("user_settings")
 }
-
-// ============================================
-// SESSION & DEVICE MODELS
-// ============================================
 
 model UserSession {
   id           String   @id @default(cuid())
@@ -681,11 +602,9 @@ model UserSession {
   isActive     Boolean  @default(true)
   lastActivity DateTime @default(now())
   expiresAt    DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
@@ -694,60 +613,51 @@ model UserSession {
 }
 
 model TripPassenger {
-  id                String    @id @default(cuid())
-  tripId            String
-  passengerId       String
-  vehicleId         String
-  isPaid            Boolean   @default(false)
-  checkInTime       DateTime?
-  hasFilledDetails  Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  
-  trip              Trip      @relation(fields: [tripId], references: [id])
-  passenger         Passenger @relation(fields: [passengerId], references: [id])
-  vehicle           Vehicle   @relation(fields: [vehicleId], references: [id])
-  
+  id               String    @id @default(cuid())
+  tripId           String
+  passengerId      String
+  vehicleId        String
+  isPaid           Boolean   @default(false)
+  checkInTime      DateTime?
+  hasFilledDetails Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  passenger        Passenger @relation(fields: [passengerId], references: [id])
+  trip             Trip      @relation(fields: [tripId], references: [id])
+  vehicle          Vehicle   @relation(fields: [vehicleId], references: [id])
+
   @@index([tripId])
   @@index([passengerId])
   @@index([vehicleId])
 }
 
 model DeviceToken {
-  id       String   @id @default(cuid())
-  userId   String
-  token    String   @unique
-  platform String
-  isActive Boolean  @default(true)
-  lastUsed DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String
+  isActive  Boolean  @default(true)
+  lastUsed  DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
   @@map("device_tokens")
 }
 
-// ============================================
-// SECURITY & AUDIT MODELS
-// ============================================
-
 model SecurityQuestion {
-  id          String @id @default(cuid())
-  userId      String @unique
+  id          String   @id @default(cuid())
+  userId      String   @unique
   question1   String
   answer1Hash String
   question2   String
   answer2Hash String
   question3   String
   answer3Hash String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("security_questions")
 }
@@ -760,10 +670,8 @@ model IdempotencyKey {
   response    Json?
   status      String
   expiresAt   DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([key])
   @@index([userId])
@@ -772,7 +680,7 @@ model IdempotencyKey {
 }
 
 model TransactionLog {
-  id            String  @id @default(cuid())
+  id            String   @id @default(cuid())
   transactionId String?
   vasPurchaseId String?
   userId        String
@@ -787,10 +695,8 @@ model TransactionLog {
   duration      Int?
   ipAddress     String?
   userAgent     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([transactionId])
@@ -799,10 +705,6 @@ model TransactionLog {
   @@index([createdAt])
   @@map("transaction_logs")
 }
-
-// ============================================
-// SUPPORT & HELP MODELS
-// ============================================
 
 model SupportTicket {
   id          String              @id @default(cuid())
@@ -813,11 +715,9 @@ model SupportTicket {
   status      SupportTicketStatus @default(OPEN)
   priority    TicketPriority      @default(NORMAL)
   attachments Json?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
@@ -834,9 +734,8 @@ model FAQ {
   order       Int      @default(0)
   isPublished Boolean  @default(true)
   viewCount   Int      @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([category])
   @@index([isPublished])
@@ -852,9 +751,8 @@ model HelpContent {
   tags        String[]
   order       Int      @default(0)
   isPublished Boolean  @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([category])
   @@index([slug])
@@ -874,16 +772,27 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// ============================================
-// ENUMS
-// ============================================
+model Referral {
+  id            String   @id @default(uuid())
+  referrerId    String
+  referredId    String   @unique
+  referrerBonus Decimal  @default(500) @db.Decimal(10, 2)
+  referredBonus Decimal  @default(300) @db.Decimal(10, 2)
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  referred      User     @relation("ReferredReferrals", fields: [referredId], references: [id])
+  referrer      User     @relation("ReferrerReferrals", fields: [referrerId], references: [id])
+
+  @@map("referrals")
+}
 
 enum UserRole {
-  SUPER_ADMIN
   PASSENGER
   DRIVER
   AGENT
   PARK_MANAGER
+  SUPER_ADMIN
 }
 
 enum VerificationType {
@@ -1001,8 +910,8 @@ enum TransferStatus {
   COMPLETED
   FAILED
   CANCELLED
-  SCHEDULED
   REFUNDED
+  SCHEDULED
 }
 
 enum RecurringFrequency {
@@ -1011,7 +920,6 @@ enum RecurringFrequency {
   MONTHLY
 }
 
-// NEW ENUM ADDED
 enum KYCStatus {
   PENDING
   APPROVED
@@ -1033,19 +941,4 @@ enum DocumentStatus {
   PENDING
   APPROVED
   REJECTED
-}
-model Referral {
-  id            String   @id @default(uuid())
-  referrerId    String
-  referredId    String   @unique
-  referrerBonus Decimal  @default(500) @db.Decimal(10, 2)
-  referredBonus Decimal  @default(300) @db.Decimal(10, 2)
-  status        String   @default("PENDING")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  referrer User @relation("ReferrerReferrals", fields: [referrerId], references: [id])
-  referred User @relation("ReferredReferrals", fields: [referredId], references: [id])
-
-  @@map("referrals")
 }

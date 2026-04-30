@@ -8,10 +8,12 @@
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "test": "jest",
-    "migrate": "npx prisma migrate dev",
-    "migrate:deploy": "npx prisma migrate deploy",
-    "generate": "npx prisma generate",
-    "postinstall": "npx prisma generate"
+    "migrate": "dotenv -o -e .env -e .env.local -- prisma migrate dev",
+    "migrate:deploy": "dotenv -o -e .env -e .env.local -- prisma migrate deploy",
+    "generate": "dotenv -o -e .env -e .env.local -- prisma generate",
+    "db:pull": "dotenv -o -e .env -e .env.local -- prisma db pull",
+    "db:push": "dotenv -o -e .env -e .env.local -- prisma db push",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.6.0",
@@ -50,7 +52,6 @@
     "speakeasy": "^2.0.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
-    "twilio": "^5.13.0",
     "typescript": "^5.2.2",
     "uuid": "^9.0.1"
   },
@@ -58,6 +59,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/node-cron": "^3.0.11",
     "@types/uuid": "^10.0.0",
+    "dotenv-cli": "^9.0.0",
     "ts-node-dev": "^2.0.0"
   }
 }

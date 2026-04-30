@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ElectricityService } from '../services/electricity.service';
 import { createError } from '../middleware/error.middleware';
 import { getValidationErrorMessage } from '../utils/validation-error.util';
@@ -11,7 +12,7 @@ export class ElectricityController {
     this.service = new ElectricityService();
   }
 
-  validateMeter = async (req: Request, res: Response, next: NextFunction) => {
+  validateMeter = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = electricityValidateMeterSchema.validate(req.body);
       if (error) {
@@ -30,7 +31,7 @@ export class ElectricityController {
     }
   };
 
-  purchase = async (req: Request, res: Response, next: NextFunction) => {
+  purchase = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = electricityPurchaseSchema.validate(req.body);
       if (error) {
@@ -49,7 +50,7 @@ export class ElectricityController {
     }
   };
 
-  history = async (req: Request, res: Response, next: NextFunction) => {
+  history = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { error } = electricityHistorySchema.validate(req.query);
       if (error) {
@@ -67,7 +68,7 @@ export class ElectricityController {
     }
   };
 
-  requery = async (req: Request, res: Response, next: NextFunction) => {
+  requery = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       if (!id) {

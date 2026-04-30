@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { SMSService } from '../services/sms.service';
 
 const prisma = new PrismaClient();
-import { SMSService } from '../services/sms.service';
 const smsService = new SMSService();
 
 // ============================================
@@ -111,15 +111,12 @@ export const sendAgentRegistrationOTP = async (req: Request, res: Response) => {
       },
     });
 
-    // TODO: Integrate SMS service provider
-    console.log(`Agent Registration OTP for ${phoneNumber}: ${otpCode}`);
-
+    await smsService.sendVerificationSMS(phoneNumber, otpCode);
     return res.json({
       message: 'OTP sent successfully',
       phoneNumber,
-      // Remove in production
-      otp: otpCode,
     });
+
   } catch (error) {
     console.error('Send agent registration OTP error:', error);
     return res.status(500).json({ error: 'Failed to send OTP' });

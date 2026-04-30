@@ -27,13 +27,15 @@ export class NotificationController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
       const unreadOnly = req.query.unreadOnly === 'true';
+      const type = req.query.type as string | undefined;
 
       const userId = (req as AuthenticatedRequest).user.id;
 
       const result = await this.notificationService.getNotifications(userId, {
         page,
         limit,
-        unreadOnly
+        unreadOnly,
+        type
       });
 
       res.json({ success: true, data: result });

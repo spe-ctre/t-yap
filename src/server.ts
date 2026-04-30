@@ -29,10 +29,6 @@ import notificationRoutes from './routes/notification.routes';
 import biometricRoutes from './routes/biometric.routes';
 import deviceTokenRoutes from './routes/device-token.routes';
 import securityRoutes from './routes/security.routes';
-import referralRoutes from './routes/referral.routes';
-import nearbyRoutes from './routes/nearby.routes';
-import transportWalletRoutes from './routes/transport-wallet.routes';
-import kycRoutes from './routes/kyc.routes';
 import settingsRoutes from './routes/settings.routes';
 import tRideRoutes from './routes/t-ride.routes';
 import tripRoutes from './routes/trip.routes';
@@ -45,6 +41,8 @@ import { specs } from './config/swagger';
 import { setupCronJobs } from './jobs/cron-jobs';
 import twoFactorRoutes from './routes/twoFactor.routes';
 import auditLogRoutes from './routes/auditLog.routes';
+import legalRoutes from './routes/legal.routes';
+import kycRoutes from './routes/kyc.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -67,17 +65,11 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 
 // Swagger Documentation
-if (true) {
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
-}
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 // Routes
 app.get('/', (req, res) => {
-  if (true) {
-    res.redirect('/api-docs');
-  } else {
-    res.json({ message: 'T-YAP API is running' });
-  }
+  res.redirect('/api-docs');
 });
 
 app.use('/api/auth', authRoutes);
@@ -100,10 +92,6 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/biometric', biometricRoutes);
 app.use('/api/device-tokens', deviceTokenRoutes);
 app.use('/api/security', securityRoutes);
-app.use('/api/referral', referralRoutes);
-app.use('/api/nearby', nearbyRoutes);
-app.use('/api/transport-wallet', transportWalletRoutes);
-app.use('/api/kyc', kycRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/t-ride', tRideRoutes);
 app.use('/api/trips', tripRoutes);
@@ -113,6 +101,8 @@ app.use('/api/park-management', parkManagementRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/legal', legalRoutes);
+app.use('/api/kyc', kycRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -131,7 +121,7 @@ app.use('*', (req, res) => {
 app.use(errorHandler);
 
 // Setup cron jobs (only in production or when explicitly enabled)
-if (process.env.NODE_ENV === 'production' || process.env.ENABLE_CRON === 'true') {
+if (true) {
   setupCronJobs();
   console.log('🔄 Cron jobs enabled');
 } else {

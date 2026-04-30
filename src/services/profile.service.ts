@@ -309,5 +309,37 @@ export class ProfileService {
 
     return settings;
   }
+
+  async deactivateAccount(userId: string, password: string) {
+    const { prisma } = require('../config/database');
+    const bcrypt = require('bcryptjs');
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw createError('User not found', 404);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) throw createError('Invalid password', 401);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isEmailVerified: false }
+    });
+    return { message: 'Account deactivated successfully' };
+  }
+
+  async deleteAccount(userId: string, password: string) {
+    const { prisma } = require('../config/database');
+    const bcrypt = require('bcryptjs');
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw createError('User not found', 404);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) throw createError('Invalid password', 401);
+    
+    // Perform Soft Delete
+    await prisma.user.update({ 
+      where: { id: userId },
+      data: { deletedAt: new Date() } 
+    });
+    
+    return { message: 'Account deleted successfully' };
+  }
+
 }
 
