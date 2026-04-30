@@ -290,7 +290,7 @@ export class TransferController {
    */
   static async getBanks(req: Request, res: Response, next: NextFunction) {
     try {
-      const banks = await monnifyService.getBanks();
+      const banks = await monnifyService.getBankList();
       res.status(200).json({
         success: true,
         statusCode: 200,
@@ -311,7 +311,7 @@ export class TransferController {
       if (!accountNumber || !bankCode) {
         throw new AppError('Account number and bank code are required', 400);
       }
-      const result = await monnifyService.resolveAccount(accountNumber, bankCode);
+      const result = await monnifyService.verifyBankAccount(accountNumber, bankCode);
       res.status(200).json({
         success: true,
         statusCode: 200,
@@ -366,7 +366,7 @@ export class TransferController {
       const reference = `BANK-TRF-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
       // Initiate disbursement via Monnify
-      const disbursement = await monnifyService.initiateDisbursement({
+      const disbursement = await monnifyService.initiateTransfer({
         amount,
         reference,
         narration: narration || `Transfer to ${accountName}`,
