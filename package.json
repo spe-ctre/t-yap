@@ -13,7 +13,7 @@
     "generate": "dotenv -o -e .env -e .env.local -- prisma generate",
     "db:pull": "dotenv -o -e .env -e .env.local -- prisma db pull",
     "db:push": "dotenv -o -e .env -e .env.local -- prisma db push",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate && prisma db push"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
