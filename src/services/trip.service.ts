@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { createError } from '../middleware/error.middleware';
 import { TripStatus } from '@prisma/client';
+import { PushNotificationService } from './push-notification.service';
 
 interface CreateTripData {
   routeId: string;
@@ -16,6 +17,12 @@ interface CreateTripData {
 }
 
 export class TripService {
+  private pushNotificationService: PushNotificationService;
+
+  constructor() {
+    this.pushNotificationService = new PushNotificationService();
+  }
+
   /**
    * Create a new trip booking
    * @param data Trip creation data
@@ -294,6 +301,40 @@ export class TripService {
       where: { id: tripId },
       data: updateData
     });
+
+    // Notify passenger about trip status change
+    try {
+      const passengerId = trip.passengerId || (trip as any).userId;
+      if (passengerId) {
+        let title = '';
+        let message = '';
+
+        if (status === 'CONFIRMED') {
+          title = 'Trip Confirmed';
+          message = 'Your trip has been confirmed by the driver.';
+        } else if (status === 'IN_PROGRESS') {
+          title = 'Trip Started';
+          message = 'Your trip is now in progress. Have a safe journey!';
+        } else if (status === 'COMPLETED') {
+          title = 'Trip Completed';
+          message = 'You have arrived at your destination.';
+        } else if (status === 'CANCELLED') {
+          title = 'Trip Cancelled';
+          message = 'Your trip was cancelled.';
+        }
+
+        if (title) {
+          await this.pushNotificationService.sendNotification(passengerId, {
+            type: 'TRIP_UPDATE' as any,
+            title,
+            message,
+            metadata: { tripId: updatedTrip.id, status }
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to send trip status notification:', err);
+    }
 
     return updatedTrip;
   }

@@ -56,9 +56,10 @@ const initializeFirebase = (): void => {
 initializeFirebase();
 
 // Export messaging with lazy initialization check
-export const messaging = (): admin.messaging.Messaging => {
+export const messaging = (): admin.messaging.Messaging | null => {
   if (!messagingInstance) {
-    throw new Error('Firebase is not initialized. Please configure FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, and FIREBASE_PROJECT_ID environment variables.');
+    console.warn('⚠️  Push notification skipped: Firebase is not initialized. Please configure FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, and FIREBASE_PROJECT_ID environment variables.');
+    return null;
   }
   return messagingInstance;
 };

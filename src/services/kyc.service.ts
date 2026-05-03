@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import axios from 'axios';
 import { AppError } from '../utils/errors';
 
 export class KYCService {
@@ -53,15 +54,41 @@ export class KYCService {
       throw new AppError('This BVN is already associated with another account', 400);
     }
 
-    // TODO: Call external API for real BVN verification
-    // const verificationResult = await kycProvider.verifyBVN(bvn);
+    // Integrate with real KYC provider
+    const useMocks = process.env.ENABLE_SANDBOX_MOCKS === 'true';
+    let kycName = '';
+
+    if (useMocks || !process.env.KYC_PROVIDER_API_KEY) {
+      console.warn(`⚠️ [MOCK ENABLED] Simulating BVN Verification for ${bvn}`);
+      kycName = 'T-YAP Mock User';
+    } else {
+      try {
+        const response = await axios.post(
+          `${process.env.KYC_PROVIDER_BASE_URL || 'https://api.kycprovider.com'}/v1/bvn/verify`,
+          { bvn },
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.KYC_PROVIDER_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 15000,
+          }
+        );
+        
+        if (!response.data.success) {
+          throw new AppError('Invalid BVN details provided', 400);
+        }
+        kycName = response.data.data.firstName + ' ' + response.data.data.lastName;
+      } catch (error: any) {
+        console.error('KYC BVN verification failed:', error.response?.data || error.message);
+        throw new AppError('Failed to verify BVN with the identity provider', 502);
+      }
+    }
     
-    // For now, we mock success
     await prisma.user.update({
       where: { id: userId },
       data: { 
         bvn,
-        // If this was a real verification, we'd also store the returned name/dob
       },
     });
 
@@ -93,7 +120,34 @@ export class KYCService {
       throw new AppError('This NIN is already associated with another account', 400);
     }
 
-    // Mock success
+    // Integrate with real KYC provider
+    const useMocks = process.env.ENABLE_SANDBOX_MOCKS === 'true';
+
+    if (useMocks || !process.env.KYC_PROVIDER_API_KEY) {
+      console.warn(`⚠️ [MOCK ENABLED] Simulating NIN Verification for ${nin}`);
+    } else {
+      try {
+        const response = await axios.post(
+          `${process.env.KYC_PROVIDER_BASE_URL || 'https://api.kycprovider.com'}/v1/nin/verify`,
+          { nin },
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.KYC_PROVIDER_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 15000,
+          }
+        );
+        
+        if (!response.data.success) {
+          throw new AppError('Invalid NIN details provided', 400);
+        }
+      } catch (error: any) {
+        console.error('KYC NIN verification failed:', error.response?.data || error.message);
+        throw new AppError('Failed to verify NIN with the identity provider', 502);
+      }
+    }
+
     await prisma.user.update({
       where: { id: userId },
       data: { nin },

@@ -5,6 +5,7 @@ import { UserRole, TransactionType, TransactionCategory } from '@prisma/client';
 import { verifyWalletTopup } from '../utils/monnify.utils';
 import { createError } from '../middleware/error.middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { PushNotificationService } from './push-notification.service';
 
 interface InitializePaymentInput {
   userId: string;
@@ -29,9 +30,11 @@ interface VerifyPaymentInput {
 
 export class PaymentService {
   private transactionService: TransactionService;
+  private pushNotificationService: PushNotificationService;
 
   constructor() {
     this.transactionService = new TransactionService();
+    this.pushNotificationService = new PushNotificationService();
   }
 
   /**
@@ -187,6 +190,78 @@ export class PaymentService {
    * Processes payment notifications from Monnify
    */
   async handleWebhook(payload: any) {
+    const eventType = payload.eventType;
+    
+    // Check if this is a disbursement webhook
+    if (eventType === 'SUCCESSFUL_DISBURSEMENT' || eventType === 'FAILED_DISBURSEMENT' || payload.status === 'SUCCESS' || payload.status === 'FAILED') {
+      const reference = payload.eventData?.reference || payload.reference;
+      const status = payload.eventData?.status || payload.status;
+      
+      if (!reference) throw createError('Invalid disbursement webhook payload', 400);
+
+      const transaction = await prisma.transaction.findFirst({
+        where: { reference }
+      });
+
+      if (!transaction) return { message: 'Transaction not found' };
+      if (transaction.status === 'SUCCESS' || transaction.status === 'FAILED') return { message: 'Already processed' };
+
+      if (status === 'SUCCESS' || eventType === 'SUCCESSFUL_DISBURSEMENT') {
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: 'SUCCESS', metadata: { ...(transaction.metadata as object || {}), webhookPayload: payload } }
+        });
+
+        try {
+          await this.pushNotificationService.sendNotification(transaction.userId, {
+            type: 'WITHDRAWAL_SUCCESS' as any,
+            title: 'Withdrawal Successful',
+            message: `Your withdrawal of ₦${transaction.amount} has been successfully transferred to your bank account.`,
+            metadata: { transactionId: transaction.id, reference }
+          });
+        } catch (err) {}
+      } else if (status === 'FAILED' || eventType === 'FAILED_DISBURSEMENT') {
+        // Rollback funds
+        const amountToRefund = Number(transaction.amount);
+        
+        const txOperations: any[] = [
+          prisma.transaction.update({
+            where: { id: transaction.id },
+            data: { status: 'FAILED', metadata: { ...(transaction.metadata as object || {}), webhookPayload: payload } }
+          }),
+          prisma.user.update({
+            where: { id: transaction.userId },
+            data: { walletBalance: { increment: amountToRefund } }
+          })
+        ];
+
+        if (transaction.userType === 'DRIVER') {
+          txOperations.push(prisma.driver.update({
+            where: { userId: transaction.userId },
+            data: { walletBalance: { increment: amountToRefund } }
+          }));
+        } else if (transaction.userType === 'AGENT') {
+          txOperations.push(prisma.agent.update({
+            where: { userId: transaction.userId },
+            data: { walletBalance: { increment: amountToRefund } }
+          }));
+        }
+
+        await prisma.$transaction(txOperations);
+
+        try {
+          await this.pushNotificationService.sendNotification(transaction.userId, {
+            type: 'WITHDRAWAL_FAILED' as any,
+            title: 'Withdrawal Failed',
+            message: `Your withdrawal of ₦${transaction.amount} failed. The funds have been refunded to your wallet.`,
+            metadata: { transactionId: transaction.id, reference }
+          });
+        } catch (err) {}
+      }
+      return { message: 'Disbursement webhook processed successfully' };
+    }
+
+    // Default to Collections (Top-ups)
     const { paymentReference, paymentStatus, amountPaid, paidOn } = payload;
 
     if (!paymentReference) {
@@ -233,6 +308,18 @@ export class PaymentService {
           }
         }
       });
+
+      // Send push notification
+      try {
+        await this.pushNotificationService.sendNotification(transaction.userId, {
+          type: 'WALLET_FUNDED' as any,
+          title: 'Wallet Funded Successfully',
+          message: `Your wallet has been credited with ₦${amountPaid}.`,
+          metadata: { transactionId: transaction.id, reference: paymentReference }
+        });
+      } catch (err) {
+        console.error('Failed to send wallet top-up notification:', err);
+      }
 
       return { message: 'Payment processed successfully' };
     }
