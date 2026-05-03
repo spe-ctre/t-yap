@@ -116,7 +116,7 @@ export class PMTripController {
       if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
       await prisma.$transaction([
-        prisma.trip.update({ where: { id: tripId }, data: { status: 'ON_ROUTE' } }),
+        prisma.trip.update({ where: { id: tripId }, data: { status: 'IN_PROGRESS' } }),
         prisma.driver.update({ where: { id: trip.driverId }, data: { shiftStatus: 'ON_SHIFT' } }),
       ]);
 

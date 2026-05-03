@@ -74,15 +74,17 @@ export class PMWalletController {
       const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
       if (!parkManager) return res.status(404).json({ error: 'Park Manager not found' });
 
-      // Find settlements that are still pending for this park
+      // Find settlements that are still pending for this park manager
       const settlements = await prisma.settlement.findMany({
         where: {
-          parkId: parkManager.parkId,
+          approvedBy: parkManager.id,
           status: 'PENDING',
         },
         include: {
-          driver: {
-            select: { firstName: true, lastName: true }
+          trip: {
+            include: {
+              driver: { select: { firstName: true, lastName: true } }
+            }
           }
         },
         orderBy: { createdAt: 'desc' },
@@ -92,8 +94,8 @@ export class PMWalletController {
         success: true, 
         settlements: settlements.map(s => ({
           id: s.id,
-          driverName: `${s.driver?.firstName} ${s.driver?.lastName}`,
-          amount: Number(s.amount),
+          driverName: `${s.trip.driver?.firstName} ${s.trip.driver?.lastName}`,
+          amount: Number(s.totalAmount),
           status: s.status,
           date: s.createdAt
         }))
@@ -110,7 +112,7 @@ export class PMWalletController {
       const settlement = await prisma.settlement.findUnique({ where: { id: settlementId } });
       if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
 
-      const totalFares = Number(settlement.amount);
+      const totalFares = Number(settlement.totalAmount);
       const systemCommission = totalFares * 0.1; // Example 10% system fee
       const parkCommission = totalFares * 0.05; // Example 5% park fee
       const driverPayout = totalFares - systemCommission - parkCommission;
