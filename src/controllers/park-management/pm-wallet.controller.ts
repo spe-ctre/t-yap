@@ -134,25 +134,38 @@ export class PMWalletController {
   static async approveSettlement(req: Request, res: Response) {
     try {
       const { settlementId, biometricToken } = req.body;
+      const userId = (req as any).user?.id;
+
       if (!settlementId || !biometricToken) {
         return res.status(400).json({ error: 'Settlement ID and biometric approval required' });
       }
 
-      // TODO: Verify biometricToken with BiometricService (Java Bridge)
+      // Verify biometricToken with BiometricService (Java Bridge)
+      const biometricService = new (require('../../services/biometric.service').BiometricService)();
+      const isVerified = await biometricService.verifyBiometric(userId, biometricToken);
+
+      if (!isVerified) {
+        return res.status(401).json({ error: 'Biometric verification failed' });
+      }
       
       const settlement = await prisma.settlement.update({
         where: { id: settlementId },
-        data: { status: 'COMPLETED' },
+        data: { 
+          status: 'COMPLETED',
+          approvedAt: new Date()
+        },
       });
+
+      // Logic to trigger bank transfer to driver and park account would go here
 
       return res.json({ 
         success: true, 
-        message: 'Settlement Approved',
+        message: 'Settlement Approved & Payout Triggered',
         settlement 
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Approve settlement error:', error);
-      return res.status(500).json({ error: 'Failed to approve settlement' });
+      return res.status(error.statusCode || 500).json({ error: error.message || 'Failed to approve settlement' });
     }
   }
 

@@ -45,15 +45,13 @@ export class BiometricService {
 
     // Store based on role
     if (user.role === 'PASSENGER') {
-      await prisma.passenger.update({
-        where: { userId },
-        data: { biometricData: serialized }
-      });
+      await prisma.passenger.update({ where: { userId }, data: { biometricData: serialized } });
     } else if (user.role === 'DRIVER') {
-      await prisma.driver.update({
-        where: { userId },
-        data: { biometricData: serialized }
-      });
+      await prisma.driver.update({ where: { userId }, data: { biometricData: serialized } });
+    } else if (user.role === 'AGENT') {
+      await prisma.agent.update({ where: { userId }, data: { biometricData: serialized } });
+    } else if (user.role === 'PARK_MANAGER') {
+      await prisma.parkManager.update({ where: { userId }, data: { biometricData: serialized } });
     }
 
     return { message: 'Biometric data registered successfully' };
@@ -65,10 +63,14 @@ export class BiometricService {
   async verifyBiometric(userId: string, capturedToken: string): Promise<boolean> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { passenger: true, driver: true }
+      include: { passenger: true, driver: true, agent: true, parkManager: true }
     });
 
-    const storedData = user?.passenger?.biometricData || user?.driver?.biometricData;
+    const storedData = 
+      user?.passenger?.biometricData || 
+      user?.driver?.biometricData || 
+      user?.agent?.biometricData || 
+      user?.parkManager?.biometricData;
 
     if (!user || !storedData) {
       throw createError('Biometric data not registered', 404);
@@ -167,22 +169,19 @@ export class BiometricService {
    */
   async removeBiometric(userId: string) {
     const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { passenger: true, driver: true }
+      where: { id: userId }
     });
 
     if (!user) throw createError('User not found', 404);
 
     if (user.role === 'PASSENGER') {
-      await prisma.passenger.update({
-        where: { userId },
-        data: { biometricData: null }
-      });
+      await prisma.passenger.update({ where: { userId }, data: { biometricData: null } });
     } else if (user.role === 'DRIVER') {
-      await prisma.driver.update({
-        where: { userId },
-        data: { biometricData: null }
-      });
+      await prisma.driver.update({ where: { userId }, data: { biometricData: null } });
+    } else if (user.role === 'AGENT') {
+      await prisma.agent.update({ where: { userId }, data: { biometricData: null } });
+    } else if (user.role === 'PARK_MANAGER') {
+      await prisma.parkManager.update({ where: { userId }, data: { biometricData: null } });
     }
 
     return { message: 'Biometric data removed successfully' };
@@ -194,10 +193,15 @@ export class BiometricService {
   async isBiometricRegistered(userId: string): Promise<boolean> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { passenger: true, driver: true }
+      include: { passenger: true, driver: true, agent: true, parkManager: true }
     });
 
-    return !!(user?.passenger?.biometricData || user?.driver?.biometricData);
+    return !!(
+      user?.passenger?.biometricData || 
+      user?.driver?.biometricData || 
+      user?.agent?.biometricData || 
+      user?.parkManager?.biometricData
+    );
   }
 }
 
