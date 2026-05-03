@@ -11,17 +11,31 @@ export class PMWalletController {
         include: { park: true },
       });
 
-      if (!parkManager) return res.status(404).json({ error: 'Park Manager not found' });
+      if (!parkManager || !parkManager.parkId) return res.status(404).json({ error: 'Park Manager or assigned park not found' });
 
+      // Calculate commission based on trips originating from this park
       const parkRevenue = await prisma.transaction.aggregate({
-        where: { category: 'FARE_PAYMENT', status: 'SUCCESS' },
+        where: { 
+          category: 'FARE_PAYMENT', 
+          status: 'SUCCESS',
+          trip: {
+            route: {
+              originParkId: parkManager.parkId
+            }
+          }
+        },
         _sum: { amount: true },
       });
 
-      const commissionRate = parkManager.commissionRate || 5;
-      const parkCommission = (Number(parkRevenue._sum.amount || 0) * Number(commissionRate)) / 100;
+      const commissionRate = Number(parkManager.commissionRate || 5);
+      const parkCommission = (Number(parkRevenue._sum.amount || 0) * commissionRate) / 100;
 
-      return res.json({ balance: parkCommission, commissionRate, parkName: parkManager.park?.name });
+      return res.json({ 
+        balance: parkCommission, 
+        commissionRate, 
+        parkName: parkManager.park?.name,
+        totalParkRevenue: Number(parkRevenue._sum.amount || 0)
+      });
     } catch (error) {
       console.error('Get wallet error:', error);
       return res.status(500).json({ error: 'Failed to fetch wallet' });
@@ -49,7 +63,7 @@ export class PMWalletController {
             userType: 'PASSENGER',
             balanceBefore: previousBalance,
             balanceAfter: previousBalance + amount,
-            user: { connect: { id: passengerId } },
+            user: { connect: { id: passenger.userId } },
           },
         });
 

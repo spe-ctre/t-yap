@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import { prisma } from '../config/database';
+import bcrypt from 'bcryptjs';
 import { SMSService } from '../services/sms.service';
+import { BiometricService } from '../services/biometric.service';
 
-const prisma = new PrismaClient();
 const smsService = new SMSService();
+const biometricService = new BiometricService();
 
 // ============================================
 // AGENT AUTHENTICATION & ONBOARDING
@@ -419,10 +420,11 @@ export const submitAgentBiometric = async (req: Request, res: Response) => {
     }
 
     // Store biometric data and mark as APPROVED
+    await biometricService.registerBiometric(userId, biometricData);
+
     await prisma.agent.update({
       where: { id: agent.id },
       data: {
-        biometricData,
         kycStatus: 'APPROVED',
         isActive: true, // Activate agent after biometric submission
       },
@@ -775,23 +777,17 @@ export const capturePassengerBiometric = async (req: Request, res: Response) => 
       return res.status(404).json({ error: 'Passenger not found' });
     }
 
-    // Use transaction to update both places
-    await prisma.$transaction(async (tx) => {
-      // 1. Update Passenger profile (for 1:1 app login)
-      await tx.passenger.update({
-        where: { id: passengerId },
-        data: { biometricData },
-      });
+    // Use BiometricService for encryption and storage
+    await biometricService.registerBiometric(passenger.userId, biometricData);
 
-      // 2. Create BiometricData record (for 1:N POS identification)
-      await tx.biometricData.create({
-        data: {
-          userId: passengerId,
-          userType: 'PASSENGER',
-          templateData: biometricData,
-          deviceId: deviceId || null,
-        },
-      });
+    // Optional: Keep legacy indexing if needed for other services
+    await prisma.biometricData.create({
+      data: {
+        userId: passenger.userId,
+        userType: 'PASSENGER',
+        templateData: biometricData, // Note: This remains unencrypted for legacy search if needed
+        deviceId: deviceId || null,
+      },
     });
 
     return res.json({
@@ -1611,18 +1607,9 @@ export const cashOut = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Verify biometric data
-    // Note: In production, use proper biometric verification service
-    if (agent.biometricData !== biometricData) {
-      return res.status(401).json({ error: 'Biometric verification failed' });
-    }
-
-    const cashOutAmount = Number(amount);
-
     // 1. Verify biometric data using the unified service
-    const { BiometricService } = require('../../services/biometric.service');
-    const biometricService = new BiometricService();
-    const isVerified = await biometricService.verifyBiometric(userId as string, biometricData);
+    const isVerified = await biometricService.verifyBiometric(userId, biometricData);
+    const cashOutAmount = Number(amount);
 
     if (!isVerified) {
       return res.status(401).json({ error: 'Biometric verification failed' });
