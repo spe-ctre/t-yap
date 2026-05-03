@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
-import { UserRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { MonnifyService } from '../services/monnify.service';
 
+const monnifyService = new MonnifyService();
 // ============================================
 // DASHBOARD / HOME
 // ============================================
@@ -353,7 +354,7 @@ export const completeTrip = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId: driver.userId,
-        userType: UserRole.DRIVER,
+        userType: 'DRIVER',
         type: 'CREDIT',
         category: 'FARE_PAYMENT',
         amount: trip.fare,
@@ -678,7 +679,7 @@ export const withdrawFunds = async (req: Request, res: Response) => {
     const transaction = await prisma.transaction.create({
       data: {
         userId,
-        userType: UserRole.DRIVER,
+        userType: 'DRIVER',
         type: 'DEBIT',
         category: 'TRANSFER',
         amount: Number(amount),
@@ -715,17 +716,59 @@ export const withdrawFunds = async (req: Request, res: Response) => {
       },
     });
 
-    // TODO: Integrate with payment provider for actual withdrawal
-    // For now, mark as success
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: { status: 'SUCCESS' },
-    });
+    // Integrate with Monnify for actual withdrawal
+    try {
+      const transferResponse = await monnifyService.initiateTransfer({
+        amount: Number(amount),
+        reference: transaction.reference,
+        narration: `T-YAP Driver Withdrawal: ${driver.firstName || ''} ${driver.lastName || ''}`.trim(),
+        destinationAccountNumber: bankAccount.accountNumber,
+        destinationBankCode: bankAccount.bankCode || '',
+        destinationAccountName: bankAccount.accountName,
+        destinationEmail: driver.user.email,
+      });
 
-    return res.json({
-      message: 'Withdrawal successful',
-      transaction,
-    });
+      // Update transaction status based on provider response
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { 
+          status: transferResponse.status === 'SUCCESS' ? 'SUCCESS' : 'PROCESSING',
+          metadata: {
+            ...(transaction.metadata as object || {}),
+            monnifyResponse: transferResponse
+          }
+        },
+      });
+
+      return res.json({
+        message: 'Withdrawal initiated successfully',
+        transaction: {
+          ...transaction,
+          status: transferResponse.status === 'SUCCESS' ? 'SUCCESS' : 'PROCESSING'
+        },
+        providerResponse: transferResponse
+      });
+    } catch (providerError: any) {
+      // Rollback balances if initiation failed
+      console.error('Monnify transfer initiation failed:', providerError);
+      
+      await prisma.$transaction([
+        prisma.driver.update({
+          where: { id: driver.id },
+          data: { walletBalance: { increment: amount } }
+        }),
+        prisma.user.update({
+          where: { id: userId },
+          data: { walletBalance: { increment: Number(amount) } }
+        }),
+        prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: 'FAILED' }
+        })
+      ]);
+
+      return res.status(502).json({ error: 'Failed to initiate transfer with payment provider. Funds have been refunded.' });
+    }
   } catch (error) {
     console.error('Withdraw funds error:', error);
     return res.status(500).json({ error: 'Withdrawal failed' });

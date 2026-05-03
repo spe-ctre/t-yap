@@ -3,9 +3,11 @@ import { prisma } from '../config/database';
 import bcrypt from 'bcryptjs';
 import { SMSService } from '../services/sms.service';
 import { BiometricService } from '../services/biometric.service';
+import { MonnifyService } from '../services/monnify.service';
 
 const smsService = new SMSService();
 const biometricService = new BiometricService();
+const monnifyService = new MonnifyService();
 
 // ============================================
 // AGENT AUTHENTICATION & ONBOARDING
@@ -1341,6 +1343,7 @@ export const withdrawEarnings = async (req: Request, res: Response) => {
     // Verify agent exists
     const agent = await prisma.agent.findUnique({
       where: { userId },
+      include: { user: true },
     });
 
     if (!agent) {
@@ -1404,29 +1407,55 @@ export const withdrawEarnings = async (req: Request, res: Response) => {
       return { transaction, updatedAgent };
     });
 
-    // TODO: Integrate with payment provider (Ethica MFB / Monnify)
-    // For now, we simulate a successful disbursement
+    // Integrate with Monnify for actual disbursement
     try {
-      // Simulation of external API call
-      // const disbursementResult = await monnifyService.initiateTransfer(...)
-      
-      await prisma.transaction.update({
+      const transferResponse = await monnifyService.initiateTransfer({
+        amount: Number(withdrawalAmount),
+        reference: result.transaction.reference,
+        narration: `T-YAP Agent Withdrawal: ${agent.firstName || ''} ${agent.lastName || ''}`.trim(),
+        destinationAccountNumber: bankAccount.accountNumber,
+        destinationBankCode: bankAccount.bankCode || '',
+        destinationAccountName: bankAccount.accountName,
+        destinationEmail: agent.user.email,
+      });
+
+      const updatedTx = await prisma.transaction.update({
         where: { id: result.transaction.id },
-        data: { status: 'SUCCESS' },
+        data: { 
+          status: transferResponse.status === 'SUCCESS' ? 'SUCCESS' : 'PROCESSING',
+          metadata: {
+            ...(result.transaction.metadata as object || {}),
+            monnifyResponse: transferResponse
+          }
+        },
       });
 
       return res.json({
-        message: 'Withdrawal processed successfully',
-        transaction: result.transaction,
+        message: 'Withdrawal initiated successfully',
+        transaction: updatedTx,
         newBalance: result.updatedAgent.walletBalance,
+        providerResponse: transferResponse
       });
-    } catch (apiError) {
-      // Rollback logic if API fails (optional, or mark as FAILED)
-      await prisma.transaction.update({
-        where: { id: result.transaction.id },
-        data: { status: 'FAILED' },
-      });
-      return res.status(500).json({ error: 'Disbursement failed. Funds will be reversed.' });
+    } catch (apiError: any) {
+      console.error('Monnify transfer initiation failed:', apiError);
+      
+      // Rollback logic if API fails
+      await prisma.$transaction([
+        prisma.agent.update({
+          where: { id: agent.id },
+          data: { walletBalance: { increment: withdrawalAmount } }
+        }),
+        prisma.user.update({
+          where: { id: userId },
+          data: { walletBalance: { increment: Number(withdrawalAmount) } }
+        }),
+        prisma.transaction.update({
+          where: { id: result.transaction.id },
+          data: { status: 'FAILED' }
+        })
+      ]);
+      
+      return res.status(502).json({ error: 'Failed to initiate transfer with payment provider. Funds have been refunded.' });
     }
   } catch (error) {
     console.error('Withdraw earnings error:', error);
