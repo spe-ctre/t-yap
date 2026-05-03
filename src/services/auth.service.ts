@@ -71,7 +71,7 @@ export class AuthService {
       }
     });
   
-    await this.emailService.sendVerificationEmail(user.email, verificationCode);
+    this.emailService.sendVerificationEmail(user.email, verificationCode);
     
     // No session created - user must verify email first
     return {
@@ -235,7 +235,7 @@ export class AuthService {
     });
 
     // Send email notification (optional)
-    await this.emailService.sendPasswordChangeNotification(user.email).catch(() => {
+    this.emailService.sendPasswordChangeNotification(user.email).catch(() => {
       // Ignore email errors
     });
 
@@ -360,7 +360,7 @@ export class AuthService {
     });
 
     // Send email with reset code
-    await this.emailService.sendPinResetEmail(user.email, resetCode);
+    this.emailService.sendPinResetEmail(user.email, resetCode);
 
     return { 
       message: 'PIN reset code sent to email',
@@ -403,7 +403,7 @@ export class AuthService {
     });
 
     // Send email with reset code
-    await this.emailService.sendPasswordResetEmail(user.email, resetCode);
+    this.emailService.sendPasswordResetEmail(user.email, resetCode);
 
     return { 
       message: 'If an account exists with this email, a password reset code has been sent',
@@ -510,7 +510,7 @@ export class AuthService {
 
     // Send verification code
     if (data.type === 'EMAIL_VERIFICATION') {
-      await this.emailService.sendVerificationEmail(user.email, verificationCode);
+      this.emailService.sendVerificationEmail(user.email, verificationCode);
     }
     // TODO: Add SMS service for phone verification
 
