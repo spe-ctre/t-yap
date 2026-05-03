@@ -126,9 +126,12 @@ model Passenger {
   transportWalletBalance Decimal            @default(0) @db.Decimal(10, 2)
   passengerDetails       PassengerDetails[]
   tripPassengers         TripPassenger[]
+  agentId                String?
+  agent                  Agent?             @relation(fields: [agentId], references: [id])
   user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+ 
   @@index([userId])
+  @@index([agentId])
   @@map("passengers")
 }
 
@@ -147,7 +150,8 @@ model Driver {
   biometricData    String?
   transactionPin   String?
   assignedRouteId  String?
-  isAvailableToday Boolean   @default(false)
+  isAvailableToday Boolean      @default(false)
+  shiftStatus      DriverStatus @default(OFF_SHIFT)
   lastCheckInDate  DateTime?
   tier             String?   @default("TIER_1")
   assignedRoute    Route?    @relation("AssignedDrivers", fields: [assignedRouteId], references: [id])
@@ -184,8 +188,9 @@ model Agent {
   residentialAddress String?
   state              String?
   terminalId         String?    @unique
-  park               Park?      @relation(fields: [parkId], references: [id])
-  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  onboardedPassengers Passenger[]
+  park                Park?      @relation(fields: [parkId], references: [id])
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([agentCode])
@@ -396,6 +401,7 @@ model Park {
   country           String        @default("Nigeria")
   latitude          Decimal?      @db.Decimal(10, 8)
   longitude         Decimal?      @db.Decimal(11, 8)
+  onboardingPrice   Decimal       @default(500.00) @db.Decimal(10, 2)
   isActive          Boolean       @default(true)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -404,7 +410,7 @@ model Park {
   destinationRoutes Route[]       @relation("DestinationPark")
   originRoutes      Route[]       @relation("OriginPark")
   vehicles          Vehicle[]
-
+ 
   @@index([city, state])
   @@index([latitude, longitude])
   @@map("parks")
@@ -941,4 +947,10 @@ enum DocumentStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum DriverStatus {
+  OFF_SHIFT
+  ON_SHIFT
+  ON_QUEUE
 }

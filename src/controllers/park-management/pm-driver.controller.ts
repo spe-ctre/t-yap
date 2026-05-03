@@ -18,8 +18,9 @@ export class PMDriverController {
         vehicle: { currentParkId: parkManager.parkId },
       };
 
-      if (status === 'active') where.isAvailableToday = true;
-      else if (status === 'inactive') where.isAvailableToday = false;
+      if (status === 'active') where.shiftStatus = 'ON_SHIFT';
+      else if (status === 'inactive') where.shiftStatus = 'OFF_SHIFT';
+      else if (status === 'queue') where.shiftStatus = 'ON_QUEUE';
 
       const [drivers, total] = await Promise.all([
         prisma.driver.findMany({
@@ -77,9 +78,12 @@ export class PMDriverController {
       const { driverId } = req.params;
       await prisma.driver.update({
         where: { id: driverId },
-        data: { isAvailableToday: true, lastCheckInDate: new Date() },
+        data: { 
+          shiftStatus: 'ON_QUEUE', // Activation puts them in queue in UI
+          lastCheckInDate: new Date() 
+        },
       });
-      return res.json({ message: 'Driver activated successfully' });
+      return res.json({ message: 'Driver activated and placed on queue successfully' });
     } catch (error) {
       console.error('Activate driver error:', error);
       return res.status(500).json({ error: 'Failed to activate driver' });
@@ -91,12 +95,40 @@ export class PMDriverController {
       const { driverId } = req.params;
       await prisma.driver.update({
         where: { id: driverId },
-        data: { isAvailableToday: false },
+        data: { shiftStatus: 'OFF_SHIFT' },
       });
       return res.json({ message: 'Driver deactivated successfully' });
     } catch (error) {
       console.error('Deactivate driver error:', error);
       return res.status(500).json({ error: 'Failed to deactivate driver' });
+    }
+  }
+
+  static async startShift(req: Request, res: Response) {
+    try {
+      const { driverId } = req.params;
+      await prisma.driver.update({
+        where: { id: driverId },
+        data: { shiftStatus: 'ON_SHIFT' },
+      });
+      return res.json({ message: 'Driver shift started successfully' });
+    } catch (error) {
+      console.error('Start shift error:', error);
+      return res.status(500).json({ error: 'Failed to start shift' });
+    }
+  }
+
+  static async endShift(req: Request, res: Response) {
+    try {
+      const { driverId } = req.params;
+      await prisma.driver.update({
+        where: { id: driverId },
+        data: { shiftStatus: 'OFF_SHIFT' },
+      });
+      return res.json({ message: 'Driver shift ended successfully' });
+    } catch (error) {
+      console.error('End shift error:', error);
+      return res.status(500).json({ error: 'Failed to end shift' });
     }
   }
 

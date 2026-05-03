@@ -27,7 +27,7 @@ export class PMDashboardController {
 
       const activeDrivers = await prisma.driver.count({
         where: {
-          isAvailableToday: true,
+          shiftStatus: 'ON_SHIFT',
           vehicle: { currentParkId: parkManager.parkId },
         },
       });
@@ -94,10 +94,10 @@ export class PMDashboardController {
         },
         park: parkManager.park,
         stats: {
-          transactionsToday: todayRevenue._sum.amount || 0,
-          totalTripsToday: todayTrips,
-          activeDrivers,
-          totalDrivers,
+          activeDriversToday: activeDrivers,
+          earningsToday: todayRevenue._sum.amount || 0,
+          transactionsToday: todayTrips, // Count of trips is count of transactions
+          commissionsEarned: Number(todayRevenue._sum.amount || 0) * 0.1, // Placeholder 10%
         },
         recentTransactions: formattedTransactions,
       });

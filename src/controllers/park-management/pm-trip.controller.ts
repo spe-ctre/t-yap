@@ -44,48 +44,106 @@ export class PMTripController {
       if (!passengerId || !tripId || !vehicleId) return res.status(400).json({ error: 'Missing required fields' });
 
       const result = await prisma.$transaction(async (tx) => {
-        const passenger = await tx.passenger.findUnique({ where: { id: passengerId } });
+        const passenger = await tx.passenger.findUnique({ 
+          where: { id: passengerId },
+          include: { user: true } 
+        });
         if (!passenger) throw new Error('Passenger not found');
 
         const trip = await tx.trip.findUnique({ where: { id: tripId }, include: { route: true } });
         if (!trip) throw new Error('Trip not found');
 
-        const fare = Number(trip.route.baseFare) || 250;
-        const currentBalance = Number(passenger.walletBalance);
+        // Logic from UI: Total = Fare + Transaction Fee (10 NGN)
+        const fare = Number(trip.route.baseFare) || 4500;
+        const transactionFee = 10;
+        const totalDeduction = fare + transactionFee;
+        const currentBalance = Number(passenger.transportWalletBalance); // Using transportWalletBalance from Passenger model
 
-        if (currentBalance < fare) throw new Error('Insufficient balance');
+        if (currentBalance < totalDeduction) throw new Error('Insufficient balance');
 
+        // 1. Create main transaction (Fare)
         const transaction = await tx.transaction.create({
           data: {
             type: 'DEBIT',
             category: 'FARE_PAYMENT',
             status: 'SUCCESS',
-            amount: fare,
-            description: `Fare payment for trip ${trip.route.name}`,
+            amount: totalDeduction,
+            description: `Check-in for ${trip.route.name} (Fare: ${fare}, Fee: ${transactionFee})`,
             reference: `FARE-${Date.now()}`,
             userType: 'PASSENGER',
             balanceBefore: currentBalance,
-            balanceAfter: currentBalance - fare,
-            user: { connect: { id: passengerId } },
+            balanceAfter: currentBalance - totalDeduction,
+            user: { connect: { id: passenger.userId } },
           },
         });
 
+        // 2. Deduct from passenger
         await tx.passenger.update({
           where: { id: passengerId },
-          data: { walletBalance: { decrement: fare } },
+          data: { transportWalletBalance: { decrement: totalDeduction } },
         });
 
         const tripPassengerRecord = await tx.tripPassenger.create({
           data: { tripId, passengerId, vehicleId, isPaid: true, checkInTime: new Date() },
         });
 
-        return { transaction, tripPassengerRecord };
+        return { 
+          transaction, 
+          tripPassengerRecord, 
+          passengerName: `${passenger.firstName} ${passenger.lastName}`,
+          amountDeducted: totalDeduction,
+          fare,
+          transactionFee
+        };
       });
 
-      return res.json({ success: true, message: 'Check-in and payment successful', data: result });
+      return res.json({ 
+        success: true, 
+        message: 'Check-in Successful', 
+        data: result 
+      });
     } catch (error: any) {
       console.error('Check-in and pay error:', error);
       return res.status(500).json({ error: error.message || 'Failed to process check-in and payment' });
+    }
+  }
+  static async startTrip(req: Request, res: Response) {
+    try {
+      const { tripId } = req.params;
+      if (!tripId) return res.status(400).json({ error: 'Trip ID is required' });
+
+      const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { driver: true, vehicle: true } });
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      await prisma.$transaction([
+        prisma.trip.update({ where: { id: tripId }, data: { status: 'ON_ROUTE' } }),
+        prisma.driver.update({ where: { id: trip.driverId }, data: { shiftStatus: 'ON_SHIFT' } }),
+      ]);
+
+      return res.json({ success: true, message: 'Trip started successfully. Driver is now on-route.' });
+    } catch (error) {
+      console.error('Start trip error:', error);
+      return res.status(500).json({ error: 'Failed to start trip' });
+    }
+  }
+
+  static async endTrip(req: Request, res: Response) {
+    try {
+      const { tripId } = req.params;
+      if (!tripId) return res.status(400).json({ error: 'Trip ID is required' });
+
+      const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+      if (!trip) return res.status(404).json({ error: 'Trip not found' });
+
+      await prisma.$transaction([
+        prisma.trip.update({ where: { id: tripId }, data: { status: 'COMPLETED' } }),
+        prisma.driver.update({ where: { id: trip.driverId }, data: { shiftStatus: 'ON_QUEUE' } }),
+      ]);
+
+      return res.json({ success: true, message: 'Trip completed. Driver returned to queue.' });
+    } catch (error) {
+      console.error('End trip error:', error);
+      return res.status(500).json({ error: 'Failed to end trip' });
     }
   }
 }

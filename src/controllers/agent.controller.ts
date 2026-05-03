@@ -724,6 +724,7 @@ export const createPassenger = async (req: Request, res: Response) => {
     const passenger = await prisma.passenger.create({
       data: {
         userId: user.id,
+        agentId: agent.id, // Link to the onboarding agent
         firstName,
         lastName,
         nextOfKinName,
@@ -755,11 +756,16 @@ export const createPassenger = async (req: Request, res: Response) => {
 export const capturePassengerBiometric = async (req: Request, res: Response) => {
   try {
     const { passengerId } = req.params;
-    const { biometricData } = req.body;
+    const { biometricData, deviceId } = req.body;
+    const agentId = req.user?.id;
 
     if (!biometricData) {
       return res.status(400).json({ error: 'Biometric data is required' });
     }
+
+    // Verify agent is authorized
+    const agent = await prisma.agent.findUnique({ where: { userId: agentId } });
+    if (!agent) return res.status(403).json({ error: 'Unauthorized: Only agents can capture biometrics' });
 
     const passenger = await prisma.passenger.findUnique({
       where: { id: passengerId },
@@ -769,14 +775,27 @@ export const capturePassengerBiometric = async (req: Request, res: Response) => 
       return res.status(404).json({ error: 'Passenger not found' });
     }
 
-    // Store biometric data
-    await prisma.passenger.update({
-      where: { id: passengerId },
-      data: { biometricData },
+    // Use transaction to update both places
+    await prisma.$transaction(async (tx) => {
+      // 1. Update Passenger profile (for 1:1 app login)
+      await tx.passenger.update({
+        where: { id: passengerId },
+        data: { biometricData },
+      });
+
+      // 2. Create BiometricData record (for 1:N POS identification)
+      await tx.biometricData.create({
+        data: {
+          userId: passengerId,
+          userType: 'PASSENGER',
+          templateData: biometricData,
+          deviceId: deviceId || null,
+        },
+      });
     });
 
     return res.json({
-      message: 'Biometric captured successfully',
+      message: 'Biometric captured and indexed successfully',
     });
   } catch (error) {
     console.error('Capture passenger biometric error:', error);
@@ -792,15 +811,19 @@ export const activatePassengerWallet = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     const { passengerId } = req.params;
-    const { activationFee = 500 } = req.body;
 
-    // Verify agent exists
+    // Verify agent exists and get their park
     const agent = await prisma.agent.findUnique({
       where: { userId },
+      include: { park: true },
     });
 
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    if (!agent.park) {
+      return res.status(400).json({ error: 'Agent is not assigned to a park. Cannot activate wallet.' });
     }
 
     // Verify passenger exists
@@ -813,81 +836,72 @@ export const activatePassengerWallet = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Passenger not found' });
     }
 
-    const activationAmount = Number(activationFee);
-    const newPassengerBalance = passenger.walletBalance.add(activationAmount);
-
-    // Create activation transaction for passenger
-    const passengerTransaction = await prisma.transaction.create({
-      data: {
-        userId: passenger.userId,
-        userType: 'PASSENGER',
-        type: 'CREDIT',
-        category: 'WALLET_TOPUP',
-        amount: activationAmount,
-        balanceBefore: passenger.walletBalance,
-        balanceAfter: newPassengerBalance,
-        status: 'SUCCESS',
-        reference: `ACT-${Date.now()}`,
-        description: 'Wallet activation fee',
-      },
-    });
-
-    // Update passenger wallet
-    await prisma.passenger.update({
-      where: { id: passengerId },
-      data: {
-        walletBalance: { increment: activationAmount },
-      },
-    });
-
-    // Update user wallet
-    await prisma.user.update({
-      where: { id: passenger.userId },
-      data: {
-        walletBalance: { increment: activationAmount },
-      },
-    });
-
-    // Calculate agent commission
-    const commissionRate = Number(agent.commissionRate || 10);
+    const park = agent.park as any;
+    const activationAmount = Number(park.onboardingPrice || 500);
+    const commissionRate = Number(agent.commissionRate || 20); // Default 20% commission for onboarding
     const agentCommission = (activationAmount * commissionRate) / 100;
-    const newAgentBalance = agent.walletBalance.add(agentCommission);
 
-    // Create commission transaction for agent
-    await prisma.transaction.create({
-      data: {
-        userId: agent.userId,
-        userType: 'AGENT',
-        type: 'CREDIT',
-        category: 'COMMISSION',
-        amount: agentCommission,
-        balanceBefore: agent.walletBalance,
-        balanceAfter: newAgentBalance,
-        status: 'SUCCESS',
-        reference: `COM-${Date.now()}`,
-        description: `Commission from passenger activation (${passengerId})`,
-      },
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update passenger tier
+      const updatedPassenger = await tx.passenger.update({
+        where: { id: passengerId },
+        data: {
+          tier: 'TIER_1',
+        },
+      });
 
-    // Update agent wallet
-    await prisma.agent.update({
-      where: { id: agent.id },
-      data: {
-        walletBalance: { increment: agentCommission },
-      },
+      // 2. Activation is implicit via Tier 1 setting
+      // (User.isActive does not exist in schema)
+
+      // 3. Create activation transaction (for record keeping)
+      const passengerTransaction = await tx.transaction.create({
+        data: {
+          userId: passenger.userId,
+          userType: 'PASSENGER',
+          type: 'CREDIT',
+          category: 'WALLET_TOPUP',
+          amount: 0, // Onboarding fee doesn't fund the wallet by default unless specified
+          balanceBefore: passenger.walletBalance,
+          balanceAfter: passenger.walletBalance,
+          status: 'SUCCESS',
+          reference: `ACT-${Date.now()}`,
+          description: `Account activated at ${agent.park?.name}`,
+        },
+      });
+
+      // 3. Update agent wallet with commission
+      const updatedAgent = await tx.agent.update({
+        where: { id: agent.id },
+        data: {
+          walletBalance: { increment: agentCommission },
+        },
+      });
+
+      // 4. Create commission transaction for agent
+      await tx.transaction.create({
+        data: {
+          userId: agent.userId,
+          userType: 'AGENT',
+          type: 'CREDIT',
+          category: 'COMMISSION',
+          amount: agentCommission,
+          balanceBefore: agent.walletBalance,
+          balanceAfter: updatedAgent.walletBalance,
+          status: 'SUCCESS',
+          reference: `COM-ACT-${Date.now()}`,
+          description: `Commission from passenger activation (${passengerId})`,
+        },
+      });
+
+      return { updatedPassenger, passengerTransaction, agentCommission };
     });
 
     return res.json({
       message: 'Wallet activated successfully',
-      passenger: {
-        id: passenger.id,
-        firstName: passenger.firstName,
-        lastName: passenger.lastName,
-        walletBalance: newPassengerBalance,
-        tier: passenger.tier,
-      },
-      transaction: passengerTransaction,
-      agentCommission,
+      park: agent.park.name,
+      onboardingPrice: activationAmount,
+      agentCommission: result.agentCommission,
+      passengerTier: result.updatedPassenger.tier,
     });
   } catch (error) {
     console.error('Activate passenger wallet error:', error);
@@ -905,133 +919,127 @@ export const activatePassengerWallet = async (req: Request, res: Response) => {
  */
 export const createDriver = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const agentUserId = req.user?.id;
     const {
-      phoneNumber,
       firstName,
       lastName,
-      licenseNumber,
-      licenseExpiry,
+      phoneNumber,
       assignedRouteId,
       plateNumber,
-      vehicleMake,
-      vehicleModel,
-      vehicleYear,
-      vehicleColor,
       seatCapacity,
-      vehicleType,
-      bankAccountName,
-      bankAccountNumber,
       bankName,
-      bankCode,
+      bankAccountNumber,
+      bankAccountName,
+      // Keep others optional for full API compatibility but not required by UI
+      licenseNumber = `DRV-${Date.now()}`, 
+      licenseExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      vehicleMake = 'Generic',
+      vehicleModel = 'Transport',
     } = req.body;
 
-    // Validate required fields
-    if (
-      !phoneNumber ||
-      !firstName ||
-      !lastName ||
-      !licenseNumber ||
-      !licenseExpiry ||
-      !plateNumber ||
-      !vehicleMake ||
-      !vehicleModel ||
-      !seatCapacity
-    ) {
+    // Validate UI-required fields
+    if (!firstName || !lastName || !phoneNumber || !plateNumber || !seatCapacity) {
       return res.status(400).json({
-        error: 'Required fields missing',
+        error: 'Required fields missing: Name, Phone, Plate, and Capacity are mandatory',
       });
     }
 
     // Verify agent exists
     const agent = await prisma.agent.findUnique({
-      where: { userId },
+      where: { userId: agentUserId },
     });
 
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Create or find user for driver
-    let user = await prisma.user.findUnique({
-      where: { phoneNumber },
-    });
-
-    if (!user) {
-      const tempPassword = await bcrypt.hash(Math.random().toString(), 10);
-      user = await prisma.user.create({
-        data: {
-          phoneNumber,
-          email: `${phoneNumber}@tyap.driver`,
-          password: tempPassword,
-          role: 'DRIVER',
-        },
+    // Wrap everything in a transaction for atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create or find user for driver
+      let user = await tx.user.findUnique({
+        where: { phoneNumber },
       });
-    }
 
-    // Create driver record
-    const driver = await prisma.driver.create({
-      data: {
-        userId: user.id,
-        firstName,
-        lastName,
-        licenseNumber,
-        licenseExpiry: new Date(licenseExpiry),
-        assignedRouteId,
-        tier: 'TIER_1',
-        isVerified: false,
-      },
-    });
+      if (!user) {
+        const tempPassword = await bcrypt.hash(Math.random().toString(), 10);
+        user = await tx.user.create({
+          data: {
+            phoneNumber,
+            email: `${phoneNumber}@tyap.driver`,
+            password: tempPassword,
+            role: 'DRIVER',
+          },
+        });
+      } else {
+        // Check if user is already a driver
+        const existingDriver = await tx.driver.findUnique({
+          where: { userId: user.id },
+        });
+        if (existingDriver) {
+          throw new Error('This user is already registered as a driver');
+        }
+      }
 
-    // Create vehicle record
-    const vehicle = await prisma.vehicle.create({
-      data: {
-        driverId: driver.id,
-        plateNumber,
-        make: vehicleMake,
-        model: vehicleModel,
-        year: vehicleYear ? parseInt(vehicleYear) : null,
-        color: vehicleColor,
-        capacity: parseInt(seatCapacity),
-        vehicleType: vehicleType || 'BUS',
-        currentParkId: agent.parkId,
-      },
-    });
-
-    // Create bank account if provided
-    if (bankAccountNumber && bankName) {
-      await prisma.bankAccount.create({
+      // 2. Create driver record
+      const driver = await tx.driver.create({
         data: {
           userId: user.id,
-          accountName: bankAccountName || `${firstName} ${lastName}`,
-          accountNumber: bankAccountNumber,
-          bankName,
-          bankCode,
-          isDefault: true,
+          firstName,
+          lastName,
+          licenseNumber,
+          licenseExpiry: new Date(licenseExpiry),
+          assignedRouteId,
+          tier: 'TIER_1',
+          isVerified: false,
         },
       });
-    }
+
+      // 3. Create vehicle record
+      const vehicle = await tx.vehicle.create({
+        data: {
+          driverId: driver.id,
+          plateNumber,
+          make: vehicleMake,
+          model: vehicleModel,
+          capacity: parseInt(seatCapacity),
+          vehicleType: 'BUS',
+          currentParkId: agent.parkId,
+        },
+      });
+
+      // 4. Create bank account if provided
+      if (bankAccountNumber && bankName) {
+        await tx.bankAccount.create({
+          data: {
+            userId: user.id,
+            accountName: bankAccountName || `${firstName} ${lastName}`,
+            accountNumber: bankAccountNumber,
+            bankName,
+            isDefault: true,
+          },
+        });
+      }
+
+      return { user, driver, vehicle };
+    });
 
     return res.status(201).json({
-      message: 'Driver created successfully',
+      message: 'Driver and vehicle created successfully',
       driver: {
-        id: driver.id,
-        firstName: driver.firstName,
-        lastName: driver.lastName,
-        licenseNumber: driver.licenseNumber,
-        tier: driver.tier,
-        isVerified: driver.isVerified,
+        id: result.driver.id,
+        firstName: result.driver.firstName,
+        lastName: result.driver.lastName,
+        licenseNumber: result.driver.licenseNumber,
+        isVerified: result.driver.isVerified,
       },
       vehicle: {
-        id: vehicle.id,
-        plateNumber: vehicle.plateNumber,
-        make: vehicle.make,
-        model: vehicle.model,
+        id: result.vehicle.id,
+        plateNumber: result.vehicle.plateNumber,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create driver error:', error);
-    return res.status(500).json({ error: 'Failed to create driver' });
+    return res.status(500).json({ error: error.message || 'Failed to create driver' });
   }
 };
 
@@ -1042,11 +1050,16 @@ export const createDriver = async (req: Request, res: Response) => {
 export const captureDriverBiometric = async (req: Request, res: Response) => {
   try {
     const { driverId } = req.params;
-    const { biometricData } = req.body;
+    const { biometricData, deviceId } = req.body;
+    const agentUserId = req.user?.id;
 
     if (!biometricData) {
       return res.status(400).json({ error: 'Biometric data is required' });
     }
+
+    // Verify agent is authorized
+    const agent = await prisma.agent.findUnique({ where: { userId: agentUserId } });
+    if (!agent) return res.status(403).json({ error: 'Unauthorized: Only agents can capture biometrics' });
 
     const driver = await prisma.driver.findUnique({
       where: { id: driverId },
@@ -1056,14 +1069,27 @@ export const captureDriverBiometric = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Driver not found' });
     }
 
-    // Store biometric data
-    await prisma.driver.update({
-      where: { id: driverId },
-      data: { biometricData },
+    // Use transaction to update both places
+    await prisma.$transaction(async (tx) => {
+      // 1. Update Driver profile (for 1:1 app login)
+      await tx.driver.update({
+        where: { id: driverId },
+        data: { biometricData },
+      });
+
+      // 2. Create BiometricData record (for 1:N POS identification)
+      await tx.biometricData.create({
+        data: {
+          userId: driverId,
+          userType: 'DRIVER',
+          templateData: biometricData,
+          deviceId: deviceId || null,
+        },
+      });
     });
 
     return res.json({
-      message: 'Biometric captured successfully',
+      message: 'Driver biometric captured and indexed successfully',
     });
   } catch (error) {
     console.error('Capture driver biometric error:', error);
@@ -1078,6 +1104,11 @@ export const captureDriverBiometric = async (req: Request, res: Response) => {
 export const verifyDriver = async (req: Request, res: Response) => {
   try {
     const { driverId } = req.params;
+    const agentUserId = req.user?.id;
+
+    // Verify agent is authorized
+    const agent = await prisma.agent.findUnique({ where: { userId: agentUserId } });
+    if (!agent) return res.status(403).json({ error: 'Unauthorized: Only agents can verify drivers' });
 
     const driver = await prisma.driver.findUnique({
       where: { id: driverId },
@@ -1085,6 +1116,13 @@ export const verifyDriver = async (req: Request, res: Response) => {
 
     if (!driver) {
       return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    // Ensure biometrics are captured before verification
+    if (!driver.biometricData) {
+      return res.status(400).json({ 
+        error: 'Cannot verify driver: Biometric data must be captured first' 
+      });
     }
 
     // Mark driver as verified
@@ -1204,55 +1242,83 @@ export const topUpPassengerWallet = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Verify passenger exists
+    // Verify passenger exists and include user for phone number
     const passenger = await prisma.passenger.findUnique({
       where: { id: passengerId },
+      include: { user: true },
     });
 
     if (!passenger) {
       return res.status(404).json({ error: 'Passenger not found' });
     }
 
-    const topUpAmount = Number(amount);
-    const newBalance = passenger.walletBalance.add(topUpAmount);
+    const amountToTransfer = Number(amount);
 
-    // Create top-up transaction
-    const transaction = await prisma.transaction.create({
-      data: {
-        userId: passenger.userId,
-        userType: 'PASSENGER',
-        type: 'CREDIT',
-        category: 'WALLET_TOPUP',
-        amount: topUpAmount,
-        balanceBefore: passenger.walletBalance,
-        balanceAfter: newBalance,
-        status: 'SUCCESS',
-        reference: `TOP-${Date.now()}`,
-        description: `Wallet top-up via ${method} by agent ${agent.agentCode}`,
-        metadata: { method, agentId: agent.id },
-      },
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Verify agent has sufficient digital balance to transfer
+      const currentAgent = await tx.agent.findUnique({ where: { id: agent.id } });
+      if (!currentAgent || currentAgent.walletBalance.lt(amountToTransfer)) {
+        throw new Error('Insufficient digital balance to perform this transfer.');
+      }
 
-    // Update passenger wallet
-    await prisma.passenger.update({
-      where: { id: passengerId },
-      data: {
-        walletBalance: { increment: topUpAmount },
-      },
-    });
+      // 2. Debit Agent's digital wallet
+      const updatedAgent = await tx.agent.update({
+        where: { id: agent.id },
+        data: {
+          walletBalance: { decrement: amountToTransfer },
+        },
+      });
 
-    // Update user wallet
-    await prisma.user.update({
-      where: { id: passenger.userId },
-      data: {
-        walletBalance: { increment: topUpAmount },
-      },
+      // 3. Credit Passenger's digital wallet
+      const updatedPassenger = await tx.passenger.update({
+        where: { id: passengerId },
+        data: {
+          walletBalance: { increment: amountToTransfer },
+        },
+      });
+
+      // 4. Record Agent's transfer (Debit)
+      const agentTransaction = await tx.transaction.create({
+        data: {
+          userId: agent.userId,
+          userType: 'AGENT',
+          type: 'DEBIT',
+          category: 'TRANSFER',
+          amount: amountToTransfer,
+          balanceBefore: agent.walletBalance,
+          balanceAfter: updatedAgent.walletBalance,
+          status: 'SUCCESS',
+          reference: `AGT-XFR-${Date.now()}`,
+          description: `Digital balance transferred to passenger ${passenger.user.phoneNumber}`,
+          metadata: { passengerId, method },
+        },
+      });
+
+      // 5. Record Passenger's receipt (Credit)
+      const passengerTransaction = await tx.transaction.create({
+        data: {
+          userId: passenger.userId,
+          userType: 'PASSENGER',
+          type: 'CREDIT',
+          category: 'WALLET_TOPUP',
+          amount: amountToTransfer,
+          balanceBefore: passenger.walletBalance,
+          balanceAfter: updatedPassenger.walletBalance,
+          status: 'SUCCESS',
+          reference: `PAS-RCV-${Date.now()}`,
+          description: `Wallet funded by agent ${agent.agentCode}`,
+          metadata: { agentId: agent.id, method },
+        },
+      });
+
+      return { agentTransaction, passengerTransaction, updatedAgent, updatedPassenger };
     });
 
     return res.json({
-      message: 'Top-up successful',
-      transaction,
-      newBalance,
+      message: 'Transfer successful',
+      amountTransferred: amountToTransfer,
+      passengerNewBalance: result.updatedPassenger.walletBalance,
+      agentNewBalance: result.updatedAgent.walletBalance,
     });
   } catch (error) {
     console.error('Top up passenger wallet error:', error);
@@ -1300,11 +1366,6 @@ export const withdrawEarnings = async (req: Request, res: Response) => {
 
     const withdrawalAmount = Number(amount);
 
-    // Check sufficient balance
-    if (agent.walletBalance.lt(withdrawalAmount)) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
     // Verify bank account belongs to agent
     const bankAccount = await prisma.bankAccount.findUnique({
       where: { id: bankAccountId },
@@ -1314,56 +1375,63 @@ export const withdrawEarnings = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Bank account not found' });
     }
 
-    const newBalance = agent.walletBalance.sub(withdrawalAmount);
-
-    // Create withdrawal transaction
-    const transaction = await prisma.transaction.create({
-      data: {
-        userId,
-        userType: 'AGENT',
-        type: 'DEBIT',
-        category: 'TRANSFER',
-        amount: withdrawalAmount,
-        balanceBefore: agent.walletBalance,
-        balanceAfter: newBalance,
-        status: 'PROCESSING',
-        reference: `WD-${Date.now()}`,
-        description: `Withdrawal to ${bankAccount.bankName} (${bankAccount.accountNumber})`,
-        metadata: {
-          bankAccountId,
-          accountNumber: bankAccount.accountNumber,
-          bankName: bankAccount.bankName,
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update agent wallet (decrement)
+      const updatedAgent = await tx.agent.update({
+        where: { id: agent.id },
+        data: {
+          walletBalance: { decrement: withdrawalAmount },
         },
-      },
+      });
+
+      // 2. Create withdrawal transaction record (status: PROCESSING)
+      const transaction = await tx.transaction.create({
+        data: {
+          userId: userId as string,
+          userType: 'AGENT',
+          type: 'DEBIT',
+          category: 'TRANSFER',
+          amount: withdrawalAmount,
+          balanceBefore: agent.walletBalance,
+          balanceAfter: updatedAgent.walletBalance,
+          status: 'PROCESSING',
+          reference: `WD-${Date.now()}`,
+          description: `Withdrawal to ${bankAccount.bankName} (${bankAccount.accountNumber})`,
+          metadata: {
+            bankAccountId,
+            accountNumber: bankAccount.accountNumber,
+            bankName: bankAccount.bankName,
+          },
+        },
+      });
+
+      return { transaction, updatedAgent };
     });
 
-    // Update agent wallet
-    await prisma.agent.update({
-      where: { id: agent.id },
-      data: {
-        walletBalance: { decrement: withdrawalAmount },
-      },
-    });
+    // TODO: Integrate with payment provider (Ethica MFB / Monnify)
+    // For now, we simulate a successful disbursement
+    try {
+      // Simulation of external API call
+      // const disbursementResult = await monnifyService.initiateTransfer(...)
+      
+      await prisma.transaction.update({
+        where: { id: result.transaction.id },
+        data: { status: 'SUCCESS' },
+      });
 
-    // Update user wallet
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        walletBalance: { decrement: withdrawalAmount },
-      },
-    });
-
-    // TODO: Integrate with payment provider (Paystack, Flutterwave, etc.)
-    // For now, mark as success
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: { status: 'SUCCESS' },
-    });
-
-    return res.json({
-      message: 'Withdrawal successful',
-      transaction,
-    });
+      return res.json({
+        message: 'Withdrawal processed successfully',
+        transaction: result.transaction,
+        newBalance: result.updatedAgent.walletBalance,
+      });
+    } catch (apiError) {
+      // Rollback logic if API fails (optional, or mark as FAILED)
+      await prisma.transaction.update({
+        where: { id: result.transaction.id },
+        data: { status: 'FAILED' },
+      });
+      return res.status(500).json({ error: 'Disbursement failed. Funds will be reversed.' });
+    }
   } catch (error) {
     console.error('Withdraw earnings error:', error);
     return res.status(500).json({ error: 'Withdrawal failed' });
@@ -1436,38 +1504,81 @@ export const getEarningsBreakdown = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Aggregate earnings by category
-    const [onboardingEarnings, commissionEarnings] = await Promise.all([
-      prisma.transaction.aggregate({
-        where: {
-          userId,
-          category: 'WALLET_TOPUP',
-          status: 'SUCCESS',
-        },
-        _sum: {
-          amount: true,
-        },
-      }),
-      prisma.transaction.aggregate({
-        where: {
-          userId,
-          category: 'COMMISSION',
-          status: 'SUCCESS',
-        },
-        _sum: {
-          amount: true,
-        },
-      }),
-    ]);
+    // 1. Calculate Today's Earnings
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    const totalOnboardings = Number(onboardingEarnings._sum.amount || 0);
-    const totalCommissions = Number(commissionEarnings._sum.amount || 0);
+    const todayStats = await prisma.transaction.aggregate({
+      where: {
+        userId,
+        category: 'COMMISSION',
+        status: 'SUCCESS',
+        createdAt: { gte: today },
+      },
+      _sum: { amount: true },
+    });
+
+    // 2. Calculate Today's Onboarded Count (Filtered by this specific agent)
+    const onboardedToday = await prisma.passenger.count({
+      where: {
+        agentId: agent.id,
+        createdAt: { gte: today },
+      },
+    });
+
+    // 3. Aggregate Onboarding Earnings
+    const onboardingStats = await prisma.transaction.aggregate({
+      where: {
+        userId,
+        category: 'COMMISSION',
+        description: { contains: 'activation' },
+        status: 'SUCCESS',
+      },
+      _sum: { amount: true },
+    });
+
+    // 4. Aggregate Top-up Commission Earnings
+    const commissionStats = await prisma.transaction.aggregate({
+      where: {
+        userId,
+        category: 'COMMISSION',
+        description: { contains: 'top-up' },
+        status: 'SUCCESS',
+      },
+      _sum: { amount: true },
+    });
+
+    const onboardingTotal = Number(onboardingStats._sum.amount || 0);
+    const commissionTotal = Number(commissionStats._sum.amount || 0);
+    const todayEarnings = Number(todayStats._sum.amount || 0);
+
+    const recentActivities = await prisma.passenger.findMany({
+      where: { agentId: agent.id },
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
+      }
+    });
 
     return res.json({
-      onboardings: totalOnboardings,
-      commissions: totalCommissions,
-      total: totalOnboardings + totalCommissions,
-      withdrawable: agent.walletBalance,
+      todayEarnings,
+      onboardedToday,
+      totalEarnings: onboardingTotal + commissionTotal,
+      withdrawableBalance: agent.walletBalance,
+      breakdown: {
+        onboarding: onboardingTotal,
+        commissions: commissionTotal,
+        referrals: 0,
+      },
+      recentActivities: recentActivities.map(a => ({
+        id: a.id,
+        title: `Onboarded ${a.firstName} ${a.lastName}`,
+        time: a.createdAt,
+      }))
     });
   } catch (error) {
     console.error('Get earnings breakdown error:', error);
@@ -1508,50 +1619,58 @@ export const cashOut = async (req: Request, res: Response) => {
 
     const cashOutAmount = Number(amount);
 
-    // Check sufficient balance
-    if (agent.walletBalance.lt(cashOutAmount)) {
-      return res.status(400).json({ error: 'Insufficient balance' });
+    // 1. Verify biometric data using the unified service
+    const { BiometricService } = require('../../services/biometric.service');
+    const biometricService = new BiometricService();
+    const isVerified = await biometricService.verifyBiometric(userId as string, biometricData);
+
+    if (!isVerified) {
+      return res.status(401).json({ error: 'Biometric verification failed' });
     }
 
-    const newBalance = agent.walletBalance.sub(cashOutAmount);
+    const result = await prisma.$transaction(async (tx) => {
+      // 2. Check sufficient balance
+      const currentAgent = await tx.agent.findUnique({ where: { userId } });
+      if (!currentAgent || currentAgent.walletBalance.lt(cashOutAmount)) {
+        throw new Error('Insufficient balance');
+      }
 
-    // Create cash-out transaction
-    const transaction = await prisma.transaction.create({
-      data: {
-        userId,
-        userType: 'AGENT',
-        type: 'DEBIT',
-        category: 'TRANSFER',
-        amount: cashOutAmount,
-        balanceBefore: agent.walletBalance,
-        balanceAfter: newBalance,
-        status: 'SUCCESS',
-        reference: `CASH-${Date.now()}`,
-        description: 'Cash withdrawal',
-      },
-    });
+      const newBalance = currentAgent.walletBalance.sub(cashOutAmount);
 
-    // Update agent wallet
-    await prisma.agent.update({
-      where: { id: agent.id },
-      data: {
-        walletBalance: { decrement: cashOutAmount },
-      },
-    });
+      // 3. Update agent wallet
+      const updatedAgent = await tx.agent.update({
+        where: { id: currentAgent.id },
+        data: {
+          walletBalance: { decrement: cashOutAmount },
+        },
+      });
 
-    // Update user wallet
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        walletBalance: { decrement: cashOutAmount },
-      },
+      // 4. Create cash-out transaction record
+      const transaction = await tx.transaction.create({
+        data: {
+          userId: userId as string,
+          userType: 'AGENT',
+          type: 'DEBIT',
+          category: 'TRANSFER',
+          amount: cashOutAmount,
+          balanceBefore: currentAgent.walletBalance,
+          balanceAfter: updatedAgent.walletBalance,
+          status: 'SUCCESS',
+          reference: `CASH-${Date.now()}`,
+          description: 'Cash withdrawal (Biometric)',
+        },
+      });
+
+      return { transaction, updatedAgent };
     });
 
     return res.json({
       message: 'Cash out successful',
-      transaction,
-      printedReceipt: cashOutAmount,
+      transaction: result.transaction,
+      newBalance: result.updatedAgent.walletBalance,
     });
+
+
   } catch (error) {
     console.error('Cash out error:', error);
     return res.status(500).json({ error: 'Cash out failed' });

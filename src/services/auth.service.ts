@@ -76,7 +76,8 @@ export class AuthService {
     // No session created - user must verify email first
     return {
       user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
-      message: 'Verification code sent to email. Please verify your email to continue.'
+      message: 'Verification code sent to email. Please verify your email to continue.',
+      ...(process.env.NODE_ENV !== 'production' && { otp: verificationCode })
     };
   }
 
@@ -361,7 +362,10 @@ export class AuthService {
     // Send email with reset code
     await this.emailService.sendPinResetEmail(user.email, resetCode);
 
-    return { message: 'PIN reset code sent to email' };
+    return { 
+      message: 'PIN reset code sent to email',
+      ...(process.env.NODE_ENV !== 'production' && { code: resetCode })
+    };
   }
 
   async forgotPassword(email: string) {
@@ -401,7 +405,10 @@ export class AuthService {
     // Send email with reset code
     await this.emailService.sendPasswordResetEmail(user.email, resetCode);
 
-    return { message: 'If an account exists with this email, a password reset code has been sent' };
+    return { 
+      message: 'If an account exists with this email, a password reset code has been sent',
+      ...(process.env.NODE_ENV !== 'production' && { code: resetCode })
+    };
   }
 
   async resetPassword(data: { email: string; code: string; newPassword: string }) {
@@ -507,6 +514,9 @@ export class AuthService {
     }
     // TODO: Add SMS service for phone verification
 
-    return { message: 'Verification code sent successfully' };
+    return { 
+      message: 'Verification code sent successfully',
+      ...(process.env.NODE_ENV !== 'production' && { code: verificationCode })
+    };
   }
 }

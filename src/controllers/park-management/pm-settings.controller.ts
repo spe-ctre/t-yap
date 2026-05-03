@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
+import bcrypt from 'bcryptjs';
 
 export class PMSettingsController {
   static async getParkDetails(req: Request, res: Response) {
@@ -53,6 +54,33 @@ export class PMSettingsController {
     } catch (error) {
       console.error('Get parks list error:', error);
       return res.status(500).json({ error: 'Failed to fetch parks list' });
+    }
+  }
+  static async setTransactionPin(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.id;
+      const { pin } = req.body;
+
+      if (!pin || pin.length !== 4) {
+        return res.status(400).json({ error: '4-digit PIN is required' });
+      }
+
+      const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
+      if (!parkManager) return res.status(404).json({ error: 'Park Manager not found' });
+
+      // In production, we should hash this, but the schema uses a String field. 
+      // Using simple hashing for security.
+      const hashedPin = await bcrypt.hash(pin, 10);
+
+      await prisma.parkManager.update({
+        where: { id: parkManager.id },
+        data: { transactionPin: hashedPin },
+      });
+
+      return res.json({ message: 'PIN created successfully' });
+    } catch (error) {
+      console.error('Set PIN error:', error);
+      return res.status(500).json({ error: 'Failed to set transaction PIN' });
     }
   }
 }

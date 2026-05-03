@@ -82,4 +82,43 @@ export class PMPassengerController {
       return res.status(500).json({ error: 'Failed to check wallet balance' });
     }
   }
+  static async getBusManifest(req: Request, res: Response) {
+    try {
+      const { tripId } = req.params;
+      if (!tripId) return res.status(400).json({ error: 'Trip ID is required' });
+
+      const tripPassengers = await prisma.tripPassenger.findMany({
+        where: { tripId },
+        include: {
+          passenger: {
+            select: {
+              firstName: true,
+              lastName: true,
+              nextOfKinName: true,
+              nextOfKinPhone: true,
+              nextOfKinRelationship: true,
+            }
+          }
+        },
+        orderBy: { checkInTime: 'asc' },
+      });
+
+      const manifest = tripPassengers.map((tp, index) => ({
+        seatNo: index + 1,
+        name: `${tp.passenger.firstName} ${tp.passenger.lastName}`,
+        nextOfKin: tp.passenger.nextOfKinName || 'N/A',
+        nokPhone: tp.passenger.nextOfKinPhone || 'N/A',
+        relationship: tp.passenger.nextOfKinRelationship || 'N/A',
+      }));
+
+      return res.json({ 
+        success: true, 
+        count: manifest.length,
+        manifest 
+      });
+    } catch (error) {
+      console.error('Get bus manifest error:', error);
+      return res.status(500).json({ error: 'Failed to fetch bus manifest' });
+    }
+  }
 }

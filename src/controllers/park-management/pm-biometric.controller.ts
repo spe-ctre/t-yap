@@ -28,23 +28,24 @@ export class PMBiometricController {
       const { templateData } = req.body;
       if (!templateData) return res.status(400).json({ error: 'templateData is required' });
 
-      const anyBiometric = await prisma.biometricData.findFirst({
-        where: { userType: 'PASSENGER', isActive: true },
-      });
+      // Using the new BiometricService for identification
+      const { BiometricService } = require('../../services/biometric.service');
+      const biometricService = new BiometricService();
+      
+      const passenger = await biometricService.identifyUser(templateData, 'PASSENGER');
 
-      if (!anyBiometric) return res.json({ success: true, verified: false, message: 'No fingerprints found' });
-
-      const passenger = await prisma.passenger.findUnique({
-        where: { id: anyBiometric.userId },
-        include: { user: true },
-      });
-
-      if (!passenger) return res.json({ success: true, verified: false, message: 'Passenger not found' });
+      if (!passenger) {
+        return res.json({ 
+          success: true, 
+          verified: false, 
+          message: 'No matching fingerprint found' 
+        });
+      }
 
       return res.json({
         success: true,
         verified: true,
-        matchScore: 95,
+        matchScore: 100, // Placeholder score
         passenger: {
           id: passenger.id,
           firstName: passenger.firstName || '',
@@ -62,18 +63,26 @@ export class PMBiometricController {
   static async driverCheckIn(req: Request, res: Response) {
     try {
       const { templateData } = req.body;
-      const driverBiometric = await prisma.biometricData.findFirst({
-        where: { userType: 'DRIVER', isActive: true },
+      if (!templateData) return res.status(400).json({ error: 'templateData is required' });
+
+      const { BiometricService } = require('../../services/biometric.service');
+      const biometricService = new BiometricService();
+      
+      const driver = await biometricService.identifyUser(templateData, 'DRIVER');
+
+      if (!driver) {
+        return res.json({ 
+          success: true, 
+          verified: false, 
+          message: 'No matching driver fingerprint found' 
+        });
+      }
+
+      // Check if driver has a vehicle
+      const driverWithVehicle = await prisma.driver.findUnique({
+        where: { id: driver.id },
+        include: { vehicle: true }
       });
-
-      if (!driverBiometric) return res.json({ success: true, verified: false, message: 'No driver fingerprints found' });
-
-      const driver = await prisma.driver.findUnique({
-        where: { id: driverBiometric.userId },
-        include: { user: true, vehicle: true },
-      });
-
-      if (!driver) return res.json({ success: true, verified: false, message: 'Driver not found' });
 
       return res.json({
         success: true,
@@ -82,7 +91,7 @@ export class PMBiometricController {
           id: driver.id,
           firstName: driver.firstName,
           lastName: driver.lastName,
-          vehicle: driver.vehicle ? { plateNumber: driver.vehicle.plateNumber } : null,
+          vehicle: driverWithVehicle?.vehicle ? { plateNumber: driverWithVehicle.vehicle.plateNumber } : null,
         },
         message: 'Driver checked in successfully',
       });
