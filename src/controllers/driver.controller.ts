@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
-import { PrismaClient, UserRole } from '@prisma/client';
-import bcrypt from 'bcrypt';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config/database';
+import { UserRole } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 // ============================================
 // DASHBOARD / HOME

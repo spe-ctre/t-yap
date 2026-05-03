@@ -1,8 +1,13 @@
 import dotenv from 'dotenv';
 // Load Render API variables first
 dotenv.config({ path: '.env' });
-// Load local Docker DB variables, overriding duplicates
-dotenv.config({ path: '.env.local', override: true });
+// Only load .env.local if NOT in production
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: '.env.local', override: true });
+  console.log('📝 Development environment detected, loading .env.local');
+} else {
+  console.log('🚀 Production environment detected');
+}
 
 import express from 'express';
 import cors from 'cors';
@@ -55,12 +60,27 @@ const limiter = rateLimit({
 
 // Middleware
 app.use(helmet());
+
+const allowedOrigins = [
+  'https://t-yap-d0rj.onrender.com',
+  'https://tyap-admin.vercel.app',
+  'https://www.tyap.com',
+  'https://tyap.com'
+];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://t-yap-d0rj.onrender.com', 'https://tyap-admin.vercel.app']
-    : ['http://localhost:3001', 'http://localhost:5173'],
+  origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
+
 app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 
@@ -120,12 +140,12 @@ app.use('*', (req, res) => {
 // Error handling - Must be last
 app.use(errorHandler);
 
-// Setup cron jobs (only in production or when explicitly enabled)
-if (true) {
+// Setup cron jobs (only if ENABLE_CRON is true)
+if (process.env.ENABLE_CRON === 'true') {
   setupCronJobs();
   console.log('🔄 Cron jobs enabled');
 } else {
-  console.log('⏸️  Cron jobs disabled (set ENABLE_CRON=true to enable)');
+  console.log('⏸️  Cron jobs disabled');
 }
 
 // Bootstrap superadmin account

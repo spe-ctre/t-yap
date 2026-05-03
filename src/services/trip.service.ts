@@ -264,34 +264,35 @@ export class TripService {
 
     if (status === 'COMPLETED' && !trip.arrivalTime) {
       updateData.arrivalTime = new Date();
+      
+      // Auto-generate settlement if it doesn't exist
+      const existingSettlement = await prisma.settlement.findUnique({
+        where: { tripId }
+      });
+
+      if (!existingSettlement) {
+        const fare = Number(trip.fare);
+        const tyapFee = fare * 0.05; // 5%
+        const parkCommission = fare * 0.10; // 10%
+        const driverPayout = fare - tyapFee - parkCommission;
+
+        await prisma.settlement.create({
+          data: {
+            tripId,
+            totalAmount: fare,
+            driverPayout,
+            parkCommission,
+            tyapFee,
+            status: 'PENDING'
+          }
+        });
+        console.log(`💰 Settlement auto-generated for Trip ${tripId}`);
+      }
     }
 
     const updatedTrip = await prisma.trip.update({
       where: { id: tripId },
-      data: updateData,
-      include: {
-        route: {
-          select: {
-            id: true,
-            name: true,
-            origin: true,
-            destination: true
-          }
-        },
-        driver: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true
-          }
-        },
-        vehicle: {
-          select: {
-            id: true,
-            plateNumber: true
-          }
-        }
-      }
+      data: updateData
     });
 
     return updatedTrip;

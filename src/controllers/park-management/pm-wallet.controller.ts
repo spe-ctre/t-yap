@@ -13,16 +13,19 @@ export class PMWalletController {
 
       if (!parkManager || !parkManager.parkId) return res.status(404).json({ error: 'Park Manager or assigned park not found' });
 
-      // Calculate commission based on trips originating from this park
+      // Step 1: Get all trips originating from this park
+      const parkTrips = await prisma.trip.findMany({
+        where: { route: { originParkId: parkManager.parkId } },
+        select: { id: true }
+      });
+      const tripIds = parkTrips.map(t => t.id);
+
+      // Step 2: Aggregate transactions for these trips
       const parkRevenue = await prisma.transaction.aggregate({
         where: { 
           category: 'FARE_PAYMENT', 
           status: 'SUCCESS',
-          trip: {
-            route: {
-              originParkId: parkManager.parkId
-            }
-          }
+          tripId: { in: tripIds }
         },
         _sum: { amount: true },
       });

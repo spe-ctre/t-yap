@@ -1,6 +1,7 @@
 // src/jobs/cron-jobs.ts
 import cron from 'node-cron';
 import { BalanceReconciliationService } from '../services/balance-reconciliation.service';
+import { prisma } from '../config/database';
 
 /**
  * Setup all cron jobs
@@ -35,6 +36,45 @@ export const setupCronJobs = () => {
     }
   }, {
     timezone: 'Africa/Lagos' // WAT timezone
+  });
+
+  // Daily settlement generation fallback at 1:00 AM
+  cron.schedule('0 1 * * *', async () => {
+    console.log('💰 Running daily settlement generation fallback...');
+    try {
+      // Find completed trips without settlements
+      const completedTrips = await prisma.trip.findMany({
+        where: {
+          status: 'COMPLETED',
+          settlements: null
+        }
+      });
+
+      console.log(`🔍 Found ${completedTrips.length} trips missing settlements.`);
+
+      for (const trip of completedTrips) {
+        const fare = Number(trip.fare);
+        const tyapFee = fare * 0.05;
+        const parkCommission = fare * 0.10;
+        const driverPayout = fare - tyapFee - parkCommission;
+
+        await prisma.settlement.create({
+          data: {
+            tripId: trip.id,
+            totalAmount: fare,
+            driverPayout,
+            parkCommission,
+            tyapFee,
+            status: 'PENDING'
+          }
+        });
+      }
+      console.log('✅ Daily settlement fallback completed.');
+    } catch (error) {
+      console.error('❌ Daily settlement fallback failed:', error);
+    }
+  }, {
+    timezone: 'Africa/Lagos'
   });
 
   // Weekly balance snapshot - Every Sunday at 11:59 PM
