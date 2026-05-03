@@ -1,8 +1,7 @@
-import { Router } from 'express';
-import { prisma } from '../config/database';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { BiometricDebugController } from '../controllers/debug/biometric-debug.controller';
 
 const router = Router();
+const biometricDebug = new BiometricDebugController();
 
 router.post('/fund', authMiddleware, async (req: any, res: any) => {
   try {
@@ -38,5 +37,10 @@ router.get('/verification-code/:email', async (req: any, res: any) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// Biometric Debug Endpoints
+router.post('/biometric/register', biometricDebug.registerMock);
+router.post('/biometric/verify', biometricDebug.verifyMock);
+router.post('/biometric/identify', biometricDebug.identifyMock);
 
 export default router;

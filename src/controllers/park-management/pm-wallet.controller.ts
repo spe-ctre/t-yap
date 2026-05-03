@@ -140,7 +140,7 @@ export class PMWalletController {
         return res.status(400).json({ error: 'Settlement ID and biometric approval required' });
       }
 
-      // Verify biometricToken with BiometricService (Java Bridge)
+      // 1. Verify biometricToken with BiometricService (Java Bridge)
       const biometricService = new (require('../../services/biometric.service').BiometricService)();
       const isVerified = await biometricService.verifyBiometric(userId, biometricToken);
 
@@ -148,20 +148,48 @@ export class PMWalletController {
         return res.status(401).json({ error: 'Biometric verification failed' });
       }
       
-      const settlement = await prisma.settlement.update({
+      // 2. Fetch settlement and driver details
+      const settlement = await prisma.settlement.findUnique({
+        where: { id: settlementId },
+        include: { trip: { include: { driver: { include: { user: { include: { bankAccounts: true } } } } } } }
+      });
+
+      if (!settlement) return res.status(404).json({ error: 'Settlement not found' });
+      if (settlement.status === 'COMPLETED') return res.status(400).json({ error: 'Settlement already processed' });
+
+      const driver = settlement.trip.driver;
+      const bankAccount = driver.user.bankAccounts.find(b => b.isDefault) || driver.user.bankAccounts[0];
+
+      if (!bankAccount) {
+        return res.status(400).json({ error: 'Driver has no bank account registered' });
+      }
+
+      // 3. Trigger Monnify Disbursement
+      const monnifyService = new (require('../../services/monnify.service').MonnifyService)();
+      const transferResult = await monnifyService.initiateTransfer({
+        amount: Number(settlement.driverPayout),
+        reference: `SETTLE-${settlement.id}-${Date.now()}`,
+        narration: `Trip Settlement: ${settlement.tripId}`,
+        destinationAccountNumber: bankAccount.accountNumber,
+        destinationBankCode: bankAccount.bankCode || '',
+        destinationAccountName: bankAccount.accountName,
+      });
+
+      // 4. Mark as completed
+      const updatedSettlement = await prisma.settlement.update({
         where: { id: settlementId },
         data: { 
           status: 'COMPLETED',
-          approvedAt: new Date()
+          approvedAt: new Date(),
+          approvedBy: userId
         },
       });
-
-      // Logic to trigger bank transfer to driver and park account would go here
 
       return res.json({ 
         success: true, 
         message: 'Settlement Approved & Payout Triggered',
-        settlement 
+        transferReference: transferResult.reference,
+        settlement: updatedSettlement 
       });
     } catch (error: any) {
       console.error('Approve settlement error:', error);
@@ -176,23 +204,18 @@ export class PMWalletController {
         return res.status(400).json({ error: 'Account number and bank code required' });
       }
 
-      // Mocking name resolution for UI testing
-      const mockNames: Record<string, string> = {
-        '9858099898': 'OLALEYE DAMILOLA OLALKUNLE',
-        '0123456789': 'MUHAMMAD SEKONI',
-      };
-
-      const accountName = mockNames[accountNumber] || 'UNKNOWN ACCOUNT';
+      const monnifyService = new (require('../../services/monnify.service').MonnifyService)();
+      const result = await monnifyService.verifyBankAccount(accountNumber, bankCode);
 
       return res.json({ 
         success: true, 
-        accountName,
-        accountNumber,
-        bankCode 
+        accountName: result.accountName,
+        accountNumber: result.accountNumber,
+        bankCode: result.bankCode 
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Resolve account error:', error);
-      return res.status(500).json({ error: 'Failed to resolve account name' });
+      return res.status(error.statusCode || 500).json({ error: error.message || 'Failed to resolve account name' });
     }
   }
 

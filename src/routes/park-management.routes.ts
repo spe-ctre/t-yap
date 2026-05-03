@@ -88,4 +88,12 @@ router.post('/agent/verify-biometric', authenticateToken, PMBiometricController.
 router.post('/enroll-own-biometric', authenticateToken, PMBiometricController.enrollOwnBiometric);
 router.post('/verify-own-biometric', authenticateToken, PMBiometricController.verifyOwnBiometric);
 
+// ============================================
+// PART 9: SETTLEMENTS
+// ============================================
+router.get('/settlements/pending', authenticateToken, PMWalletController.getPendingSettlements);
+router.get('/settlements/:settlementId/calculate-split', authenticateToken, PMWalletController.calculateSettlementSplit);
+router.post('/settlements/approve', authenticateToken, PMWalletController.approveSettlement);
+router.post('/settlements/resolve-account', authenticateToken, PMWalletController.resolveAccount);
+
 export default router;
