@@ -69,6 +69,13 @@ export class EmailService {
     }
   }
 
+  /**
+   * Public method for sending arbitrary emails (admin alerts, system notifications, etc.)
+   */
+  async sendMail(params: { to: string; subject: string; html: string }) {
+    await this.sendOrLog(params);
+  }
+
   async sendVerificationEmail(email: string, code: string) {
     await this.sendOrLog({
       to: email,

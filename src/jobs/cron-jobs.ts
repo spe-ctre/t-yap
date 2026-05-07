@@ -2,6 +2,7 @@
 import cron from 'node-cron';
 import { BalanceReconciliationService } from '../services/balance-reconciliation.service';
 import { prisma } from '../config/database';
+import { EmailService } from '../services/email.service';
 
 /**
  * Setup all cron jobs
@@ -31,7 +32,6 @@ export const setupCronJobs = () => {
       }
     } catch (error) {
       console.error('❌ Daily reconciliation failed:', error);
-      // TODO: Send critical error alert to admin
       await sendCriticalErrorAlert(error);
     }
   }, {
@@ -106,13 +106,6 @@ export const setupCronJobs = () => {
  * Send alert about balance discrepancies
  */
 async function sendDiscrepancyAlert(result: any) {
-  // TODO: Implement notification logic
-  // Options:
-  // 1. Send email to admin
-  // 2. Send SMS to admin
-  // 3. Create system notification
-  // 4. Log to monitoring service (Sentry, DataDog, etc.)
-  
   const discrepancyUsers = result.results.filter((r: any) => !r.isReconciled);
   
   console.log('📧 Discrepancy Alert Details:', {
@@ -127,11 +120,24 @@ async function sendDiscrepancyAlert(result: any) {
     })),
   });
 
-  // Example: Send email (implement when ready)
-  // await emailService.sendToAdmin({
-  //   subject: `⚠️ Balance Discrepancies Detected: ${result.discrepancies} users`,
-  //   body: JSON.stringify(discrepancyUsers, null, 2)
-  // });
+  // Send email alert to admin
+  try {
+    const emailService = new EmailService();
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || process.env.SMTP_USER;
+    if (adminEmail) {
+      await emailService.sendMail({
+        to: adminEmail,
+        subject: `⚠️ T-Yap: ${result.discrepancies} Balance Discrepancies Detected`,
+        html: `<h2>Balance Discrepancy Alert</h2>
+          <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+          <p><strong>Total Discrepancies:</strong> ${result.discrepancies}</p>
+          <h3>Affected Users:</h3>
+          <pre>${JSON.stringify(discrepancyUsers, null, 2)}</pre>`,
+      });
+    }
+  } catch (emailError) {
+    console.error('Failed to send discrepancy email alert:', emailError);
+  }
 }
 
 /**
@@ -144,10 +150,21 @@ async function sendCriticalErrorAlert(error: any) {
     timestamp: new Date().toISOString(),
   });
 
-  // TODO: Implement critical error notification
-  // This should notify admins immediately via:
-  // - Email
-  // - SMS
-  // - Slack/Discord webhook
-  // - PagerDuty/monitoring service
+  // Send critical error email to admin
+  try {
+    const emailService = new EmailService();
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || process.env.SMTP_USER;
+    if (adminEmail) {
+      await emailService.sendMail({
+        to: adminEmail,
+        subject: '🚨 T-Yap CRITICAL: Balance Reconciliation Failed',
+        html: `<h2>Critical Error Alert</h2>
+          <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+          <p><strong>Error:</strong> ${error.message}</p>
+          <pre>${error.stack}</pre>`,
+      });
+    }
+  } catch (emailError) {
+    console.error('Failed to send critical error email alert:', emailError);
+  }
 }

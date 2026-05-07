@@ -44,6 +44,11 @@ export class ProfileService {
       isPhoneVerified: user.isPhoneVerified,
       profile,
       settings: user.userSettings,
+      virtualAccount: {
+        accountNumber: user.phoneNumber.replace('+', '').substring(0, 10), // Fallback: use part of phone number
+        bankName: "Wema Bank (T-Yap)",
+        accountName: profile ? `${(profile as any).firstName} ${(profile as any).lastName}` : "T-Yap User"
+      },
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };

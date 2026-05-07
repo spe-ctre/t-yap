@@ -4,16 +4,19 @@ import { VerificationType } from '@prisma/client';
 import { createError } from '../middleware/error.middleware';
 import { EmailService } from './email.service';
 import { SessionService } from './session.service';
+import { SMSService } from './sms.service';
 import { prisma } from '../config/database';
 import { normalizePhoneNumber, isValidNigerianPhone } from '../utils/phone';
 
 export class AuthService {
   private emailService: EmailService;
   private sessionService: SessionService;
+  private smsService: SMSService;
 
   constructor() {
     this.emailService = new EmailService();
     this.sessionService = new SessionService();
+    this.smsService = new SMSService();
   }
   
   async signup(data: { email: string; phoneNumber: string; password: string; role?: string }) {
@@ -511,8 +514,9 @@ export class AuthService {
     // Send verification code
     if (data.type === 'EMAIL_VERIFICATION') {
       this.emailService.sendVerificationEmail(user.email, verificationCode);
+    } else if (data.type === 'PHONE_VERIFICATION') {
+      this.smsService.sendVerificationSMS(user.phoneNumber, verificationCode);
     }
-    // TODO: Add SMS service for phone verification
 
     return { 
       message: 'Verification code sent successfully',

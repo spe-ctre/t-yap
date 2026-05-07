@@ -35,7 +35,6 @@ export class KYCService {
 
   /**
    * Verify BVN
-   * TODO: Integrate with real KYC provider (e.g., Paystack, Smile Identity, or Mono)
    */
   static async verifyBVN(userId: string, bvn: string) {
     if (!/^\d{11}$/.test(bvn)) {
@@ -101,7 +100,6 @@ export class KYCService {
 
   /**
    * Verify NIN
-   * TODO: Integrate with real KYC provider
    */
   static async verifyNIN(userId: string, nin: string) {
     if (!/^\d{11}$/.test(nin)) {

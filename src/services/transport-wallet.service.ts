@@ -67,8 +67,27 @@ export class TransportWalletService {
       },
     });
 
-    // TODO: Create a transaction log for this internal transfer
-
+    // Create a transaction log for this internal transfer
+    await prisma.transaction.create({
+      data: {
+        userId,
+        userType: 'PASSENGER',
+        amount: amount,
+        type: 'DEBIT',
+        category: 'TRANSFER',
+        status: 'SUCCESS',
+        balanceBefore: mainBalance,
+        balanceAfter: newMainBalance,
+        reference: `TR-WALLET-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        description: 'Funded Transport Wallet',
+        metadata: {
+          previousMainBalance: mainBalance,
+          newMainBalance,
+          previousTransportBalance: Number(passenger.transportWalletBalance),
+          newTransportBalance
+        }
+      }
+    });
     return {
       amount,
       newMainBalance,

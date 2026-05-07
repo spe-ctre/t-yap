@@ -600,8 +600,9 @@ export const sendPassengerOTP = async (req: Request, res: Response) => {
       },
     });
 
-    // TODO: Integrate SMS service provider
-    console.log(`OTP for ${phoneNumber}: ${otpCode}`);
+    // Send OTP via Termii
+    await smsService.sendVerificationSMS(phoneNumber, otpCode);
+    console.log(`[Agent Controller] OTP for ${phoneNumber}: ${otpCode}`);
 
     return res.json({
       message: 'OTP sent successfully',

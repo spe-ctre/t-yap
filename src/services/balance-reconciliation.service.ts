@@ -187,20 +187,19 @@ export class BalanceReconciliationService {
     for (let i = 0; i < users.length; i += BATCH_SIZE) {
       const batch = users.slice(i, i + BATCH_SIZE);
       
-      const batchResults = await Promise.allSettled(
-        batch.map(user => this.reconcileUserBalance(user.userId, user.userType))
-      );
-
-      batchResults.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          results.push(result.value);
-        } else {
+      // Process sequentially to prevent Prisma connection pool exhaustion 
+      // (FATAL: MaxClientsInSessionMode: max clients reached)
+      for (const user of batch) {
+        try {
+          const result = await this.reconcileUserBalance(user.userId, user.userType);
+          results.push(result);
+        } catch (error: any) {
           errors.push({
-            userId: batch[index].userId,
-            error: result.reason?.message || 'Unknown error'
+            userId: user.userId,
+            error: error.message || 'Unknown error'
           });
         }
-      });
+      }
     }
 
     return { results, errors };

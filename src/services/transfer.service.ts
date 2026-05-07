@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors';
 import bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { logAction } from '../controllers/auditLog.controller';
+import { PushNotificationService } from './push-notification.service';
 
 const HIGH_VALUE_THRESHOLD = 50000;
 
@@ -545,11 +546,18 @@ export class TransferService {
           },
         },
       });
-
-      // TODO: In production, also send:
-      // - Push notifications (Firebase/OneSignal)
-      // - SMS notifications (Twilio/Termii)
-      // - Email notifications (SendGrid/Mailgun)
+      // Send real-time push notifications via Firebase
+      const pushService = new PushNotificationService();
+      await pushService.sendToUser(senderId, {
+        title: 'Transfer Successful',
+        body: `You sent ₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} to ${recipientName}`,
+        data: { type: 'TRANSFER_SENT', reference },
+      });
+      await pushService.sendToUser(recipientId, {
+        title: 'Money Received! 💰',
+        body: `You received ₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })} from ${senderName}`,
+        data: { type: 'TRANSFER_RECEIVED', reference },
+      });
     } catch (error) {
       // Log error but don't fail the transfer
       console.error('Failed to send notifications:', error);
