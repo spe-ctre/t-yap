@@ -10,7 +10,7 @@ import { createError } from '../middleware/error.middleware';
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
-    role: 'PASSENGER' | 'DRIVER' | 'AGENT';
+    role: string;
   };
 }
 

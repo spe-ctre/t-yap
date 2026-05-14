@@ -7,7 +7,7 @@ import { prisma } from '../config/database';
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
-    role: 'PASSENGER' | 'DRIVER' | 'AGENT';
+    role: string;
   };
 }
 

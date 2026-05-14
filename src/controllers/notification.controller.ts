@@ -9,7 +9,7 @@ import { UserRole } from '../middleware/auth.middleware';
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
-    role: UserRole;
+    role: string;
     isEmailVerified?: boolean;
     isPhoneVerified?: boolean;
   };

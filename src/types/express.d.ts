@@ -3,7 +3,7 @@ declare global {
     interface Request {
       user?: {
         id: string;
-        role: 'PASSENGER' | 'DRIVER' | 'AGENT' | 'PARK_MANAGER' | 'SUPER_ADMIN';
+        role: string;
         isEmailVerified?: boolean;
         isPhoneVerified?: boolean;
       };

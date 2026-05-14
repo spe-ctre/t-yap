@@ -14,7 +14,7 @@ import { getValidationErrorMessage } from '../utils/validation-error.util';
 interface AuthenticatedRequest extends Request {
   user: {
     id: string;
-    role: UserRole;
+    role: string;
   };
 }
 

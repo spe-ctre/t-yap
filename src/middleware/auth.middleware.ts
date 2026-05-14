@@ -4,7 +4,8 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
 
 // Define allowed user roles
-export type UserRole = 'PASSENGER' | 'DRIVER' | 'AGENT' | 'PARK_MANAGER';
+import { UserRole } from '@prisma/client';
+export { UserRole };
 
 // Extend Express Request to include authenticated user
 export interface AuthenticatedRequest extends Request {
