@@ -74,11 +74,11 @@ export class PaymentController {
       }
 
       // Verify payment
-      const result = await this.paymentService.processTopup(
-        provider,
+      const result = await this.paymentService.verifyPayment({
         reference,
-        { userId, userType: userType as any }
-      );
+        userId,
+        userType: userType as any
+      });
 
       res.json({
         success: true,
