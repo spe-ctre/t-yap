@@ -42,7 +42,7 @@ export class PaymentController {
       // Initialize payment
       const result = await this.paymentService.initializePayment({
         userId,
-        userType,
+        userType: userType as any,
         amount,
         email: user?.email,
         description: 'Wallet Top-up'
@@ -65,7 +65,7 @@ export class PaymentController {
    */
   verifyTopup = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { reference } = req.body;
+      const { reference, provider } = req.body;
       const userId = req.user.id;
       const userType = req.user.role;
 
@@ -74,11 +74,11 @@ export class PaymentController {
       }
 
       // Verify payment
-      const result = await this.paymentService.verifyPayment({
+      const result = await this.paymentService.processTopup(
+        provider,
         reference,
-        userId,
-        userType
-      });
+        { userId, userType: userType as any }
+      );
 
       res.json({
         success: true,

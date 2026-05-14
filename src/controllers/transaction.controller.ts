@@ -92,7 +92,7 @@ export class TransactionController {
       // Create transaction via service
       const transaction = await this.transactionService.createTransaction({
         userId,
-        userType,
+        userType: userType as any,
         type,
         category,
         amount,
@@ -128,7 +128,7 @@ export class TransactionController {
       const transaction = await this.transactionService.processTopup(
         provider,
         reference,
-        { userId, userType }
+        { userId, userType: userType as any }
       );
 
       res.json({
