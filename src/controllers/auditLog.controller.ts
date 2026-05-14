@@ -9,17 +9,27 @@ export class AuditLogController {
         take: 100,
       });
 
-      const logsWithEmail = await Promise.all(
-        logs.map(async (log) => {
-          const user = await prisma.user.findUnique({
-            where: { id: log.userId },
-            select: { email: true },
-          });
-          return { ...log, adminEmail: user?.email || 'Unknown' };
-        })
-      );
+      // Fetch all unique user IDs from the logs
+      const userIds = [...new Set(logs.map(log => log.userId))];
 
-      res.json({ success: true, statusCode: 200, data: logsWithEmail });
+      // Fetch users in a single batch
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, email: true }
+      });
+
+      // Create a map for quick lookup
+      const emailMap = new Map(users.map(u => [u.id, u.email]));
+
+      const formattedLogs = logs.map(log => ({
+        id: log.id,
+        adminEmail: emailMap.get(log.userId) || 'Unknown',
+        action: log.action,
+        details: log.details || '',
+        createdAt: log.createdAt
+      }));
+
+      res.json({ success: true, data: formattedLogs });
     } catch (error) {
       next(error);
     }

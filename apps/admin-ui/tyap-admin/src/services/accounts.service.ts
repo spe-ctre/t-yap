@@ -1,0 +1,17 @@
+import { AuthService } from './auth.service';
+
+const API_URL = 'https://t-yap-d0rj.onrender.com/api';
+
+export const accountsService = {
+  getAllUsers: async () => {
+    const token = AuthService.getToken();
+    const response = await fetch(`${API_URL}/admin/users`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+};

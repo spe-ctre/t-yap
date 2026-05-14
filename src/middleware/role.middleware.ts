@@ -14,8 +14,9 @@ export const isAdmin = (
   try {
     const userRole = req.user?.role;
 
-    // Check if user has PARK_MANAGER role (acting as admin)
-    if (!userRole || (userRole as string) !== 'PARK_MANAGER' && (userRole as string) !== 'SUPER_ADMIN') {
+    // Check if user has an admin role
+    const adminRoles: string[] = ['JUNIOR_ADMIN', 'MANAGER_ADMIN', 'SUPER_ADMIN'];
+    if (!userRole || !adminRoles.includes(userRole as string)) {
       return res.status(403).json({ 
         success: false,
         message: 'Access denied. Admin privileges required.' 
@@ -141,4 +142,53 @@ export const requirePassenger = (
       message: 'Access denied' 
     });
   }
+};
+
+/**
+ * Middleware to check clearance level for Admins
+ * Higher level means more power
+ * 5: SUPER_ADMIN
+ * 4: FINANCE_ADMIN, SYSTEM_ENGINEER
+ * 3: COMPLIANCE_OFFICER, OPERATIONS_ADMIN
+ * 2: SUPPORT_ADMIN
+ * 1: PARK_MANAGER, AGENT
+ */
+export const requireClearance = (minLevel: number) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user;
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const roleLevels: Record<string, number> = {
+        'SUPER_ADMIN': 5,
+        'FINANCE_ADMIN': 4,
+        'SYSTEM_ENGINEER': 4,
+        'COMPLIANCE_OFFICER': 3,
+        'OPERATIONS_ADMIN': 3,
+        'SUPPORT_ADMIN': 2,
+        'PARK_MANAGER': 1,
+        'AGENT': 1,
+        'DRIVER': 0,
+        'PASSENGER': 0
+      };
+
+      const userLevel = roleLevels[user.role as string] || 0;
+
+      if (userLevel < minLevel) {
+        return res.status(403).json({ 
+          error: 'Insufficient clearance level',
+          required: minLevel,
+          current: userLevel
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Clearance check error:', error);
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+  };
 };

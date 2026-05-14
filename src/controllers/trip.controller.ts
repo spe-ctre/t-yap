@@ -249,5 +249,39 @@ export class TripController {
       next(error);
     }
   };
+
+  /**
+   * POST /api/trips/:tripId/location
+   * Update current trip location (Pulse Heartbeat)
+   */
+  updateTripLocation = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { tripId } = req.params;
+      const { latitude, longitude } = req.body;
+
+      if (!latitude || !longitude) {
+        throw createError('Latitude and longitude are required', 400);
+      }
+
+      const location = await this.tripService.addTripLocation(
+        tripId,
+        parseFloat(latitude),
+        parseFloat(longitude)
+      );
+
+      res.status(201).json({
+        success: true,
+        statusCode: 201,
+        message: 'Location pulse recorded',
+        data: location
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 

@@ -87,6 +87,22 @@ export class PMTripController {
           data: { tripId, passengerId, vehicleId, isPaid: true, checkInTime: new Date() },
         });
 
+        // 3. IMMEDIATELY split the revenue (Pay-on-Entry model)
+        try {
+          const { RevenueService, RevenueType } = require('../../services/admin/revenue.service');
+          // Fetch the PM ID of the manager performing the check-in
+          const currentPM = await tx.parkManager.findUnique({ where: { userId: (req as any).user?.id } });
+          
+          await RevenueService.processRevenue(RevenueType.TRIP_FARE, fare, {
+            tripId,
+            driverId: trip.driverId,
+            pmId: currentPM?.id || trip.route.originParkId || trip.route.destinationParkId
+          });
+          console.log(`💰 Revenue split processed IMMEDIATELY at boarding for Trip ${tripId}`);
+        } catch (revError) {
+          console.error('Revenue split failed at boarding, but check-in proceeded:', revError);
+        }
+
         return { 
           transaction, 
           tripPassengerRecord, 

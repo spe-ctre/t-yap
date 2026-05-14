@@ -63,7 +63,7 @@ export class VTpassProviderService {
   }) {
     try {
       const response = await this.client.post(
-        '/api/merchant-verify',
+        'merchant-verify',
         {
           serviceID: params.serviceID,
           billersCode: params.billersCode,
@@ -126,7 +126,7 @@ export class VTpassProviderService {
 
     try {
       const response = await this.client.post(
-        '/api/pay',
+        'pay',
         payload,
         { headers: this.getPostHeaders() }
       );
@@ -209,7 +209,7 @@ export class VTpassProviderService {
 
     try {
       const response = await this.client.post(
-        '/api/pay',
+        'pay',
         payload,
         { headers: this.getPostHeaders() }
       );
@@ -319,7 +319,7 @@ export class VTpassProviderService {
   async getVariationCodes(serviceID: string) {
     try {
       const response = await this.client.get(
-        `/api/service-variations?serviceID=${serviceID}`,
+        `service-variations?serviceID=${serviceID}`,
         { headers: this.getGetHeaders() }
       );
 
@@ -379,7 +379,7 @@ export class VTpassProviderService {
 
     try {
       const response = await this.client.post(
-        '/api/pay',
+        'pay',
         payload,
         { headers: this.getPostHeaders() }
       );
@@ -491,7 +491,7 @@ export class VTpassProviderService {
   }) {
     try {
       const response = await this.client.post(
-        '/api/merchant-verify',
+        'merchant-verify',
         {
           serviceID: params.serviceID,
           billersCode: params.billersCode
@@ -553,7 +553,7 @@ export class VTpassProviderService {
 
     try {
       const response = await this.client.post(
-        '/api/pay',
+        'pay',
         payload,
         { headers: this.getPostHeaders() }
       );
@@ -661,7 +661,7 @@ export class VTpassProviderService {
   async requeryTransaction(requestId: string) {
     try {
       const response = await this.client.post(
-        '/api/requery',
+        'requery',
         { request_id: requestId },
         { headers: this.getPostHeaders() }
       );

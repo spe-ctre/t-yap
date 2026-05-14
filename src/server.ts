@@ -48,6 +48,8 @@ import twoFactorRoutes from './routes/twoFactor.routes';
 import auditLogRoutes from './routes/auditLog.routes';
 import legalRoutes from './routes/legal.routes';
 import kycRoutes from './routes/kyc.routes';
+import referralRoutes from './routes/referral.routes';
+import transportWalletRoutes from './routes/transport-wallet.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -123,6 +125,8 @@ app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/legal', legalRoutes);
 app.use('/api/kyc', kycRoutes);
+app.use('/api/referrals', referralRoutes);
+app.use('/api/transport-wallet', transportWalletRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

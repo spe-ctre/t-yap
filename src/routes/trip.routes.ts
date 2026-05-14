@@ -209,5 +209,48 @@ router.get(
   tripController.getDriverTrips as unknown as RequestHandler
 );
 
+/**
+ * @swagger
+ * /api/trips/{tripId}/location:
+ *   post:
+ *     summary: Update current trip location (Pulse Heartbeat)
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tripId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Trip ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - latitude
+ *               - longitude
+ *             properties:
+ *               latitude:
+ *                 type: number
+ *               longitude:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Location pulse recorded
+ *       400:
+ *         description: Invalid input
+ *       404:
+ *         description: Trip not found
+ */
+router.post(
+  '/:tripId/location',
+  authMiddleware as unknown as RequestHandler,
+  tripController.updateTripLocation as unknown as RequestHandler
+);
+
 export default router;
 

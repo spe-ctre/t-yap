@@ -6,6 +6,18 @@ export class TransportWalletController {
   /**
    * GET /api/transport-wallet/balance
    */
+  /**
+   * @swagger
+   * /api/transport-wallet/balance:
+   *   get:
+   *     summary: Get transport wallet balance
+   *     tags: [Transport Wallet]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Balance retrieved successfully
+   */
   static async getBalance(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const result = await TransportWalletService.getBalance(req.user.id);
@@ -21,6 +33,36 @@ export class TransportWalletController {
 
   /**
    * POST /api/transport-wallet/transfer
+   */
+  /**
+   * @swagger
+   * /api/transport-wallet/transfer:
+   *   post:
+   *     summary: Fund transport wallet from main wallet
+   *     tags: [Transport Wallet]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - amount
+   *               - pin
+   *             properties:
+   *               amount:
+   *                 type: number
+   *                 description: Amount to transfer
+   *               pin:
+   *                 type: string
+   *                 description: Transaction PIN
+   *     responses:
+   *       200:
+   *         description: Transfer successful
+   *       400:
+   *         description: Invalid input or insufficient balance
    */
   static async fund(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
@@ -39,6 +81,24 @@ export class TransportWalletController {
 
   /**
    * GET /api/transport-wallet/history
+   */
+  /**
+   * @swagger
+   * /api/transport-wallet/history:
+   *   get:
+   *     summary: Get transport wallet transaction history
+   *     tags: [Transport Wallet]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 20
+   *     responses:
+   *       200:
+   *         description: History retrieved successfully
    */
   static async getHistory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {

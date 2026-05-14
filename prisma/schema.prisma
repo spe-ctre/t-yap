@@ -29,6 +29,7 @@ model User {
   kycStatus          String?            @default("PENDING")
   nin                String?
   agent              Agent?
+  auditLogs          AuditLog[]
   balanceHistory     BalanceHistory[]
   bankAccounts       BankAccount[]
   beneficiaries      Beneficiary[]
@@ -129,34 +130,34 @@ model Passenger {
   agentId                String?
   agent                  Agent?             @relation(fields: [agentId], references: [id])
   user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   @@index([userId])
   @@index([agentId])
   @@map("passengers")
 }
 
 model Driver {
-  id               String    @id @default(cuid())
-  userId           String    @unique
+  id               String       @id @default(cuid())
+  userId           String       @unique
   firstName        String
   lastName         String
-  licenseNumber    String    @unique
+  licenseNumber    String       @unique
   licenseExpiry    DateTime
-  isVerified       Boolean   @default(false)
-  walletBalance    Decimal   @default(0) @db.Decimal(10, 2)
+  isVerified       Boolean      @default(false)
+  walletBalance    Decimal      @default(0) @db.Decimal(10, 2)
   profilePicture   String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   biometricData    String?
   transactionPin   String?
   assignedRouteId  String?
   isAvailableToday Boolean      @default(false)
   shiftStatus      DriverStatus @default(OFF_SHIFT)
   lastCheckInDate  DateTime?
-  tier             String?   @default("TIER_1")
-  assignedRoute    Route?    @relation("AssignedDrivers", fields: [assignedRouteId], references: [id])
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trips            Trip[]    @relation("TripDriver")
+  tier             String?      @default("TIER_1")
+  assignedRoute    Route?       @relation("AssignedDrivers", fields: [assignedRouteId], references: [id])
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips            Trip[]       @relation("TripDriver")
   vehicle          Vehicle?
 
   @@index([userId])
@@ -166,31 +167,32 @@ model Driver {
 }
 
 model Agent {
-  id                 String     @id @default(cuid())
-  userId             String     @unique
-  firstName          String
-  lastName           String
-  agentCode          String     @unique
-  parkId             String?
-  walletBalance      Decimal    @default(0) @db.Decimal(10, 2)
-  isActive           Boolean    @default(true)
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  biometricData      String?
-  transactionPin     String?
-  businessName       String?
-  bvn                String?
-  commissionRate     Decimal?   @db.Decimal(5, 2)
-  idDocumentUrl      String?
-  kycStatus          KYCStatus? @default(PENDING)
-  lga                String?
-  nin                String?
-  residentialAddress String?
-  state              String?
-  terminalId         String?    @unique
+  id                  String      @id @default(cuid())
+  userId              String      @unique
+  firstName           String
+  lastName            String
+  agentCode           String      @unique
+  parkId              String?
+  walletBalance       Decimal     @default(0) @db.Decimal(10, 2)
+  lockedBalance       Decimal     @default(0) @db.Decimal(10, 2)
+  isActive            Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  biometricData       String?
+  transactionPin      String?
+  businessName        String?
+  bvn                 String?
+  commissionRate      Decimal?    @db.Decimal(5, 2)
+  idDocumentUrl       String?
+  kycStatus           KYCStatus?  @default(PENDING)
+  lga                 String?
+  nin                 String?
+  residentialAddress  String?
+  state               String?
+  terminalId          String?     @unique
   onboardedPassengers Passenger[]
-  park                Park?      @relation(fields: [parkId], references: [id])
-  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  park                Park?       @relation(fields: [parkId], references: [id])
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([agentCode])
@@ -209,6 +211,8 @@ model ParkManager {
   updatedAt      DateTime     @updatedAt
   biometricData  String?
   transactionPin String?
+  walletBalance  Decimal      @default(0) @db.Decimal(10, 2)
+  lockedBalance  Decimal      @default(0) @db.Decimal(10, 2)
   commissionRate Decimal?     @db.Decimal(5, 2)
   settlements    Settlement[]
   park           Park?        @relation(fields: [parkId], references: [id])
@@ -410,7 +414,7 @@ model Park {
   destinationRoutes Route[]       @relation("DestinationPark")
   originRoutes      Route[]       @relation("OriginPark")
   vehicles          Vehicle[]
- 
+
   @@index([city, state])
   @@index([latitude, longitude])
   @@map("parks")
@@ -492,6 +496,7 @@ model Trip {
   user             User               @relation(fields: [passengerId], references: [id])
   route            Route              @relation(fields: [routeId], references: [id])
   vehicle          Vehicle            @relation(fields: [vehicleId], references: [id])
+  locations        TripLocation[]
 
   @@index([passengerId])
   @@index([driverId])
@@ -500,6 +505,19 @@ model Trip {
   @@index([createdAt])
   @@index([isLongDistance])
   @@map("trips")
+}
+
+model TripLocation {
+  id        String   @id @default(cuid())
+  tripId    String
+  latitude  Decimal  @db.Decimal(10, 8)
+  longitude Decimal  @db.Decimal(11, 8)
+  createdAt DateTime @default(now())
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([createdAt])
+  @@map("trip_locations")
 }
 
 model PassengerDetails {
@@ -772,6 +790,7 @@ model AuditLog {
   action    String
   details   String?
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
@@ -799,6 +818,11 @@ enum UserRole {
   AGENT
   PARK_MANAGER
   SUPER_ADMIN
+  FINANCE_ADMIN
+  COMPLIANCE_OFFICER
+  SYSTEM_ENGINEER
+  OPERATIONS_ADMIN
+  SUPPORT_ADMIN
 }
 
 enum VerificationType {
@@ -824,6 +848,7 @@ enum TransactionCategory {
   TRANSFER
   REFUND
   COMMISSION
+  REVENUE_SPLIT
 }
 
 enum TransactionStatus {

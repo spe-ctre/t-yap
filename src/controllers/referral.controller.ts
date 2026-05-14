@@ -4,6 +4,18 @@ import { ReferralService } from '../services/referral.service';
 const referralService = new ReferralService();
 
 export class ReferralController {
+  /**
+   * @swagger
+   * /api/referrals:
+   *   get:
+   *     summary: Get referral information for the user
+   *     tags: [Referrals]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Referral info retrieved
+   */
   static async getReferralInfo(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;
@@ -14,6 +26,29 @@ export class ReferralController {
     }
   }
 
+  /**
+   * @swagger
+   * /api/referrals/apply:
+   *   post:
+   *     summary: Apply a referral code
+   *     tags: [Referrals]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - referralCode
+   *             properties:
+   *               referralCode:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Referral code applied
+   */
   static async applyReferralCode(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.user?.id;

@@ -236,7 +236,8 @@ export class TripService {
    */
   async updateTripStatus(tripId: string, status: TripStatus) {
     const trip = await prisma.trip.findUnique({
-      where: { id: tripId }
+      where: { id: tripId },
+      include: { route: true }
     });
 
     if (!trip) {
@@ -272,29 +273,8 @@ export class TripService {
     if (status === 'COMPLETED' && !trip.arrivalTime) {
       updateData.arrivalTime = new Date();
       
-      // Auto-generate settlement if it doesn't exist
-      const existingSettlement = await prisma.settlement.findUnique({
-        where: { tripId }
-      });
-
-      if (!existingSettlement) {
-        const fare = Number(trip.fare);
-        const tyapFee = fare * 0.05; // 5%
-        const parkCommission = fare * 0.10; // 10%
-        const driverPayout = fare - tyapFee - parkCommission;
-
-        await prisma.settlement.create({
-          data: {
-            tripId,
-            totalAmount: fare,
-            driverPayout,
-            parkCommission,
-            tyapFee,
-            status: 'PENDING'
-          }
-        });
-        console.log(`💰 Settlement auto-generated for Trip ${tripId}`);
-      }
+      // Revenue is now split at BOARDING in PMTripController.passengerCheckInAndPay
+      console.log(`✅ Trip ${tripId} arrived at destination. Safe-Session closed.`);
     }
 
     const updatedTrip = await prisma.trip.update({
@@ -443,6 +423,35 @@ export class TripService {
     });
 
     return trips;
+  }
+
+  /**
+   * Add a location pulse for a trip
+   * @param tripId Trip ID
+   * @param latitude Latitude
+   * @param longitude Longitude
+   * @returns Created location pulse
+   */
+  async addTripLocation(tripId: string, latitude: number, longitude: number) {
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId }
+    });
+
+    if (!trip) {
+      throw createError('Trip not found', 404);
+    }
+
+    if (trip.status !== 'IN_PROGRESS') {
+      throw createError('Location pulse only allowed for trips in progress', 400);
+    }
+
+    return await (prisma as any).tripLocation.create({
+      data: {
+        tripId,
+        latitude,
+        longitude
+      }
+    });
   }
 }
 

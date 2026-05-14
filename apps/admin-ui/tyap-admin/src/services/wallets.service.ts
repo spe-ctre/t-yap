@@ -1,0 +1,24 @@
+import { AuthService } from './auth.service';
+const API_URL = 'https://t-yap-d0rj.onrender.com/api';
+
+export const walletsService = {
+  getAllWallets: async () => {
+    const token = AuthService.getToken();
+    const response = await fetch(`${API_URL}/admin/wallets`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+
+  getWalletStats: async () => {
+    const token = AuthService.getToken();
+    const response = await fetch(`${API_URL}/admin/wallet-stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.message);
+    return data.data;
+  },
+};
