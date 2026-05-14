@@ -1,49 +1,29 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 
-const FROM = process.env.SMTP_USER || 'noreply@tyap.com';
+const FROM = process.env.SENDGRID_FROM_EMAIL || 'noreply@tyap.com';
+const FROM_NAME = 'T-Yap';
 
 export class EmailService {
-  private transporter: nodemailer.Transporter | null = null;
-
   constructor() {
-    this.initTransporter();
+    this.init();
   }
 
-  private initTransporter() {
-    const host = process.env.SMTP_HOST;
-    const port = parseInt(process.env.SMTP_PORT || '587');
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (!host || !user || !pass) {
-      console.warn('[EmailService] SMTP credentials missing. Emails will only be logged.');
+  private init() {
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (!apiKey) {
+      console.warn('[EmailService] SENDGRID_API_KEY missing. Emails will only be logged.');
       return;
     }
-
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465, // true for 465, false for other ports
-      auth: {
-        user,
-        pass,
-      },
-    });
-
-    // Verify connection configuration
-    this.transporter.verify((error) => {
-      if (error) {
-        console.error('[EmailService] SMTP Connection Error:', error);
-      } else {
-        console.log('✅ Email service initialized and ready to send messages');
-      }
-    });
+    sgMail.setApiKey(apiKey);
+    console.log('✅ SendGrid email service initialized');
   }
 
   private async sendOrLog(params: { to: string; subject: string; html: string; debugCode?: string }) {
-    if (!this.transporter) {
-      // Dev-friendly fallback if credentials are removed
-      console.warn('[EmailService] Transporter not configured; email not sent.', {
+    const apiKey = process.env.SENDGRID_API_KEY;
+    
+    if (!apiKey) {
+      // Dev-friendly fallback
+      console.warn('[EmailService] SendGrid not configured; email not sent.', {
         from: FROM,
         to: params.to,
         subject: params.subject,
@@ -58,19 +38,22 @@ export class EmailService {
     }
 
     try {
-      await this.transporter.sendMail({
-        from: `"T-Yap" <${FROM}>`,
+      await sgMail.send({
         to: params.to,
+        from: {
+          email: FROM,
+          name: FROM_NAME,
+        },
         subject: params.subject,
         html: params.html,
       });
-    } catch (error) {
-      console.error('[EmailService] Failed to send email:', error);
+    } catch (error: any) {
+      console.error('[EmailService] Failed to send email via SendGrid:', error.response?.body || error.message);
     }
   }
 
   /**
-   * Public method for sending arbitrary emails (admin alerts, system notifications, etc.)
+   * Public method for sending arbitrary emails
    */
   async sendMail(params: { to: string; subject: string; html: string }) {
     await this.sendOrLog(params);
@@ -82,12 +65,14 @@ export class EmailService {
       subject: 'T-Yap Email Verification',
       debugCode: code,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #E8572A;">Welcome to T-Yap!</h2>
           <p>Your verification code is:</p>
-          <h1 style="color: #E8572A; letter-spacing: 8px;">${code}</h1>
-          <p>This code expires in 10 minutes.</p>
-          <p>If you did not create a T-Yap account, please ignore this email.</p>
+          <div style="background: #f9f9f9; padding: 20px; text-align: center; border-radius: 5px;">
+            <h1 style="color: #E8572A; letter-spacing: 8px; margin: 0;">${code}</h1>
+          </div>
+          <p style="color: #666; margin-top: 20px;">This code expires in 10 minutes.</p>
+          <p style="color: #999; font-size: 12px;">If you did not create a T-Yap account, please ignore this email.</p>
         </div>
       `
     });
@@ -99,12 +84,14 @@ export class EmailService {
       subject: 'T-Yap Password Reset',
       debugCode: code,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #E8572A;">Password Reset Request</h2>
           <p>Your password reset code is:</p>
-          <h1 style="color: #E8572A; letter-spacing: 8px;">${code}</h1>
-          <p>This code expires in 10 minutes.</p>
-          <p>If you did not request this reset, please contact support immediately.</p>
+          <div style="background: #f9f9f9; padding: 20px; text-align: center; border-radius: 5px;">
+            <h1 style="color: #E8572A; letter-spacing: 8px; margin: 0;">${code}</h1>
+          </div>
+          <p style="color: #666; margin-top: 20px;">This code expires in 10 minutes.</p>
+          <p style="color: #999; font-size: 12px;">If you did not request this reset, please contact support immediately.</p>
         </div>
       `
     });
@@ -116,12 +103,14 @@ export class EmailService {
       subject: 'T-Yap Transaction PIN Reset',
       debugCode: code,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #E8572A;">Transaction PIN Reset</h2>
           <p>Your PIN reset code is:</p>
-          <h1 style="color: #E8572A; letter-spacing: 8px;">${code}</h1>
-          <p>This code expires in 10 minutes.</p>
-          <p>If you did not request this reset, please contact support immediately.</p>
+          <div style="background: #f9f9f9; padding: 20px; text-align: center; border-radius: 5px;">
+            <h1 style="color: #E8572A; letter-spacing: 8px; margin: 0;">${code}</h1>
+          </div>
+          <p style="color: #666; margin-top: 20px;">This code expires in 10 minutes.</p>
+          <p style="color: #999; font-size: 12px;">If you did not request this reset, please contact support immediately.</p>
         </div>
       `
     });
@@ -132,10 +121,10 @@ export class EmailService {
       to: email,
       subject: 'T-Yap Password Changed',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #E8572A;">Password Changed Successfully</h2>
           <p>Your T-Yap password has been changed successfully.</p>
-          <p>If you did not make this change, please contact support immediately.</p>
+          <p style="color: #999; font-size: 12px;">If you did not make this change, please contact support immediately.</p>
         </div>
       `
     });
