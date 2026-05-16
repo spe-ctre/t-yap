@@ -18,11 +18,26 @@ export class EmailService {
     console.log('✅ SendGrid email service initialized');
   }
 
+  /**
+   * Generic email sender (used by workers)
+   */
+  async sendEmail(to: string, subject: string, message: string) {
+    // Simple HTML wrapper for generic messages
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <h2 style="color: #E8572A;">T-Yap Notification</h2>
+        <p>${message}</p>
+        <p style="color: #999; font-size: 12px; margin-top: 20px;">© 2026 T-Yap. All rights reserved.</p>
+      </div>
+    `;
+    
+    await this.sendOrLog({ to, subject, html });
+  }
+
   private async sendOrLog(params: { to: string; subject: string; html: string; debugCode?: string }) {
     const apiKey = process.env.SENDGRID_API_KEY;
     
     if (!apiKey) {
-      // Dev-friendly fallback
       console.warn('[EmailService] SendGrid not configured; email not sent.', {
         from: FROM,
         to: params.to,
@@ -50,13 +65,6 @@ export class EmailService {
     } catch (error: any) {
       console.error('[EmailService] Failed to send email via SendGrid:', error.response?.body || error.message);
     }
-  }
-
-  /**
-   * Public method for sending arbitrary emails
-   */
-  async sendMail(params: { to: string; subject: string; html: string }) {
-    await this.sendOrLog(params);
   }
 
   async sendVerificationEmail(email: string, code: string) {
@@ -130,3 +138,5 @@ export class EmailService {
     });
   }
 }
+
+export const emailService = new EmailService();

@@ -1,3 +1,4 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { ChatbotService } from '../services/chatbot.service';
 import { AppError } from '../utils/errors';

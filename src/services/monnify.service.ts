@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { createError } from '../middleware/error.middleware';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 interface MonnifyAuthResponse {
   requestSuccessful: boolean;

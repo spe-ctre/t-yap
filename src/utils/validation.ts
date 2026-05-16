@@ -1,4 +1,5 @@
-import Joi from 'joi';
+import * as Joi from 'joi';
+
 
 // Accepts Nigerian phone numbers in local or international format:
 // - 08012345678
@@ -79,7 +80,7 @@ export const setSecurityQuestionsSchema = Joi.object({
   answer2: Joi.string().min(2).max(100).required(),
   question3: Joi.string().min(5).max(200).required(),
   answer3: Joi.string().min(2).max(100).required()
-}).custom((value, helpers) => {
+}).custom((value: any, helpers: any) => {
   // Ensure all questions are unique
   const questions = [value.question1, value.question2, value.question3];
   const uniqueQuestions = new Set(questions);

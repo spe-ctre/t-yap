@@ -1,7 +1,6 @@
-// src/controllers/transaction-analytics.controller.ts
+/// <reference path="../types/express.d.ts" />
+import { Request, Response, NextFunction } from 'express';
 
-import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { TransactionAnalyticsService } from '../services/transaction-analytics.service';
 import { AppError } from '../utils/errors';
 
@@ -11,12 +10,12 @@ export class TransactionAnalyticsController {
    * Get transaction summary for authenticated user
    */
   static async getTransactionSummary(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { startDate, endDate } = req.query;
 
       if (!userId) {
@@ -46,12 +45,12 @@ export class TransactionAnalyticsController {
    * Get category breakdown
    */
   static async getCategoryBreakdown(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { startDate, endDate } = req.query;
 
       if (!userId) {
@@ -84,12 +83,12 @@ export class TransactionAnalyticsController {
    * Get transaction trends
    */
   static async getTransactionTrends(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { period } = req.query;
 
       if (!userId) {
@@ -123,12 +122,12 @@ export class TransactionAnalyticsController {
    * Get spending patterns by day of week
    */
   static async getSpendingPatterns(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { days } = req.query;
 
       if (!userId) {
@@ -159,12 +158,12 @@ export class TransactionAnalyticsController {
    * Get top recipients/merchants
    */
   static async getTopRecipients(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { limit } = req.query;
 
       if (!userId) {
@@ -195,12 +194,12 @@ export class TransactionAnalyticsController {
    * Export analytics data
    */
   static async exportAnalytics(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { startDate, endDate } = req.query;
 
       if (!userId) {

@@ -1,13 +1,13 @@
 // auth.middleware.ts
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
 
 // Define allowed user roles
 import { UserRole } from '@prisma/client';
 export { UserRole };
 
-// Extend Express Request to include authenticated user
+// Extend Express Request to include authenticated user (guaranteed by middleware)
 export interface AuthenticatedRequest extends Request {
   user: {
     id: string;
@@ -75,8 +75,8 @@ export const authMiddleware = async (
       });
     }
 
-    // Attach user info to request (cast to AuthenticatedRequest)
-    (req as AuthenticatedRequest).user = {
+    // Attach user info to request (using global Express.Request augmentation)
+    req.user = {
       id: decoded.userId,
       role: decoded.role as UserRole,
       isEmailVerified: userExists.isEmailVerified,

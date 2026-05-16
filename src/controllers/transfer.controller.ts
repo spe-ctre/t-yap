@@ -1,10 +1,10 @@
-// src/controllers/transfer.controller.ts
+/// <reference path="../types/express.d.ts" />
 import { MonnifyService } from '../services/monnify.service';
 import { prisma } from '../config/database';
 
 const monnifyService = new MonnifyService();
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 import { TransferService } from '../services/transfer.service';
 import { AppError } from '../utils/errors';
 
@@ -13,9 +13,9 @@ export class TransferController {
    * POST /api/transfers/p2p
    * Process peer-to-peer transfer
    */
-  static async processTransfer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async processTransfer(req: Request, res: Response, next: NextFunction) {
     try {
-      const senderId = req.user?.id; // From auth middleware
+      const senderId = req.user!.id; // From auth middleware
       const { recipientId, amount, description, pin } = req.body;
 
       // Validation
@@ -73,9 +73,9 @@ export class TransferController {
    * GET /api/transfers/limits/remaining
    * Get user's remaining daily transfer limit
    */
-  static async getRemainingLimit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getRemainingLimit(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
 
       const remaining = await TransferService.getRemainingDailyLimit(userId!);
 
@@ -92,9 +92,9 @@ export class TransferController {
    * POST /api/transfers/validate
    * Validate transfer before processing (pre-check)
    */
-  static async validateTransfer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async validateTransfer(req: Request, res: Response, next: NextFunction) {
     try {
-      const senderId = req.user?.id;
+      const senderId = req.user!.id;
       const { recipientId, amount } = req.body;
 
       if (!recipientId || !amount) {
@@ -193,9 +193,9 @@ export class TransferController {
    * GET /api/transfers/history
    * Get user's transfer history
    */
-  static async getTransferHistory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getTransferHistory(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
 
       const history = await TransferService.getTransferHistory(userId!, limit);
@@ -216,9 +216,9 @@ export class TransferController {
    * GET /api/transfers/:transferId
    * Get single transfer details
    */
-  static async getTransferById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getTransferById(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { transferId } = req.params;
 
       if (!transferId) {
@@ -240,9 +240,9 @@ export class TransferController {
    * GET /api/transfers/:transferId/receipt
    * Download transfer receipt as PDF
    */
-  static async downloadReceipt(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async downloadReceipt(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { transferId } = req.params;
 
       if (!transferId) {
@@ -326,9 +326,9 @@ export class TransferController {
    * POST /api/transfers/bank
    * Send money to external Nigerian bank account
    */
-  static async bankTransfer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async bankTransfer(req: Request, res: Response, next: NextFunction) {
     try {
-      const senderId = req.user?.id;
+      const senderId = req.user!.id;
       const { accountNumber, bankCode, bankName, accountName, amount, narration, pin } = req.body;
 
       if (!accountNumber || !bankCode || !accountName || !amount || !pin) {

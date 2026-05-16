@@ -3,7 +3,7 @@
 import { prisma } from '../config/database';
 import { TransactionStatus, TransactionType, TransactionCategory, UserRole } from '@prisma/client';
 import { AppError } from '../utils/errors';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { initiateBankTransfer } from '../utils/monnify.utils';
 import { logAction } from '../controllers/auditLog.controller';
@@ -201,7 +201,7 @@ export class WithdrawalService {
       const transferResult = await initiateBankTransfer({
         amount,
         destinationAccountNumber: dbResult.bankAccount.accountNumber,
-        destinationBankCode: dbResult.bankAccount.bankCode,
+        destinationBankCode: dbResult.bankAccount.bankCode!,
         destinationAccountName: dbResult.bankAccount.accountName,
         narration: description || 'Wallet withdrawal',
         reference: dbResult.reference,

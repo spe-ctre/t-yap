@@ -1,7 +1,6 @@
-// src/controllers/withdrawal.controller.ts
-
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 import { WithdrawalService } from '../services/withdrawal.service';
 import { AppError } from '../utils/errors';
 
@@ -10,9 +9,9 @@ export class WithdrawalController {
    * POST /api/withdrawals
    * Process withdrawal to bank account
    */
-  static async processWithdrawal(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async processWithdrawal(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { amount, bankAccountId, pin, description } = req.body;
 
       // Validation
@@ -46,7 +45,7 @@ export class WithdrawalController {
    * GET /api/withdrawals/limits
    * Get withdrawal limits configuration
    */
-  static async getWithdrawalLimits(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getWithdrawalLimits(req: Request, res: Response, next: NextFunction) {
     try {
       const limits = WithdrawalService.getWithdrawalLimits();
 
@@ -70,9 +69,9 @@ export class WithdrawalController {
    * GET /api/withdrawals/limits/remaining
    * Get user's remaining daily withdrawal limit
    */
-  static async getRemainingLimit(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getRemainingLimit(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
 
       const remaining = await WithdrawalService.getRemainingDailyLimit(userId!);
 

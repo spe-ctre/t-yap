@@ -1,10 +1,11 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 
 export class PMDashboardController {
   static async getDashboard(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
 
       const parkManager = await prisma.parkManager.findUnique({
         where: { userId },
@@ -109,7 +110,7 @@ export class PMDashboardController {
 
   static async startShift(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { biometricData } = req.body;
 
       if (!biometricData) return res.status(400).json({ error: 'Biometric verification required' });

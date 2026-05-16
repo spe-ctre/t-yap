@@ -1,6 +1,6 @@
-// src/controllers/balance-reconciliation.controller.ts
-import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+/// <reference path="../types/express.d.ts" />
+import { Request, Response, NextFunction } from 'express';
+
 import { BalanceReconciliationService } from '../services/balance-reconciliation.service';
 import { AppError } from '../utils/errors';
 import { UserRole } from '@prisma/client';
@@ -11,17 +11,14 @@ export class BalanceReconciliationController {
    * Reconcile balance for the authenticated user
    */
   static async reconcileUserBalance(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
-      const userRole = req.user?.role;
+      const userId = req.user!.id;
+      const userRole = req.user!.role;
 
-      if (!userId || !userRole) {
-        throw new AppError('User information not found', 401);
-      }
 
       // Map auth role to UserRole
       const UserRole = userRole.toUpperCase() as UserRole;
@@ -48,12 +45,12 @@ export class BalanceReconciliationController {
    * Get balance history for authenticated user
    */
   static async getUserBalanceHistory(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { startDate, endDate, limit } = req.query;
 
       if (!userId) {
@@ -93,12 +90,12 @@ export class BalanceReconciliationController {
    * Get balance trends for authenticated user
    */
   static async getUserBalanceTrends(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { days } = req.query;
 
       if (!userId) {
@@ -127,7 +124,7 @@ export class BalanceReconciliationController {
    * This should be called by a cron job or admin
    */
   static async reconcileAllBalances(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {
@@ -149,7 +146,7 @@ export class BalanceReconciliationController {
    * Get users with balance discrepancies
    */
   static async getUsersWithDiscrepancies(
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) {

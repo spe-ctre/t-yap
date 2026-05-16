@@ -2,7 +2,7 @@
 import cron from 'node-cron';
 import { BalanceReconciliationService } from '../services/balance-reconciliation.service';
 import { prisma } from '../config/database';
-import { EmailService } from '../services/email.service';
+import { emailService } from '../services/email.service';
 
 /**
  * Setup all cron jobs
@@ -122,18 +122,13 @@ async function sendDiscrepancyAlert(result: any) {
 
   // Send email alert to admin
   try {
-    const emailService = new EmailService();
     const adminEmail = process.env.ADMIN_ALERT_EMAIL || process.env.SMTP_USER;
     if (adminEmail) {
-      await emailService.sendMail({
-        to: adminEmail,
-        subject: `⚠️ T-Yap: ${result.discrepancies} Balance Discrepancies Detected`,
-        html: `<h2>Balance Discrepancy Alert</h2>
-          <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-          <p><strong>Total Discrepancies:</strong> ${result.discrepancies}</p>
-          <h3>Affected Users:</h3>
-          <pre>${JSON.stringify(discrepancyUsers, null, 2)}</pre>`,
-      });
+      await emailService.sendEmail(
+        adminEmail,
+        `⚠️ T-Yap: ${result.discrepancies} Balance Discrepancies Detected`,
+        `Balance Discrepancy Alert\nTimestamp: ${new Date().toISOString()}\nTotal Discrepancies: ${result.discrepancies}`
+      );
     }
   } catch (emailError) {
     console.error('Failed to send discrepancy email alert:', emailError);
@@ -152,17 +147,13 @@ async function sendCriticalErrorAlert(error: any) {
 
   // Send critical error email to admin
   try {
-    const emailService = new EmailService();
     const adminEmail = process.env.ADMIN_ALERT_EMAIL || process.env.SMTP_USER;
     if (adminEmail) {
-      await emailService.sendMail({
-        to: adminEmail,
-        subject: '🚨 T-Yap CRITICAL: Balance Reconciliation Failed',
-        html: `<h2>Critical Error Alert</h2>
-          <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-          <p><strong>Error:</strong> ${error.message}</p>
-          <pre>${error.stack}</pre>`,
-      });
+      await emailService.sendEmail(
+        adminEmail,
+        '🚨 T-Yap CRITICAL: Balance Reconciliation Failed',
+        `Critical Error Alert\nTimestamp: ${new Date().toISOString()}\nError: ${error.message}\n${error.stack}`
+      );
     }
   } catch (emailError) {
     console.error('Failed to send critical error email alert:', emailError);

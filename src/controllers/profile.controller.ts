@@ -1,5 +1,5 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ProfileService } from '../services/profile.service';
 import { updateProfileSchema, updateSettingsSchema } from '../utils/validation';
 import { createError } from '../middleware/error.middleware';
@@ -13,7 +13,7 @@ export class ProfileController {
     this.profileService = new ProfileService();
   }
 
-  getProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const profile = await this.profileService.getProfile(req.user!.id);
       res.json({ success: true, statusCode: 200, data: profile });
@@ -22,7 +22,7 @@ export class ProfileController {
     }
   };
 
-  updateProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  updateProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = updateProfileSchema.validate(req.body);
       if (error) {
@@ -37,7 +37,7 @@ export class ProfileController {
     }
   };
 
-  uploadProfilePicture = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  uploadProfilePicture = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.file) {
         throw createError('No file provided', 400);
@@ -55,7 +55,7 @@ export class ProfileController {
     }
   };
 
-  deleteProfilePicture = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  deleteProfilePicture = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.profileService.deleteProfilePicture(req.user!.id);
       res.json({ success: true, statusCode: 200, data: result });
@@ -64,7 +64,7 @@ export class ProfileController {
     }
   };
 
-  getSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getSettings = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const settings = await this.profileService.getSettings(req.user!.id);
       res.json({ success: true, statusCode: 200, data: settings });
@@ -73,7 +73,7 @@ export class ProfileController {
     }
   };
 
-  updateSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  updateSettings = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = updateSettingsSchema.validate(req.body);
       if (error) {
@@ -88,7 +88,7 @@ export class ProfileController {
     }
   };
 
-  deactivateAccount = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  deactivateAccount = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
       const { password } = req.body;
@@ -100,7 +100,7 @@ export class ProfileController {
     }
   };
 
-  deleteAccount = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  deleteAccount = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
       const { password } = req.body;
@@ -112,7 +112,7 @@ export class ProfileController {
     }
   };
 
-  getTiersAndLimits = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getTiersAndLimits = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
       const { prisma } = require('../config/database');

@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { createError } from '../middleware/error.middleware';
 import { calculateDistance, isValidCoordinates } from '../utils/location.util';
+import { appCache } from './cache.service';
 
 export class ParkService {
   /**
@@ -77,58 +78,65 @@ export class ParkService {
         }
         return null;
       })
-      .filter((park) => park !== null)
-      .sort((a, b) => (a?.distance || 0) - (b?.distance || 0)); // Sort by distance
+      .filter((park): park is Exclude<typeof park, null> => park !== null)
+      .sort((a, b) => a.distance - b.distance); // Sort by distance
 
     return nearbyParks;
   }
 
   /**
-   * Get park details by ID
+   * Get park details by ID (cached for 2 minutes)
    * @param parkId Park ID
    * @returns Park details with available vehicles count
    */
   async getParkDetails(parkId: string) {
-    const park = await prisma.park.findUnique({
-      where: { id: parkId },
-      include: {
-        _count: {
-          select: {
-            vehicles: {
-              where: {
-                isAvailableForBoarding: true,
-                isActive: true
-              }
-            },
-            agents: {
-              where: {
-                isActive: true
+    return appCache.getOrSet(
+      `park:${parkId}`,
+      async () => {
+        const park = await prisma.park.findUnique({
+          where: { id: parkId },
+          include: {
+            _count: {
+              select: {
+                vehicles: {
+                  where: {
+                    isAvailableForBoarding: true,
+                    isActive: true
+                  }
+                },
+                agents: {
+                  where: {
+                    isActive: true
+                  }
+                }
               }
             }
           }
+        });
+
+        if (!park) {
+          throw createError('Park not found', 404);
         }
-      }
-    });
 
-    if (!park) {
-      throw createError('Park not found', 404);
-    }
-
-    return {
-      id: park.id,
-      name: park.name,
-      address: park.address,
-      city: park.city,
-      state: park.state,
-      country: park.country,
-      latitude: park.latitude ? Number(park.latitude) : null,
-      longitude: park.longitude ? Number(park.longitude) : null,
-      isActive: park.isActive,
-      availableVehiclesCount: park._count.vehicles,
-      activeAgentsCount: park._count.agents,
-      createdAt: park.createdAt,
-      updatedAt: park.updatedAt
-    };
+        return {
+          id: park.id,
+          name: park.name,
+          address: park.address,
+          city: park.city,
+          state: park.state,
+          country: park.country,
+          latitude: park.latitude ? Number(park.latitude) : null,
+          longitude: park.longitude ? Number(park.longitude) : null,
+          isActive: park.isActive,
+          availableVehiclesCount: park._count.vehicles,
+          activeAgentsCount: park._count.agents,
+          createdAt: park.createdAt,
+          updatedAt: park.updatedAt
+        };
+      },
+      120, // 2 minute TTL
+      'parks'
+    );
   }
 
   /**

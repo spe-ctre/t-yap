@@ -1,3 +1,4 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 
@@ -156,7 +157,7 @@ export class PMBiometricController {
 
   static async enrollOwnBiometric(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { templateData } = req.body;
       const biometric = await prisma.biometricData.create({
         data: { userId, userType: 'PARK_MANAGER', templateData },
@@ -170,7 +171,7 @@ export class PMBiometricController {
 
   static async verifyOwnBiometric(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const biometric = await prisma.biometricData.findFirst({
         where: { userId, userType: 'PARK_MANAGER', isActive: true },
       });

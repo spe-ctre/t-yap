@@ -1,15 +1,10 @@
-// src/controllers/payment.controller.ts
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/payment.service';
 import { createError } from '../middleware/error.middleware';
 import { prisma } from '../config/database';
 
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    role: string;
-  };
-}
+
 
 export class PaymentController {
   private paymentService: PaymentService;
@@ -23,11 +18,11 @@ export class PaymentController {
    * POST /api/payments/topup/initialize
    * Returns a payment reference and checkout details
    */
-  initializeTopup = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  initializeTopup = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { amount } = req.body;
-      const userId = req.user.id;
-      const userType = req.user.role;
+      const userId = req.user!.id;
+      const userType = req.user!.role;
 
       if (!amount || amount <= 0) {
         throw createError('Amount must be greater than 0', 400);
@@ -63,11 +58,11 @@ export class PaymentController {
    * POST /api/payments/topup/verify
    * Verifies payment with Monnify and credits wallet
    */
-  verifyTopup = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  verifyTopup = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { reference, provider } = req.body;
-      const userId = req.user.id;
-      const userType = req.user.role;
+      const userId = req.user!.id;
+      const userType = req.user!.role;
 
       if (!reference) {
         throw createError('Payment reference is required', 400);
@@ -114,10 +109,10 @@ export class PaymentController {
    * Get payment status
    * GET /api/payments/status/:reference
    */
-  getPaymentStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getPaymentStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { reference } = req.params;
-      const userId = req.user.id;
+      const userId = req.user!.id;
 
       const result = await this.paymentService.getPaymentStatus(reference, userId);
 

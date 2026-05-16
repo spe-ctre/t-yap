@@ -1,3 +1,4 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';

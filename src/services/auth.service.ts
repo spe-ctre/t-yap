@@ -1,4 +1,4 @@
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { VerificationType } from '@prisma/client';
 import { createError } from '../middleware/error.middleware';
@@ -7,6 +7,7 @@ import { SessionService } from './session.service';
 import { SMSService } from './sms.service';
 import { prisma } from '../config/database';
 import { normalizePhoneNumber, isValidNigerianPhone } from '../utils/phone';
+import { queueService } from './queue.service';
 
 export class AuthService {
   private emailService: EmailService;
@@ -74,7 +75,13 @@ export class AuthService {
       }
     });
   
-    this.emailService.sendVerificationEmail(user.email, verificationCode);
+    // Queue verification email (No await for instant response)
+    queueService.sendNotification({
+      email: user.email,
+      type: 'EMAIL',
+      subject: 'Verify your T-Yap Account',
+      message: `Your T-Yap verification code is: ${verificationCode}. Valid for 10 minutes.`
+    }).catch(err => console.error('🔴 Queue failed:', err));
     
     // No session created - user must verify email first
     return {
@@ -238,9 +245,12 @@ export class AuthService {
     });
 
     // Send email notification (optional)
-    this.emailService.sendPasswordChangeNotification(user.email).catch(() => {
-      // Ignore email errors
-    });
+    queueService.sendNotification({
+      email: user.email,
+      type: 'EMAIL',
+      subject: 'Password Changed',
+      message: 'Your T-Yap account password was recently changed. If this was not you, please contact support immediately.'
+    }).catch(err => console.error('🔴 Queue failed:', err));
 
     return { message: 'Password changed successfully' };
   }
@@ -363,7 +373,12 @@ export class AuthService {
     });
 
     // Send email with reset code
-    this.emailService.sendPinResetEmail(user.email, resetCode);
+    queueService.sendNotification({
+      email: user.email,
+      type: 'EMAIL',
+      subject: 'Reset your T-Yap PIN',
+      message: `Your T-Yap transaction PIN reset code is: ${resetCode}. Valid for 10 minutes.`
+    }).catch(err => console.error('🔴 Queue failed:', err));
 
     return { 
       message: 'PIN reset code sent to email',
@@ -406,7 +421,12 @@ export class AuthService {
     });
 
     // Send email with reset code
-    this.emailService.sendPasswordResetEmail(user.email, resetCode);
+    queueService.sendNotification({
+      email: user.email,
+      type: 'EMAIL',
+      subject: 'Reset your T-Yap Password',
+      message: `Your T-Yap password reset code is: ${resetCode}. Valid for 10 minutes.`
+    }).catch(err => console.error('🔴 Queue failed:', err));
 
     return { 
       message: 'If an account exists with this email, a password reset code has been sent',
@@ -511,11 +531,20 @@ export class AuthService {
       }
     });
 
-    // Send verification code
+    // Send verification code via background queue
     if (data.type === 'EMAIL_VERIFICATION') {
-      this.emailService.sendVerificationEmail(user.email, verificationCode);
+      queueService.sendNotification({
+        email: user.email,
+        type: 'EMAIL',
+        subject: 'T-Yap Verification Code',
+        message: `Your T-Yap verification code is: ${verificationCode}. Valid for 10 minutes.`
+      }).catch(err => console.error('🔴 Queue failed:', err));
     } else if (data.type === 'PHONE_VERIFICATION') {
-      this.smsService.sendVerificationSMS(user.phoneNumber, verificationCode);
+      queueService.sendNotification({
+        phoneNumber: user.phoneNumber,
+        type: 'SMS',
+        message: `Your T-Yap verification code is: ${verificationCode}. Valid for 10 minutes.`
+      }).catch(err => console.error('🔴 Queue failed:', err));
     }
 
     return { 

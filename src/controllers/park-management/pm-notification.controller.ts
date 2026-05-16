@@ -1,10 +1,11 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 
 export class PMNotificationController {
   static async getNotifications(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       
       const notifications = await prisma.notification.findMany({
         where: { userId },
@@ -31,7 +32,7 @@ export class PMNotificationController {
 
   static async markAllAsRead(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       await prisma.notification.updateMany({
         where: { userId, isRead: false },
         data: { isRead: true }

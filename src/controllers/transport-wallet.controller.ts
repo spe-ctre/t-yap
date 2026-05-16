@@ -1,6 +1,7 @@
-import { Response, NextFunction } from 'express';
+/// <reference path="../types/express.d.ts" />
+import { Request, Response, NextFunction } from 'express';
 import { TransportWalletService } from '../services/transport-wallet.service';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 
 export class TransportWalletController {
   /**
@@ -18,9 +19,9 @@ export class TransportWalletController {
    *       200:
    *         description: Balance retrieved successfully
    */
-  static async getBalance(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getBalance(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await TransportWalletService.getBalance(req.user.id);
+      const result = await TransportWalletService.getBalance(req.user!.id);
       res.json({
         success: true,
         statusCode: 200,
@@ -64,10 +65,10 @@ export class TransportWalletController {
    *       400:
    *         description: Invalid input or insufficient balance
    */
-  static async fund(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async fund(req: Request, res: Response, next: NextFunction) {
     try {
       const { amount, pin } = req.body;
-      const result = await TransportWalletService.fundTransportWallet(req.user.id, amount, pin);
+      const result = await TransportWalletService.fundTransportWallet(req.user!.id, amount, pin);
       res.json({
         success: true,
         statusCode: 200,
@@ -100,10 +101,10 @@ export class TransportWalletController {
    *       200:
    *         description: History retrieved successfully
    */
-  static async getHistory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getHistory(req: Request, res: Response, next: NextFunction) {
     try {
       const limit = parseInt((req.query.limit as string) || '20');
-      const result = await TransportWalletService.getHistory(req.user.id, limit);
+      const result = await TransportWalletService.getHistory(req.user!.id, limit);
       res.json({
         success: true,
         statusCode: 200,

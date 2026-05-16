@@ -1,13 +1,12 @@
 // src/middleware/role.middleware.ts
-import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from './auth.middleware';
+import { Request, Response, NextFunction } from 'express';
 import { UserRole } from '@prisma/client';
 
 /**
  * Middleware to check if user is an admin (PARK_MANAGER)
  */
 export const isAdmin = (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -38,7 +37,7 @@ export const isAdmin = (
  * Usage: hasRole('DRIVER', 'AGENT')
  */
 export const hasRole = (...allowedRoles: UserRole[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
       const userRole = req.user?.role;
 
@@ -64,7 +63,7 @@ export const hasRole = (...allowedRoles: UserRole[]) => {
  * Middleware to check if user is a driver
  */
 export const isDriver = (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -92,7 +91,7 @@ export const isDriver = (
  * Middleware to check if user is an agent
  */
 export const isAgent = (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -120,7 +119,7 @@ export const isAgent = (
  * Middleware to check if user is a passenger
  */
 export const requirePassenger = (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -154,7 +153,7 @@ export const requirePassenger = (
  * 1: PARK_MANAGER, AGENT
  */
 export const requireClearance = (minLevel: number) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
       if (!user) return res.status(401).json({ error: 'Unauthorized' });

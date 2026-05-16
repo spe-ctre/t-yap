@@ -1,6 +1,7 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 export class PMAuthController {
   static async deviceSetup(req: Request, res: Response) {
@@ -103,7 +104,7 @@ export class PMAuthController {
 
   static async completeProfile(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { firstName, lastName, parkId, email } = req.body;
 
       if (!firstName || !lastName || !parkId) {
@@ -152,7 +153,7 @@ export class PMAuthController {
 
   static async submitBiometric(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { biometricData } = req.body;
 
       if (!biometricData) return res.status(400).json({ error: 'Biometric data required' });

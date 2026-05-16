@@ -1,6 +1,8 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response } from 'express';
+
 import { prisma } from '../config/database';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { MonnifyService } from '../services/monnify.service';
 
 const monnifyService = new MonnifyService();
@@ -14,7 +16,7 @@ const monnifyService = new MonnifyService();
  */
 export const getDriverDashboard = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     // Get driver with related data
     const driver = await prisma.driver.findUnique({
@@ -132,7 +134,7 @@ export const getDriverDashboard = async (req: Request, res: Response) => {
  */
 export const checkIn = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const driver = await prisma.driver.findUnique({
       where: { userId },
@@ -171,7 +173,7 @@ export const checkIn = async (req: Request, res: Response) => {
  */
 export const checkOut = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const driver = await prisma.driver.findUnique({
       where: { userId },
@@ -226,7 +228,7 @@ export const checkOut = async (req: Request, res: Response) => {
  */
 export const startTrip = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { routeId, passengerId, fare } = req.body;
 
     // Validation
@@ -313,7 +315,7 @@ export const startTrip = async (req: Request, res: Response) => {
  */
 export const completeTrip = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { tripId } = req.params;
 
     const driver = await prisma.driver.findUnique({
@@ -341,56 +343,94 @@ export const completeTrip = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Trip already completed' });
     }
 
-    // Update trip
-    const updatedTrip = await prisma.trip.update({
-      where: { id: tripId },
-      data: {
-        status: 'COMPLETED',
-        arrivalTime: new Date(),
-      },
+    // Get passenger user record
+    const passenger = await prisma.passenger.findUnique({
+      where: { userId: trip.passengerId },
+      include: { user: true },
     });
 
-    // Create transaction for fare payment
-    const transaction = await prisma.transaction.create({
-      data: {
-        userId: driver.userId,
-        userType: 'DRIVER',
-        type: 'CREDIT',
-        category: 'FARE_PAYMENT',
-        amount: trip.fare,
-        balanceBefore: driver.walletBalance,
-        balanceAfter: driver.walletBalance.add(trip.fare),
-        status: 'SUCCESS',
-        reference: `FARE-${Date.now()}`,
-        description: `Fare payment for trip ${tripId}`,
-        tripId: trip.id,
-      },
-    });
+    if (!passenger || !passenger.user) {
+      return res.status(404).json({ error: 'Passenger not found' });
+    }
 
-    // Update driver wallet
-    await prisma.driver.update({
-      where: { id: driver.id },
-      data: {
-        walletBalance: {
-          increment: trip.fare,
+    if (Number(passenger.transportWalletBalance) < Number(trip.fare)) {
+      return res.status(400).json({ error: 'Passenger has insufficient transport wallet balance' });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update trip status
+      const updatedTrip = await tx.trip.update({
+        where: { id: tripId },
+        data: {
+          status: 'COMPLETED',
+          arrivalTime: new Date(),
         },
-      },
-    });
+      });
 
-    // Update user wallet
-    await prisma.user.update({
-      where: { id: driver.userId },
-      data: {
-        walletBalance: {
-          increment: Number(trip.fare),
+      // 2. Debit Passenger Transport Wallet (Fare only comes from here)
+      const updatedPassenger = await tx.passenger.update({
+        where: { userId: trip.passengerId },
+        data: {
+          transportWalletBalance: { decrement: Number(trip.fare) },
         },
-      },
+      });
+
+      // 3. Create Passenger Transaction (Debit from Transport Wallet)
+      await tx.transaction.create({
+        data: {
+          userId: passenger.userId,
+          userType: 'PASSENGER',
+          type: 'DEBIT',
+          category: 'FARE_PAYMENT',
+          amount: trip.fare,
+          balanceBefore: passenger.transportWalletBalance,
+          balanceAfter: updatedPassenger.transportWalletBalance,
+          status: 'SUCCESS',
+          reference: `FARE-OUT-${Date.now()}`,
+          description: `Fare payment from transport wallet for trip to ${trip.routeId}`,
+          tripId: trip.id,
+        },
+      });
+
+      // 4. Credit Driver (Both models for sync)
+      const updatedDriver = await tx.driver.update({
+        where: { id: driver.id },
+        data: {
+          walletBalance: { increment: trip.fare },
+        },
+      });
+
+      // 5. Sync Driver User Balance (The "Main" wallet)
+      await tx.user.update({
+        where: { id: driver.userId },
+        data: {
+          walletBalance: { increment: Number(trip.fare) },
+        },
+      });
+
+      // 6. Create Driver Transaction (Credit to Main Wallet)
+      const driverTransaction = await tx.transaction.create({
+        data: {
+          userId: driver.userId,
+          userType: 'DRIVER',
+          type: 'CREDIT',
+          category: 'FARE_PAYMENT',
+          amount: trip.fare,
+          balanceBefore: driver.walletBalance,
+          balanceAfter: Number(driver.walletBalance) + Number(trip.fare),
+          status: 'SUCCESS',
+          reference: `FARE-IN-${Date.now()}`,
+          description: `Fare received for trip ${tripId}`,
+          metadata: { tripId: trip.id },
+        },
+      });
+
+      return { updatedTrip, driverTransaction };
     });
 
     return res.json({
       message: 'Trip completed successfully',
-      trip: updatedTrip,
-      transaction,
+      data: result,
     });
   } catch (error) {
     console.error('Complete trip error:', error);
@@ -404,7 +444,7 @@ export const completeTrip = async (req: Request, res: Response) => {
  */
 export const getPassengerChecklist = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const driver = await prisma.driver.findUnique({
       where: { userId },
@@ -464,7 +504,7 @@ export const getPassengerChecklist = async (req: Request, res: Response) => {
  */
 export const getTransactions = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { page = '1', limit = '20', search, category, status } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -528,7 +568,7 @@ export const getTransactions = async (req: Request, res: Response) => {
  */
 export const getWallet = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const driver = await prisma.driver.findUnique({
       where: { userId },
@@ -565,7 +605,7 @@ export const getWallet = async (req: Request, res: Response) => {
  */
 export const addBankAccount = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { accountName, accountNumber, bankName, bankCode, accountType, isDefault } = req.body;
 
     // Validation
@@ -612,7 +652,7 @@ export const addBankAccount = async (req: Request, res: Response) => {
  */
 export const getBankAccounts = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const bankAccounts = await prisma.bankAccount.findMany({
       where: { userId },
@@ -632,7 +672,7 @@ export const getBankAccounts = async (req: Request, res: Response) => {
  */
 export const withdrawFunds = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { amount, bankAccountId, pin } = req.body;
 
     // Validation
@@ -785,7 +825,7 @@ export const withdrawFunds = async (req: Request, res: Response) => {
  */
 export const setTransactionPin = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { pin, confirmPin } = req.body;
 
     // Validation
@@ -831,7 +871,7 @@ export const setTransactionPin = async (req: Request, res: Response) => {
  */
 export const verifyTransactionPin = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { pin } = req.body;
 
     if (!pin) {
@@ -873,7 +913,7 @@ export const verifyTransactionPin = async (req: Request, res: Response) => {
  */
 export const getProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const driver = await prisma.driver.findUnique({
       where: { userId },
@@ -929,7 +969,7 @@ export const getProfile = async (req: Request, res: Response) => {
  */
 export const updateProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { firstName, lastName, profilePicture } = req.body;
 
     const driver = await prisma.driver.findUnique({

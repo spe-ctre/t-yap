@@ -1,7 +1,8 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { PushNotificationService } from '../services/push-notification.service';
 import { createError } from '../middleware/error.middleware';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 
 export class DeviceTokenController {
   private pushNotificationService: PushNotificationService;
@@ -24,7 +25,7 @@ export class DeviceTokenController {
       }
 
       const deviceToken = await this.pushNotificationService.registerDeviceToken(
-        (req as AuthenticatedRequest).user!.id,
+        req.user!.id,
         token,
         platform
       );
@@ -62,7 +63,7 @@ export class DeviceTokenController {
   // GET /api/device-tokens
   getTokens = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tokens = await this.pushNotificationService.getUserTokens((req as AuthenticatedRequest).user!.id);
+      const tokens = await this.pushNotificationService.getUserTokens(req.user!.id);
 
       res.json({
         success: true,

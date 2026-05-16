@@ -5,6 +5,7 @@ import { createError } from '../middleware/error.middleware';
 import { MonnifyService } from './monnify.service';
 import { TransactionType, TransactionCategory, TransactionStatus, UserRole } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { appCache } from './cache.service';
 
 /**
  * WalletService - Handles all wallet-related operations
@@ -30,29 +31,38 @@ export class WalletService {
    * Get the current wallet balance for a user
    */
   async getBalance(userId: string) {
-    const passenger = await prisma.passenger.findUnique({
-      where: { userId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            phoneNumber: true,
-            isEmailVerified: true
+    return appCache.getOrSet(
+      `wallet-balance:${userId}`,
+      async () => {
+        const passenger = await prisma.passenger.findUnique({
+          where: { userId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                phoneNumber: true,
+                role: true
+              }
+            }
           }
+        });
+
+        if (!passenger) {
+          throw createError('Passenger wallet not found', 404);
         }
-      }
-    });
 
-    if (!passenger) {
-      throw createError('Passenger record not found', 404);
-    }
-
-    return {
-      balance: Number(passenger.walletBalance),
-      currency: 'NGN',
-      user: passenger.user
-    };
+        return {
+          userId: passenger.userId,
+          balance: passenger.walletBalance.toNumber(),
+          currency: 'NGN',
+          role: passenger.user.role,
+          updatedAt: passenger.updatedAt
+        };
+      },
+      10, // 10s TTL
+      `user-wallet:${userId}`
+    );
   }
 
   /**

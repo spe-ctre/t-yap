@@ -1,19 +1,11 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
+
 import { AuthService } from '../services/auth.service';
 import { signupSchema, loginSchema, verifyCodeSchema, createPinSchema, changePasswordSchema, updatePinSchema, verifyPinSchema, resetPinSchema, forgotPasswordSchema, resetPasswordSchema, resendVerificationSchema } from '../utils/validation';
 import { createError } from '../middleware/error.middleware';
 import { getValidationErrorMessage } from '../utils/validation-error.util';
 
-/**
- * AuthenticatedRequest interface
- * Extends Express Request to include user information from JWT token
- */
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    role: string;
-  };
-}
 
 export class AuthController {
   private authService: AuthService;
@@ -71,7 +63,7 @@ export class AuthController {
    * POST /api/auth/verify
    * Requires authentication
    */
-  verifyCode = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  verifyCode = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = verifyCodeSchema.validate(req.body);
       if (error) {
@@ -97,7 +89,7 @@ export class AuthController {
    * POST /api/auth/create-pin
    * Requires authentication
    */
-  createPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  createPin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = createPinSchema.validate(req.body);
       if (error) {
@@ -105,14 +97,14 @@ export class AuthController {
         throw createError(message, 400);
       }
 
-      await this.authService.createTransactionPin(req.user.id, req.body.pin);
+      await this.authService.createTransactionPin(req.user!.id, req.body.pin);
       res.json({ success: true, statusCode: 200, message: 'Transaction PIN created successfully' });
     } catch (error) {
       next(error);
     }
   };
 
-  changePassword = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  changePassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = changePasswordSchema.validate(req.body);
       if (error) {
@@ -131,7 +123,7 @@ export class AuthController {
     }
   };
 
-  updatePin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  updatePin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = updatePinSchema.validate(req.body);
       if (error) {
@@ -150,7 +142,7 @@ export class AuthController {
     }
   };
 
-  verifyPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  verifyPin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = verifyPinSchema.validate(req.body);
       if (error) {
@@ -165,7 +157,7 @@ export class AuthController {
     }
   };
 
-  requestPinReset = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  requestPinReset = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await this.authService.requestPinReset(req.user!.id);
       res.json({ success: true, statusCode: 200, data: result });
@@ -174,7 +166,7 @@ export class AuthController {
     }
   };
 
-  resetPin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  resetPin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = resetPinSchema.validate(req.body);
       if (error) {

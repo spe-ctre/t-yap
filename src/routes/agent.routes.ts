@@ -17,6 +17,7 @@ import {
   createPassenger,
   capturePassengerBiometric,
   activatePassengerWallet,
+  getPassengerProfile,
   
   // Driver Registration
   createDriver,
@@ -90,6 +91,7 @@ router.get('/dashboard', authenticateToken, getAgentDashboard);
 router.post('/passengers/send-otp', authenticateToken, sendPassengerOTP);
 router.post('/passengers/verify-otp', authenticateToken, verifyPassengerOTP);
 router.post('/passengers', authenticateToken, createPassenger);
+router.get('/passengers/:passengerId', authenticateToken, getPassengerProfile);
 router.post('/passengers/:passengerId/biometric', authenticateToken, capturePassengerBiometric);
 router.post('/passengers/:passengerId/activate-wallet', authenticateToken, activatePassengerWallet);
 

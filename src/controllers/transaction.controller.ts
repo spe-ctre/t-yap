@@ -1,18 +1,9 @@
-// src/controllers/transaction.controller.ts
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { TransactionService } from '../services/transaction.service';
 import { createError } from '../middleware/error.middleware';
 
-/**
- * AuthenticatedRequest interface
- * This extends Express Request to include authenticated user information
- */
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    role: string;
-  };
-}
+
 
 export class TransactionController {
   private transactionService: TransactionService;
@@ -25,9 +16,9 @@ export class TransactionController {
    * Get all transactions for the authenticated user
    * GET /api/transactions
    */
-  getUserTransactions = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getUserTransactions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user!.id;
 
       // Get transactions from service
       const transactions = await this.transactionService.getUserTransactions(userId);
@@ -45,10 +36,10 @@ export class TransactionController {
    * Get a single transaction by reference
    * GET /api/transactions/:reference
    */
-  getTransactionByReference = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getTransactionByReference = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { reference } = req.params;
-      const userId = req.user.id;
+      const userId = req.user!.id;
 
       if (!reference) {
         throw createError('Transaction reference is required', 400);
@@ -74,10 +65,10 @@ export class TransactionController {
    * Create a new transaction (manual/internal usage)
    * POST /api/transactions
    */
-  createTransaction = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  createTransaction = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
-      const userType = req.user.role;
+      const userId = req.user!.id;
+      const userType = req.user!.role;
       const { type, category, amount, description, metadata } = req.body;
 
       // Validate required fields
@@ -114,10 +105,10 @@ export class TransactionController {
    * Process a wallet top-up
    * POST /api/transactions/topup
    */
-  processWalletTopup = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  processWalletTopup = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
-      const userType = req.user.role;
+      const userId = req.user!.id;
+      const userType = req.user!.role;
       const { reference, provider = 'monnify' } = req.body;
 
       if (!reference) {

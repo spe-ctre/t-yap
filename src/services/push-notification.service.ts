@@ -15,39 +15,23 @@ export class PushNotificationService {
 
   // Register a device token for push notifications
   async registerDeviceToken(userId: string, token: string, platform: 'ios' | 'android') {
-    // Check if token already exists
-    const existingToken = await prisma.deviceToken.findUnique({
-      where: { token },
-    });
+    const existingToken = await prisma.deviceToken.findUnique({ where: { token } });
 
     if (existingToken) {
-      // Update if it belongs to a different user or is inactive
       if (existingToken.userId !== userId || !existingToken.isActive) {
         await prisma.deviceToken.update({
           where: { token },
-          data: {
-            userId,
-            platform,
-            isActive: true,
-          },
+          data: { userId, platform, isActive: true },
         });
       }
       return existingToken;
     }
 
-    // Create new token
-    const deviceToken = await prisma.deviceToken.create({
-      data: {
-        userId,
-        token,
-        platform,
-      },
+    return prisma.deviceToken.create({
+      data: { userId, token, platform },
     });
-
-    return deviceToken;
   }
 
-  // Remove a device token (logout)
   async removeDeviceToken(token: string) {
     await prisma.deviceToken.update({
       where: { token },
@@ -55,110 +39,72 @@ export class PushNotificationService {
     });
   }
 
-  // Get all active tokens for a user
   async getUserTokens(userId: string) {
     return prisma.deviceToken.findMany({
-      where: {
-        userId,
-        isActive: true,
-      },
+      where: { userId, isActive: true },
     });
   }
 
-  // Send push notification to a specific user
+  /**
+   * Enhanced sendToUser with flexible arguments
+   */
   async sendToUser(
     userId: string,
-    notification: {
-      title: string;
-      body: string;
-      data?: Record<string, string>;
-    }
+    titleOrNotification: string | { title: string; body: string; data?: any },
+    body?: string,
+    data?: any
   ) {
+    const title = typeof titleOrNotification === 'string' ? titleOrNotification : titleOrNotification.title;
+    const finalBody = typeof titleOrNotification === 'string' ? body : titleOrNotification.body;
+    const finalData = typeof titleOrNotification === 'string' ? data : titleOrNotification.data;
+
     // Check if user has push notifications enabled
     const hasPushEnabled = await this.settingsService.hasNotificationEnabled(userId, 'push');
-    if (!hasPushEnabled) {
-      console.log(`Push notifications disabled for user ${userId}`);
-      return { success: false, reason: 'push_disabled' };
-    }
+    if (!hasPushEnabled) return { success: false, reason: 'push_disabled' };
 
-    // Get user's device tokens
     const tokens = await this.getUserTokens(userId);
+    if (tokens.length === 0) return { success: false, reason: 'no_tokens' };
 
-    if (tokens.length === 0) {
-      console.log(`No device tokens found for user ${userId}`);
-      return { success: false, reason: 'no_tokens' };
-    }
-
-    // Send to all user's devices
     const tokenStrings = tokens.map((t) => t.token);
     
     try {
-      // Get messaging instance (returns null if Firebase not initialized)
       const messagingInstance = messaging();
-      
       if (!messagingInstance) {
-        // Return a simulated success so flows don't break during testing without Firebase credentials
-        console.warn('⚠️  [SIMULATION] Push notification to tokens:', tokenStrings, 'Payload:', notification);
+        console.warn('⚠️  [SIMULATION] Push:', { to: userId, title, body: finalBody });
         return { success: true, reason: 'simulated' };
       }
       
       const response = await messagingInstance.sendEachForMulticast({
         tokens: tokenStrings,
-        notification: {
-          title: notification.title,
-          body: notification.body,
-        },
-        data: notification.data || {},
+        notification: { title, body: finalBody },
+        data: finalData || {},
         android: {
           priority: 'high',
-          notification: {
-            sound: 'default',
-            channelId: 'default',
-          },
+          notification: { sound: 'default', channelId: 'default' },
         },
         apns: {
-          payload: {
-            aps: {
-              sound: 'default',
-              badge: 1,
-            },
-          },
+          payload: { aps: { sound: 'default', badge: 1 } },
         },
       });
 
-      // Handle failed tokens (remove invalid ones)
       if (response.failureCount > 0) {
         const failedTokens: string[] = [];
         response.responses.forEach((resp, idx) => {
-          if (!resp.success) {
-            failedTokens.push(tokenStrings[idx]);
-          }
+          if (!resp.success) failedTokens.push(tokenStrings[idx]);
         });
-
-        // Deactivate failed tokens
         await prisma.deviceToken.updateMany({
           where: { token: { in: failedTokens } },
           data: { isActive: false },
         });
       }
 
-      return {
-        success: true,
-        successCount: response.successCount,
-        failureCount: response.failureCount,
-      };
+      return { success: true, successCount: response.successCount };
     } catch (error: any) {
-      // Handle Firebase not initialized gracefully
-      if (error?.message?.includes('Firebase is not initialized')) {
-        console.warn('Push notification skipped: Firebase not configured');
-        return { success: false, reason: 'firebase_not_configured' };
-      }
-      console.error('Error sending push notification:', error);
-      return { success: false, error: error?.message || 'Unknown error' };
+      console.error('Error sending push notification:', error.message);
+      return { success: false, error: error.message };
     }
   }
 
-  // Send notification with both in-app and push
   async sendNotification(
     userId: string,
     data: {
@@ -168,7 +114,6 @@ export class PushNotificationService {
       metadata?: any;
     }
   ) {
-    // Create in-app notification
     await this.notificationService.createNotification({
       userId,
       type: data.type,
@@ -177,32 +122,22 @@ export class PushNotificationService {
       metadata: data.metadata,
     });
 
-    // Send push notification
-    const pushResult = await this.sendToUser(userId, {
+    return this.sendToUser(userId, {
       title: data.title,
       body: data.message,
-      data: {
-        type: data.type,
-        ...data.metadata,
-      },
+      data: { type: data.type, ...data.metadata },
     });
-
-    return pushResult;
   }
 
-  // Broadcast to multiple users
   async sendToMultipleUsers(
     userIds: string[],
-    notification: {
-      title: string;
-      body: string;
-      data?: Record<string, string>;
-    }
+    notification: { title: string; body: string; data?: Record<string, string> }
   ) {
     const results = await Promise.allSettled(
       userIds.map((userId) => this.sendToUser(userId, notification))
     );
-
     return results;
   }
 }
+
+export const pushNotificationService = new PushNotificationService();

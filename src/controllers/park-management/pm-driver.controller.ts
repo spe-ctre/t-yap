@@ -1,10 +1,11 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 
 export class PMDriverController {
   static async getAllDrivers(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { status, page = '1', limit = '20' } = req.query;
 
       const parkManager = await prisma.parkManager.findUnique({ where: { userId } });

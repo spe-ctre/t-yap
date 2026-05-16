@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { AppError } from '../utils/errors';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 export class TransportWalletService {
   /**
@@ -59,13 +59,21 @@ export class TransportWalletService {
     const newTransportBalance = Number(passenger.transportWalletBalance) + amount;
 
     // Update balances
-    await prisma.passenger.update({
-      where: { userId },
-      data: {
-        walletBalance: newMainBalance,
-        transportWalletBalance: newTransportBalance,
-      },
-    });
+    await prisma.$transaction([
+      prisma.passenger.update({
+        where: { userId },
+        data: {
+          walletBalance: newMainBalance,
+          transportWalletBalance: newTransportBalance,
+        },
+      }),
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          walletBalance: newMainBalance,
+        },
+      }),
+    ]);
 
     // Create a transaction log for this internal transfer
     await prisma.transaction.create({

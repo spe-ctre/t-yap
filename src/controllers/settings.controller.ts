@@ -1,7 +1,8 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { SettingsService } from '../services/settings.service';
 import { createError } from '../middleware/error.middleware';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 
 export class SettingsController {
   private settingsService: SettingsService;
@@ -13,7 +14,7 @@ export class SettingsController {
   // GET /api/settings
   getSettings = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const settings = await this.settingsService.getUserSettings((req as AuthenticatedRequest).user!.id);
+      const settings = await this.settingsService.getUserSettings(req.user!.id);
       res.json({ success: true, data: settings });
     } catch (error) {
       next(error);
@@ -35,7 +36,7 @@ export class SettingsController {
       }
 
       const settings = await this.settingsService.updateNotificationSettings(
-        (req as AuthenticatedRequest).user!.id,
+        req.user!.id,
         { pushNotification, emailNotification, smsNotification }
       );
 
@@ -69,7 +70,7 @@ export class SettingsController {
       }
 
       const settings = await this.settingsService.updateGeneralSettings(
-        (req as AuthenticatedRequest).user!.id,
+        req.user!.id,
         { language, darkMode, biometricLogin }
       );
 

@@ -1,13 +1,17 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response } from 'express';
+
 import { prisma } from '../config/database';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { SMSService } from '../services/sms.service';
 import { BiometricService } from '../services/biometric.service';
 import { MonnifyService } from '../services/monnify.service';
+import { ProfileService } from '../services/profile.service';
 
 const smsService = new SMSService();
 const biometricService = new BiometricService();
 const monnifyService = new MonnifyService();
+const profileService = new ProfileService();
 
 // ============================================
 // AGENT AUTHENTICATION & ONBOARDING
@@ -196,7 +200,7 @@ export const verifyAgentRegistrationOTP = async (req: Request, res: Response) =>
  */
 export const completeAgentProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const {
       step,
       // Step 1: Personal Info
@@ -353,7 +357,7 @@ export const completeAgentProfile = async (req: Request, res: Response) => {
  */
 export const uploadAgentDocument = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { documentType, documentUrl, documentNumber } = req.body;
 
     if (!documentType || !documentUrl) {
@@ -406,7 +410,7 @@ export const uploadAgentDocument = async (req: Request, res: Response) => {
  */
 export const submitAgentBiometric = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { biometricData } = req.body;
 
     if (!biometricData) {
@@ -453,7 +457,7 @@ export const submitAgentBiometric = async (req: Request, res: Response) => {
  */
 export const getAgentDashboard = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const agent = await prisma.agent.findUnique({
       where: { userId },
@@ -679,7 +683,7 @@ export const verifyPassengerOTP = async (req: Request, res: Response) => {
  */
 export const createPassenger = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const {
       phoneNumber,
       firstName,
@@ -755,6 +759,41 @@ export const createPassenger = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get Passenger Profile Details
+ * GET /api/agent/passengers/:passengerId
+ */
+export const getPassengerProfile = async (req: Request, res: Response) => {
+  try {
+    const { passengerId } = req.params;
+
+    if (!passengerId) {
+      return res.status(400).json({ error: 'Passenger ID is required' });
+    }
+
+    const passenger = await prisma.passenger.findUnique({
+      where: { id: passengerId },
+      include: {
+        user: true
+      }
+    });
+
+    if (!passenger) {
+      return res.status(404).json({ error: 'Passenger not found' });
+    }
+
+    const profile = await profileService.getProfile(passenger.userId);
+
+    return res.json({
+      success: true,
+      data: profile
+    });
+  } catch (error) {
+    console.error('Get passenger profile error:', error);
+    return res.status(500).json({ error: 'Failed to fetch passenger profile' });
+  }
+};
+
+/**
  * Capture Passenger Biometric
  * POST /api/agent/passengers/:passengerId/biometric
  */
@@ -762,7 +801,7 @@ export const capturePassengerBiometric = async (req: Request, res: Response) => 
   try {
     const { passengerId } = req.params;
     const { biometricData, deviceId } = req.body;
-    const agentId = req.user?.id;
+    const agentId = req.user!.id;
 
     if (!biometricData) {
       return res.status(400).json({ error: 'Biometric data is required' });
@@ -808,7 +847,7 @@ export const capturePassengerBiometric = async (req: Request, res: Response) => 
  */
 export const activatePassengerWallet = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { passengerId } = req.params;
 
     // Verify agent exists and get their park
@@ -918,7 +957,7 @@ export const activatePassengerWallet = async (req: Request, res: Response) => {
  */
 export const createDriver = async (req: Request, res: Response) => {
   try {
-    const agentUserId = req.user?.id;
+    const agentUserId = req.user!.id;
     const {
       firstName,
       lastName,
@@ -1050,7 +1089,7 @@ export const captureDriverBiometric = async (req: Request, res: Response) => {
   try {
     const { driverId } = req.params;
     const { biometricData, deviceId } = req.body;
-    const agentUserId = req.user?.id;
+    const agentUserId = req.user!.id;
 
     if (!biometricData) {
       return res.status(400).json({ error: 'Biometric data is required' });
@@ -1103,7 +1142,7 @@ export const captureDriverBiometric = async (req: Request, res: Response) => {
 export const verifyDriver = async (req: Request, res: Response) => {
   try {
     const { driverId } = req.params;
-    const agentUserId = req.user?.id;
+    const agentUserId = req.user!.id;
 
     // Verify agent is authorized
     const agent = await prisma.agent.findUnique({ where: { userId: agentUserId } });
@@ -1189,7 +1228,7 @@ export const getAvailableParks = async (req: Request, res: Response) => {
  */
 export const getWalletBalance = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const agent = await prisma.agent.findUnique({
       where: { userId },
@@ -1222,7 +1261,7 @@ export const getWalletBalance = async (req: Request, res: Response) => {
  */
 export const topUpPassengerWallet = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { passengerId, amount, method } = req.body;
 
     // Validate input
@@ -1271,6 +1310,14 @@ export const topUpPassengerWallet = async (req: Request, res: Response) => {
       // 3. Credit Passenger's digital wallet
       const updatedPassenger = await tx.passenger.update({
         where: { id: passengerId },
+        data: {
+          walletBalance: { increment: amountToTransfer },
+        },
+      });
+
+      // 4. Sync Passenger's User record balance
+      await tx.user.update({
+        where: { id: passenger.userId },
         data: {
           walletBalance: { increment: amountToTransfer },
         },
@@ -1331,7 +1378,7 @@ export const topUpPassengerWallet = async (req: Request, res: Response) => {
  */
 export const withdrawEarnings = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { amount, bankAccountId, pin } = req.body;
 
     // Validate input
@@ -1470,7 +1517,7 @@ export const withdrawEarnings = async (req: Request, res: Response) => {
  */
 export const getTransactionHistory = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { page = '1', limit = '20', category, status } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -1520,7 +1567,7 @@ export const getTransactionHistory = async (req: Request, res: Response) => {
  */
 export const getEarningsBreakdown = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const agent = await prisma.agent.findUnique({
       where: { userId },
@@ -1618,7 +1665,7 @@ export const getEarningsBreakdown = async (req: Request, res: Response) => {
  */
 export const cashOut = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { amount, biometricData } = req.body;
 
     // Validate input
@@ -1704,7 +1751,7 @@ export const cashOut = async (req: Request, res: Response) => {
  */
 export const setTransactionPin = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { pin, confirmPin } = req.body;
 
     // Validate input
@@ -1754,7 +1801,7 @@ export const setTransactionPin = async (req: Request, res: Response) => {
  */
 export const verifyTransactionPin = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { pin } = req.body;
 
     if (!pin) {
@@ -1802,7 +1849,7 @@ export const verifyTransactionPin = async (req: Request, res: Response) => {
  */
 export const getAgentProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const agent = await prisma.agent.findUnique({
       where: { userId },
@@ -1823,26 +1870,11 @@ export const getAgentProfile = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
+    const profile = await profileService.getProfile(userId);
+
     return res.json({
-      id: agent.id,
-      firstName: agent.firstName,
-      lastName: agent.lastName,
-      businessName: agent.businessName,
-      email: agent.user.email,
-      phoneNumber: agent.user.phoneNumber,
-      agentCode: agent.agentCode,
-      bvn: agent.bvn,
-      nin: agent.nin,
-      residentialAddress: agent.residentialAddress,
-      state: agent.state,
-      lga: agent.lga,
-      terminalId: agent.terminalId,
-      kycStatus: agent.kycStatus,
-      isActive: agent.isActive,
-      commissionRate: agent.commissionRate,
-      walletBalance: agent.walletBalance,
-      park: agent.park,
-      createdAt: agent.createdAt,
+      success: true,
+      data: profile
     });
   } catch (error) {
     console.error('Get agent profile error:', error);
@@ -1856,7 +1888,7 @@ export const getAgentProfile = async (req: Request, res: Response) => {
  */
 export const updateAgentProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const {
       firstName,
       lastName,
@@ -1916,7 +1948,7 @@ export const updateAgentProfile = async (req: Request, res: Response) => {
  */
 export const getAssignedPark = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
 
     const agent = await prisma.agent.findUnique({
       where: { userId },
@@ -1942,7 +1974,7 @@ export const getAssignedPark = async (req: Request, res: Response) => {
  */
 export const switchPark = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { parkId } = req.body;
 
     if (!parkId) {
@@ -2035,7 +2067,7 @@ export const getSupportContact = async (req: Request, res: Response) => {
  */
 export const submitFaultReport = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user!.id;
     const { subject, message, category } = req.body;
 
     // Validate input

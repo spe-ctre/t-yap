@@ -1,21 +1,30 @@
 import { Router } from 'express';
 import { AdminController } from '../controllers/admin.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
-import { isAdmin } from '../middleware/role.middleware';
+import { requireClearance } from '../middleware/role.middleware';
 
 const router = Router();
 
-const auth = [authMiddleware as any, isAdmin as any];
+// Dashboard - Level 2 (Support and above)
+router.get('/dashboard-stats', authMiddleware as any, requireClearance(2) as any, AdminController.getDashboardStats as any);
 
-router.get('/dashboard-stats', ...auth, AdminController.getDashboardStats as any);
-router.get('/users', ...auth, AdminController.getAllUsers as any);
-router.get('/wallets', ...auth, AdminController.getAllWallets as any);
-router.get('/wallet-stats', ...auth, AdminController.getWalletStats as any);
-router.get('/tickets', ...auth, AdminController.getAllTickets as any);
-router.patch('/tickets/:id/resolve', ...auth, AdminController.resolveTicket as any);
-router.get('/kyc-pending', ...auth, AdminController.getPendingKYC as any);
-router.patch('/kyc/:agentId/approve', ...auth, AdminController.approveKYC as any);
-router.patch('/kyc/:agentId/reject', ...auth, AdminController.rejectKYC as any);
-router.get('/agents', ...auth, AdminController.getAgentPerformance as any);
+// User Management - Level 3 (Compliance/Operations and above)
+router.get('/users', authMiddleware as any, requireClearance(3) as any, AdminController.getAllUsers as any);
+
+// Financial Management - Level 4 (Finance and above)
+router.get('/wallets', authMiddleware as any, requireClearance(4) as any, AdminController.getAllWallets as any);
+router.get('/wallet-stats', authMiddleware as any, requireClearance(4) as any, AdminController.getWalletStats as any);
+
+// Support & Ticketing - Level 2 (Support and above)
+router.get('/tickets', authMiddleware as any, requireClearance(2) as any, AdminController.getAllTickets as any);
+router.patch('/tickets/:id/resolve', authMiddleware as any, requireClearance(2) as any, AdminController.resolveTicket as any);
+
+// Compliance & KYC - Level 3 (Compliance and above)
+router.get('/kyc-pending', authMiddleware as any, requireClearance(3) as any, AdminController.getPendingKYC as any);
+router.patch('/kyc/:agentId/approve', authMiddleware as any, requireClearance(3) as any, AdminController.approveKYC as any);
+router.patch('/kyc/:agentId/reject', authMiddleware as any, requireClearance(3) as any, AdminController.rejectKYC as any);
+
+// Operations - Level 3 (Operations and above)
+router.get('/agents', authMiddleware as any, requireClearance(3) as any, AdminController.getAgentPerformance as any);
 
 export default router;

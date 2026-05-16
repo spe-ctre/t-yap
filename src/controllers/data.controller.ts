@@ -1,5 +1,6 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 import { DataService } from '../services/data.service';
 import { createError } from '../middleware/error.middleware';
 import { getValidationErrorMessage } from '../utils/validation-error.util';
@@ -12,7 +13,7 @@ export class DataController {
     this.service = new DataService();
   }
 
-  getVariations = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getVariations = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = dataGetVariationsSchema.validate(req.query);
       if (error) {
@@ -28,7 +29,7 @@ export class DataController {
     }
   };
 
-  purchase = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  purchase = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = dataPurchaseSchema.validate(req.body);
       if (error) {
@@ -47,7 +48,7 @@ export class DataController {
     }
   };
 
-  history = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  history = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = dataHistorySchema.validate(req.query);
       if (error) {
@@ -65,7 +66,7 @@ export class DataController {
     }
   };
 
-  requery = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  requery = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = dataRequerySchema.validate(req.body);
       if (error) {

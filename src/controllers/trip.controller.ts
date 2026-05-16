@@ -1,8 +1,8 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
-import { UserRole } from '@prisma/client'; 
+import { UserRole, TripStatus } from '@prisma/client'; 
 import { TripService } from '../services/trip.service';
 import { createError } from '../middleware/error.middleware';
-import { TripStatus } from '@prisma/client';
 import {
   createTripSchema,
   tripIdParamSchema,
@@ -11,12 +11,7 @@ import {
 } from '../utils/validation';
 import { getValidationErrorMessage } from '../utils/validation-error.util';
 
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    role: string;
-  };
-}
+
 
 export class TripController {
   private tripService: TripService;
@@ -30,7 +25,7 @@ export class TripController {
    * Create a new trip booking
    */
   createTrip = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -54,7 +49,7 @@ export class TripController {
       } = req.body;
 
       // Use authenticated user as passenger
-      const passengerId = req.user.id;
+      const passengerId = req.user!.id;
 
       const trip = await this.tripService.createTrip({
         routeId,
@@ -87,7 +82,7 @@ export class TripController {
    * Get trip details
    */
   getTripDetails = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -117,7 +112,7 @@ export class TripController {
    * Update trip status
    */
   updateTripStatus = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -158,7 +153,7 @@ export class TripController {
    * Get trips for authenticated passenger
    */
   getMyTrips = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -169,7 +164,7 @@ export class TripController {
         throw createError(message, 400);
       }
 
-      const passengerId = req.user.id;
+      const passengerId = req.user!.id;
       const status = req.query.status as TripStatus | undefined;
       const limit = req.query.limit
         ? parseInt(req.query.limit as string)
@@ -204,13 +199,13 @@ export class TripController {
    * Get trips for authenticated driver
    */
   getDriverTrips = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
     try {
       // Verify user is a driver
-      if (req.user.role !== 'DRIVER') {
+      if (req.user!.role !== 'DRIVER') {
         throw createError('Only drivers can access this endpoint', 403);
       }
 
@@ -220,7 +215,7 @@ export class TripController {
         throw createError(message, 400);
       }
 
-      const driverId = req.user.id;
+      const driverId = req.user!.id;
       const status = req.query.status as TripStatus | undefined;
       const limit = req.query.limit
         ? parseInt(req.query.limit as string)
@@ -255,7 +250,7 @@ export class TripController {
    * Update current trip location (Pulse Heartbeat)
    */
   updateTripLocation = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {

@@ -1,6 +1,8 @@
 import { prisma } from '../config/database';
 import { NotificationType } from '@prisma/client';
 import { createError } from '../middleware/error.middleware';
+import { appCache } from './cache.service';
+import { queueService } from './queue.service';
 
 export class NotificationService {
   
@@ -8,38 +10,53 @@ export class NotificationService {
     const page = options.page || 1;
     const limit = options.limit || 20;
     const skip = (page - 1) * limit;
+    const cacheKey = `notifications:${userId}:${page}:${limit}:${options.unreadOnly || false}:${options.type || 'all'}`;
 
-    const where: any = { userId };
-    if (options.unreadOnly) {
-      where.isRead = false;
-    }
+    return appCache.getOrSet(
+      cacheKey,
+      async () => {
+        const where: any = { userId };
+        if (options.unreadOnly) {
+          where.isRead = false;
+        }
 
-    const [notifications, total] = await Promise.all([
-      prisma.notification.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.notification.count({ where })
-    ]);
+        const [notifications, total] = await Promise.all([
+          prisma.notification.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
+          }),
+          prisma.notification.count({ where })
+        ]);
 
-    return {
-      notifications,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
-    };
+        return {
+          notifications,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+          }
+        };
+      },
+      15, // 15s TTL for high-frequency polling
+      `user-notifications:${userId}`
+    );
   }
 
   async getUnreadCount(userId: string) {
-    const count = await prisma.notification.count({
-      where: { userId, isRead: false }
-    });
-    return { unreadCount: count };
+    return appCache.getOrSet(
+      `notifications-unread:${userId}`,
+      async () => {
+        const count = await prisma.notification.count({
+          where: { userId, isRead: false }
+        });
+        return { unreadCount: count };
+      },
+      15, // 15s TTL
+      `user-notifications:${userId}`
+    );
   }
 
   async markAsRead(userId: string, notificationId: string) {
@@ -56,6 +73,9 @@ export class NotificationService {
       data: { isRead: true }
     });
 
+    // Invalidate user notification caches
+    await appCache.invalidateNamespace(`user-notifications:${userId}`);
+
     return { message: 'Notification marked as read' };
   }
 
@@ -64,6 +84,9 @@ export class NotificationService {
       where: { userId, isRead: false },
       data: { isRead: true }
     });
+
+    // Invalidate user notification caches
+    await appCache.invalidateNamespace(`user-notifications:${userId}`);
 
     return { message: 'All notifications marked as read' };
   }
@@ -80,6 +103,9 @@ export class NotificationService {
     await prisma.notification.delete({
       where: { id: notificationId }
     });
+
+    // Invalidate user notification caches
+    await appCache.invalidateNamespace(`user-notifications:${userId}`);
 
     return { message: 'Notification deleted' };
   }
@@ -101,6 +127,18 @@ export class NotificationService {
         metadata: data.metadata || null
       }
     });
+
+    // Invalidate user notification caches
+    await appCache.invalidateNamespace(`user-notifications:${data.userId}`);
+
+    // Trigger REAL Push Notification in background
+    queueService.sendNotification({
+      userId: data.userId,
+      type: 'PUSH',
+      subject: data.title,
+      message: data.message,
+      metadata: data.metadata
+    }).catch(err => console.error('🔴 Failed to queue push notification:', err));
 
     return notification;
   }

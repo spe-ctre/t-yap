@@ -1,5 +1,6 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 import { TVSubscriptionService } from '../services/tv-subscription.service';
 import { createError } from '../middleware/error.middleware';
 import { getValidationErrorMessage } from '../utils/validation-error.util';
@@ -12,7 +13,7 @@ export class TVSubscriptionController {
     this.service = new TVSubscriptionService();
   }
 
-  getVariations = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getVariations = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = tvGetVariationsSchema.validate(req.query);
       if (error) {
@@ -28,7 +29,7 @@ export class TVSubscriptionController {
     }
   };
 
-  verifySmartcard = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  verifySmartcard = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = tvVerifySmartcardSchema.validate(req.body);
       if (error) {
@@ -47,7 +48,7 @@ export class TVSubscriptionController {
     }
   };
 
-  purchase = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  purchase = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = tvPurchaseSchema.validate(req.body);
       if (error) {
@@ -66,7 +67,7 @@ export class TVSubscriptionController {
     }
   };
 
-  history = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  history = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = tvHistorySchema.validate(req.query);
       if (error) {
@@ -84,7 +85,7 @@ export class TVSubscriptionController {
     }
   };
 
-  requery = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  requery = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = tvRequerySchema.validate(req.body);
       if (error) {

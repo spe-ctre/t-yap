@@ -2,56 +2,64 @@ import { prisma } from '../config/database';
 import { getCloudinary, isCloudinaryAvailable } from '../config/cloudinary';
 import { createError } from '../middleware/error.middleware';
 import { extractPublicIdFromUrl } from '../utils/file.util';
+import { appCache } from './cache.service';
 
 export class ProfileService {
   /**
    * Get user profile based on role
    */
   async getProfile(userId: string) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        passenger: true,
-        driver: true,
-        agent: true,
-        parkManager: true,
-        userSettings: true
-      }
-    });
+    return appCache.getOrSet(
+      `profile:${userId}`,
+      async () => {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          include: {
+            passenger: true,
+            driver: true,
+            agent: true,
+            parkManager: true,
+            userSettings: true
+          }
+        });
 
-    if (!user) {
-      throw createError('User not found', 404);
-    }
+        if (!user) {
+          throw createError('User not found', 404);
+        }
 
-    // Get role-specific profile
-    let profile = null;
-    if (user.role === 'PASSENGER' && user.passenger) {
-      profile = user.passenger;
-    } else if (user.role === 'DRIVER' && user.driver) {
-      profile = user.driver;
-    } else if (user.role === 'AGENT' && user.agent) {
-      profile = user.agent;
-    } else if (user.role === 'PARK_MANAGER' && user.parkManager) {
-      profile = user.parkManager;
-    }
+        // Get role-specific profile
+        let profile = null;
+        if (user.role === 'PASSENGER' && user.passenger) {
+          profile = user.passenger;
+        } else if (user.role === 'DRIVER' && user.driver) {
+          profile = user.driver;
+        } else if (user.role === 'AGENT' && user.agent) {
+          profile = user.agent;
+        } else if (user.role === 'PARK_MANAGER' && user.parkManager) {
+          profile = user.parkManager;
+        }
 
-    return {
-      id: user.id,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      role: user.role,
-      isEmailVerified: user.isEmailVerified,
-      isPhoneVerified: user.isPhoneVerified,
-      profile,
-      settings: user.userSettings,
-      virtualAccount: {
-        accountNumber: user.phoneNumber.replace('+', '').substring(0, 10), // Fallback: use part of phone number
-        bankName: "Wema Bank (T-Yap)",
-        accountName: profile ? `${(profile as any).firstName} ${(profile as any).lastName}` : "T-Yap User"
+        return {
+          id: user.id,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          role: user.role,
+          isEmailVerified: user.isEmailVerified,
+          isPhoneVerified: user.isPhoneVerified,
+          profile,
+          settings: user.userSettings,
+          virtualAccount: {
+            accountNumber: user.phoneNumber.replace('+', '').substring(0, 10),
+            bankName: "Wema Bank (T-Yap)",
+            accountName: profile ? `${(profile as any).firstName} ${(profile as any).lastName}` : "T-Yap User"
+          },
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        };
       },
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
-    };
+      60, // 1 minute TTL
+      'profiles'
+    );
   }
 
   /**
@@ -123,6 +131,9 @@ export class ProfileService {
         }
       });
     }
+
+    // Invalidate profile cache after update
+    await appCache.delete(`profile:${userId}`);
 
     return this.getProfile(userId);
   }

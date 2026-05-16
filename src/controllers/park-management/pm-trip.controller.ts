@@ -1,10 +1,11 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 
 export class PMTripController {
   static async getAvailableVehicles(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { destination } = req.query;
       if (!destination) return res.status(400).json({ error: 'Destination is required' });
 
@@ -91,7 +92,7 @@ export class PMTripController {
         try {
           const { RevenueService, RevenueType } = require('../../services/admin/revenue.service');
           // Fetch the PM ID of the manager performing the check-in
-          const currentPM = await tx.parkManager.findUnique({ where: { userId: (req as any).user?.id } });
+          const currentPM = await tx.parkManager.findUnique({ where: { userId: req.user!.id } });
           
           await RevenueService.processRevenue(RevenueType.TRIP_FARE, fare, {
             tripId,

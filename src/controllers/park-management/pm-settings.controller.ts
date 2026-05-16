@@ -1,11 +1,12 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 export class PMSettingsController {
   static async getParkDetails(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const parkManager = await prisma.parkManager.findUnique({
         where: { userId },
         include: { park: true },
@@ -22,7 +23,7 @@ export class PMSettingsController {
 
   static async updateParkSettings(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { commissionRate } = req.body;
 
       const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
@@ -58,7 +59,7 @@ export class PMSettingsController {
   }
   static async setTransactionPin(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { pin } = req.body;
 
       if (!pin || pin.length !== 4) {

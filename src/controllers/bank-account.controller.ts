@@ -1,7 +1,6 @@
-// src/controllers/bank-account.controller.ts
-
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 import { BankAccountService } from '../services/bank-account.service';
 import { AppError } from '../utils/errors';
 import { BankAccountType } from '@prisma/client';
@@ -63,9 +62,9 @@ export class BankAccountController {
    * POST /api/bank-accounts
    * Add a new bank account
    */
-  static async addBankAccount(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async addBankAccount(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { accountNumber, bankCode, accountType } = req.body;
 
       if (!accountNumber || !bankCode) {
@@ -103,9 +102,9 @@ export class BankAccountController {
    * GET /api/bank-accounts
    * Get all bank accounts for authenticated user
    */
-  static async getUserBankAccounts(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getUserBankAccounts(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
 
       const bankAccounts = await BankAccountService.getUserBankAccounts(userId!);
 
@@ -125,9 +124,9 @@ export class BankAccountController {
    * GET /api/bank-accounts/:accountId
    * Get a single bank account
    */
-  static async getBankAccountById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getBankAccountById(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { accountId } = req.params;
 
       if (!accountId) {
@@ -152,9 +151,9 @@ export class BankAccountController {
    * GET /api/bank-accounts/default
    * Get default bank account
    */
-  static async getDefaultBankAccount(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getDefaultBankAccount(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
 
       const defaultAccount = await BankAccountService.getDefaultBankAccount(userId!);
 
@@ -171,9 +170,9 @@ export class BankAccountController {
    * PATCH /api/bank-accounts/:accountId/set-default
    * Set a bank account as default
    */
-  static async setDefaultBankAccount(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async setDefaultBankAccount(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { accountId } = req.params;
 
       if (!accountId) {
@@ -198,9 +197,9 @@ export class BankAccountController {
    * DELETE /api/bank-accounts/:accountId
    * Delete a bank account
    */
-  static async deleteBankAccount(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async deleteBankAccount(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user!.id;
       const { accountId } = req.params;
 
       if (!accountId) {

@@ -1,11 +1,12 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 export class PMWalletController {
   static async getWallet(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const parkManager = await prisma.parkManager.findUnique({
         where: { userId },
         include: { park: true },
@@ -87,7 +88,7 @@ export class PMWalletController {
 
   static async getPendingSettlements(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
       if (!parkManager) return res.status(404).json({ error: 'Park Manager not found' });
 
@@ -151,7 +152,7 @@ export class PMWalletController {
   static async approveSettlement(req: Request, res: Response) {
     try {
       const { settlementId, biometricToken } = req.body;
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
 
       if (!settlementId || !biometricToken) {
         return res.status(400).json({ error: 'Settlement ID and biometric approval required' });
@@ -238,7 +239,7 @@ export class PMWalletController {
 
   static async withdrawFunds(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { amount, pin, bankAccountId } = req.body;
 
       if (!amount || !pin) return res.status(400).json({ error: 'Amount and PIN are required' });

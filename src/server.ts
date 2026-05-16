@@ -13,6 +13,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/auth.routes';
 import walletRoutes from './routes/wallet.routes';
@@ -50,19 +51,44 @@ import legalRoutes from './routes/legal.routes';
 import kycRoutes from './routes/kyc.routes';
 import referralRoutes from './routes/referral.routes';
 import transportWalletRoutes from './routes/transport-wallet.routes';
+import { requestTimeout } from './middleware/timeout.middleware';
+import { disconnectPrisma, prisma } from './config/database';
+import { appCache } from './services/cache.service';
+import { startWorkers } from './workers';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Rate limiting
+// Rate limiting (Distributed if Redis is available)
+const redisClient = appCache.getRedisClient();
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100')
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: redisClient 
+    ? new RedisStore({
+        // @ts-expect-error - ioredis and rate-limit-redis version compatibility
+        sendCommand: (...args: string[]) => redisClient.call(...args),
+      })
+    : undefined, // Falls back to MemoryStore if Redis is down
 });
 
-// Middleware
+// === PERFORMANCE MIDDLEWARE ===
+
+// Security headers
 app.use(helmet());
 
+// Response compression (if installed)
+try {
+  const compression = require('compression');
+  app.use(compression({ level: 6, threshold: 1024 }));
+  console.log('📦 Response compression enabled');
+} catch {
+  console.log('⚠️  compression package not installed — responses will be uncompressed');
+}
+
+// CORS
 const allowedOrigins = [
   'https://t-yap-d0rj.onrender.com',
   'https://tyap-admin.vercel.app',
@@ -83,8 +109,16 @@ app.use(cors({
   credentials: true
 }));
 
+// Rate limiting
 app.use(limiter);
+
+// Request timeout (30 seconds default, configurable via env)
+const timeoutMs = parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10);
+app.use(requestTimeout(timeoutMs));
+
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
@@ -128,9 +162,35 @@ app.use('/api/kyc', kycRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/transport-wallet', transportWalletRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+// Enhanced health check — verifies DB connectivity + system metrics
+app.get('/health', async (req, res) => {
+  const startTime = Date.now();
+  let dbStatus = 'OK';
+  let dbLatencyMs = 0;
+
+  try {
+    const dbStart = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    dbLatencyMs = Date.now() - dbStart;
+  } catch {
+    dbStatus = 'UNHEALTHY';
+  }
+
+  const memUsage = process.memoryUsage();
+
+  res.json({
+    status: dbStatus === 'OK' ? 'OK' : 'DEGRADED',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()) + 's',
+    database: { status: dbStatus, latencyMs: dbLatencyMs },
+    memory: {
+      heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+      rssMB: Math.round(memUsage.rss / 1024 / 1024),
+    },
+    cache: appCache.getStats(),
+    responseTimeMs: Date.now() - startTime,
+  });
 });
 
 // 404 handler - Must be before error handler
@@ -181,6 +241,10 @@ async function bootstrapSuperAdmin() {
 // Start server with error handling
 const server = app.listen(PORT, async () => {
   await bootstrapSuperAdmin();
+  
+  // Start background workers
+  startWorkers();
+  
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Balance reconciliation routes available at /api/balance`);
   console.log(`📈 Analytics routes available at /api/analytics`);
@@ -189,12 +253,54 @@ const server = app.listen(PORT, async () => {
   console.log(`📖 API Documentation available at http://localhost:${PORT}/api-docs`);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
-  });
+// === GRACEFUL SHUTDOWN ===
+const SHUTDOWN_TIMEOUT_MS = 10000; // 10s hard limit
+
+async function gracefulShutdown(signal: string) {
+  console.log(`\n🛑 ${signal} received — starting graceful shutdown...`);
+
+  // Hard timeout: force exit if shutdown takes too long
+  const forceExit = setTimeout(() => {
+    console.error('❌ Shutdown timed out, forcing exit');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  forceExit.unref();
+
+  try {
+    // 1. Stop accepting new connections
+    await new Promise<void>((resolve) => {
+      server.close(() => {
+        console.log('✅ HTTP server closed (no new connections)');
+        resolve();
+      });
+    });
+
+    // 2. Disconnect Prisma (drain connection pool)
+    await disconnectPrisma();
+
+    // 3. Destroy cache
+    appCache.destroy();
+    console.log('✅ Cache cleared');
+
+    console.log('🏁 Graceful shutdown complete');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Catch unhandled errors to prevent silent crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔴 Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('🔴 Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
 });
 
 export default app;

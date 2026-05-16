@@ -1,10 +1,11 @@
-import { Response } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+/// <reference path="../types/express.d.ts" />
+import { Request, Response } from 'express';
+
 import { prisma } from '../config/database';
 import { logAction } from './auditLog.controller';
 
 export class AdminController {
-  static getDashboardStats = async (req: AuthenticatedRequest, res: Response) => {
+  static getDashboardStats = async (req: Request, res: Response) => {
     try {
       const [totalUsers, totalAgents, pendingKYC, openTickets, totalTransactions] = await Promise.all([
         prisma.user.count(),
@@ -27,7 +28,7 @@ export class AdminController {
     }
   };
 
-  static getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
+  static getAllUsers = async (req: Request, res: Response) => {
     try {
       const users = await prisma.user.findMany({
         select: { id: true, email: true, phoneNumber: true, role: true, isEmailVerified: true, isPhoneVerified: true, createdAt: true },
@@ -41,7 +42,7 @@ export class AdminController {
     }
   };
 
-  static getAllWallets = async (req: AuthenticatedRequest, res: Response) => {
+  static getAllWallets = async (req: Request, res: Response) => {
     try {
       const users = await prisma.user.findMany({
         select: { id: true, email: true, role: true, walletBalance: true },
@@ -56,7 +57,7 @@ export class AdminController {
     }
   };
 
-  static getWalletStats = async (req: AuthenticatedRequest, res: Response) => {
+  static getWalletStats = async (req: Request, res: Response) => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -89,7 +90,7 @@ export class AdminController {
     }
   };
 
-  static getAllTickets = async (req: AuthenticatedRequest, res: Response) => {
+  static getAllTickets = async (req: Request, res: Response) => {
     try {
       const tickets = await prisma.supportTicket.findMany({
         include: { user: { select: { email: true, phoneNumber: true } } },
@@ -103,7 +104,7 @@ export class AdminController {
     }
   };
 
-  static resolveTicket = async (req: AuthenticatedRequest, res: Response) => {
+  static resolveTicket = async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const { resolutionNote } = req.body;
@@ -125,7 +126,7 @@ export class AdminController {
     }
   };
 
-  static getPendingKYC = async (req: AuthenticatedRequest, res: Response) => {
+  static getPendingKYC = async (req: Request, res: Response) => {
     try {
       const agents = await prisma.agent.findMany({
         where: { kycStatus: 'PENDING' },
@@ -140,7 +141,7 @@ export class AdminController {
     }
   };
 
-  static approveKYC = async (req: AuthenticatedRequest, res: Response) => {
+  static approveKYC = async (req: Request, res: Response) => {
     try {
       const { agentId } = req.params;
       const agent = await prisma.agent.update({
@@ -155,7 +156,7 @@ export class AdminController {
     }
   };
 
-  static rejectKYC = async (req: AuthenticatedRequest, res: Response) => {
+  static rejectKYC = async (req: Request, res: Response) => {
     try {
       const { agentId } = req.params;
       const { reason } = req.body;
@@ -176,7 +177,7 @@ export class AdminController {
     }
   };
 
-  static getAgentPerformance = async (req: AuthenticatedRequest, res: Response) => {
+  static getAgentPerformance = async (req: Request, res: Response) => {
     try {
       const agents = await prisma.agent.findMany({
         where: { isActive: true },

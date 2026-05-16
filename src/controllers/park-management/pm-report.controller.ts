@@ -1,10 +1,11 @@
+/// <reference path="../../types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 
 export class PMReportController {
   static async getRevenueReport(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { startDate, endDate } = req.query;
 
       const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
@@ -37,7 +38,7 @@ export class PMReportController {
 
   static async getTripReport(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user!.id;
       const { startDate, endDate } = req.query;
 
       const parkManager = await prisma.parkManager.findUnique({ where: { userId } });

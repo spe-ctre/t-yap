@@ -1,19 +1,9 @@
-// src/controllers/wallet.controller.ts
-
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { WalletService } from '../services/wallet.service';
 import { createError } from '../middleware/error.middleware';
 
-/**
- * AuthenticatedRequest interface
- * Extends Express Request to include user information from JWT token
- */
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    role: string;
-  };
-}
+
 
 /**
  * WalletController - Handles HTTP requests related to wallets
@@ -29,10 +19,10 @@ export class WalletController {
    * GET /api/wallet/balance
    * Get wallet balance
    */
-  getBalance = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getBalance = async (req: Request, res: Response, next: NextFunction) => {
     try {
       console.log('REQ.USER CONTENT:', req.user);
-      const userId = req.user.id;
+      const userId = req.user!.id;
 
       const result = await this.walletService.getBalance(userId);
 
@@ -50,9 +40,9 @@ export class WalletController {
    * GET /api/wallet/transactions
    * Get transaction history
    */
-  getTransactionHistory = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getTransactionHistory = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user!.id;
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = parseInt(req.query.offset as string) || 0;
 
@@ -72,9 +62,9 @@ export class WalletController {
    * POST /api/wallet/topup/initialize
    * Initialize wallet top-up
    */
-  initializeTopUp = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  initializeTopUp = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user!.id;
       const { amount } = req.body;
 
       // Validate amount
@@ -98,9 +88,9 @@ export class WalletController {
    * POST /api/wallet/topup/verify
    * Verify and complete top-up transaction
    */
-  verifyTopUp = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  verifyTopUp = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user!.id;
       const { transactionReference } = req.body;
 
       if (!transactionReference) {
@@ -122,9 +112,9 @@ export class WalletController {
    * GET /api/wallet/topup/status/:reference
    * Get top-up transaction status
    */
-  getTopUpStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getTopUpStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user!.id;
       const { reference } = req.params;
 
       if (!reference) {
@@ -145,9 +135,9 @@ export class WalletController {
    * GET /api/wallet/transport/balance
    * Get transport wallet balance
    */
-  getTransportBalance = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  getTransportBalance = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user!.id;
       const { prisma } = require('../config/database');
       const passenger = await prisma.passenger.findUnique({
         where: { userId },
@@ -168,9 +158,9 @@ export class WalletController {
    * POST /api/wallet/transport/fund
    * Fund transport wallet from main wallet
    */
-  fundTransportWallet = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  fundTransportWallet = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user.id;
+      const userId = req.user!.id;
       const { amount, pin } = req.body;
       if (!amount || !pin) throw createError('Amount and PIN are required', 400);
       if (amount <= 0) throw createError('Amount must be greater than 0', 400);

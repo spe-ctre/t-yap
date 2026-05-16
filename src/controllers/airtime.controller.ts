@@ -1,5 +1,6 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
 import { AirtimeService } from '../services/airtime.service';
 import { createError } from '../middleware/error.middleware';
 import { getValidationErrorMessage } from '../utils/validation-error.util';
@@ -12,7 +13,7 @@ export class AirtimeController {
     this.service = new AirtimeService();
   }
 
-  purchase = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  purchase = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = airtimePurchaseSchema.validate(req.body);
       if (error) {
@@ -31,7 +32,7 @@ export class AirtimeController {
     }
   };
 
-  history = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  history = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = airtimeHistorySchema.validate(req.query);
       if (error) {
@@ -49,7 +50,7 @@ export class AirtimeController {
     }
   };
 
-  requery = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  requery = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { error } = airtimeRequerySchema.validate(req.body);
       if (error) {

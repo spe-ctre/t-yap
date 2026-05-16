@@ -1,3 +1,4 @@
+/// <reference path="../types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { TRideService } from '../services/t-ride.service';
 import { createError } from '../middleware/error.middleware';
@@ -8,12 +9,7 @@ import {
 } from '../utils/validation';
 import { getValidationErrorMessage } from '../utils/validation-error.util';
 
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    role: string;
-  };
-}
+
 
 export class TRideController {
   private tRideService: TRideService;
@@ -27,7 +23,7 @@ export class TRideController {
    * Get nearby parks with available vehicles
    */
   getNearbyParks = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -65,7 +61,7 @@ export class TRideController {
    * Get park details
    */
   getParkDetails = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -95,7 +91,7 @@ export class TRideController {
    * Get available vehicles at a park
    */
   getAvailableVehiclesAtPark = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -125,7 +121,7 @@ export class TRideController {
    * Get vehicle details
    */
   getVehicleDetails = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {
@@ -155,7 +151,7 @@ export class TRideController {
    * Get parks with vehicles ready for onboarding
    */
   getParksWithAvailableVehicles = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction
   ) => {

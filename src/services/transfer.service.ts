@@ -3,7 +3,7 @@
 import { prisma } from '../config/database';
 import { TransactionStatus, TransactionType, TransactionCategory, UserRole, TransferStatus } from '@prisma/client';
 import { AppError } from '../utils/errors';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { logAction } from '../controllers/auditLog.controller';
 import { PushNotificationService } from './push-notification.service';
