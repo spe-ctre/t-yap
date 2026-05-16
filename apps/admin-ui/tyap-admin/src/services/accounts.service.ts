@@ -1,6 +1,6 @@
 import { AuthService } from './auth.service';
 
-const API_URL = 'https://t-yap-d0rj.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 export const accountsService = {
   getAllUsers: async () => {
