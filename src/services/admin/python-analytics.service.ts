@@ -9,7 +9,7 @@ import { prisma } from '../../config/database';
  * All calls have a 3-second timeout to prevent dashboard hangs.
  */
 export class PythonAnalyticsService {
-  private static readonly PYTHON_API_URL = 'http://127.0.0.1:8001/api/analytics';
+  private static readonly PYTHON_API_URL = process.env.PYTHON_ANALYTICS_URL || 'https://tyap-analytics-engine.onrender.com/api/analytics';
   private static readonly TIMEOUT = 3000; // 3 second timeout
 
   /**
