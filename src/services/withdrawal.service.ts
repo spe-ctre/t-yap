@@ -69,7 +69,7 @@ export class WithdrawalService {
     }
 
     // Start transaction to ensure atomicity
-    const dbResult = await prisma.$transaction(async (tx) => {
+    const dbResult = await prisma.$transaction(async (tx: any) => {
       // 2. Get bank account (default or specified)
       let bankAccount;
       if (bankAccountId) {

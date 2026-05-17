@@ -25,7 +25,7 @@ export class BalanceReconciliationService {
   ): Promise<ReconciliationResult> {
     // Get user's profile based on type
     let currentBalance = 0;
-    let userProfile = null;
+    let userProfile: any = null;
 
     switch (userType) {
       case UserRole.PASSENGER:

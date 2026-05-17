@@ -15,6 +15,9 @@ import Revenue from './pages/revenue/Revenue';
 import Support from './pages/support/Support';
 import TwoFactorSetup from './pages/settings/TwoFactorSetup';
 import AuditLog from './pages/audit/AuditLog';
+import Ledger from './pages/ledger/Ledger';
+import Settlements from './pages/settlements/Settlements';
+import Compliance from './pages/compliance/Compliance';
 
 function App() {
   return (
@@ -31,11 +34,14 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute page="dashboard"><Layout><Dashboard /></Layout></ProtectedRoute>} />
           <Route path="/accounts" element={<ProtectedRoute page="accounts"><Layout><Accounts /></Layout></ProtectedRoute>} />
           <Route path="/wallets" element={<ProtectedRoute page="wallets"><Layout><Wallets /></Layout></ProtectedRoute>} />
+          <Route path="/ledger" element={<ProtectedRoute page="ledger"><Layout><Ledger /></Layout></ProtectedRoute>} />
+          <Route path="/settlements" element={<ProtectedRoute page="settlements"><Layout><Settlements /></Layout></ProtectedRoute>} />
           <Route path="/transport" element={<ProtectedRoute page="transport"><Layout><Transport /></Layout></ProtectedRoute>} />
           <Route path="/revenue" element={<ProtectedRoute page="revenue"><Layout><Revenue /></Layout></ProtectedRoute>} />
           <Route path="/support" element={<ProtectedRoute page="support"><Layout><Support /></Layout></ProtectedRoute>} />
           <Route path="/settings/2fa" element={<ProtectedRoute><Layout><TwoFactorSetup /></Layout></ProtectedRoute>} />
           <Route path="/audit-log" element={<ProtectedRoute page="audit-log"><Layout><AuditLog /></Layout></ProtectedRoute>} />
+          <Route path="/compliance" element={<ProtectedRoute page="compliance"><Layout><Compliance /></Layout></ProtectedRoute>} />
 
           {/* Redirect root to login */}
           <Route path="/" element={<Navigate to="/login" replace />} />

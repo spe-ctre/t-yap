@@ -42,6 +42,7 @@ import driverRoutes from './routes/driver.routes';
 import agentRoutes from './routes/agent.routes';
 import parkManagementRoutes from './routes/park-management.routes';
 import adminRoutes from './routes/admin.routes';
+import adminFinanceRoutes from './routes/admin-finance.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { specs } from './config/swagger';
 import { setupCronJobs } from './jobs/cron-jobs';
@@ -155,6 +156,7 @@ app.use('/api/driver', driverRoutes);
 app.use('/api/agent', agentRoutes);
 app.use('/api/park-management', parkManagementRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/finance', adminFinanceRoutes);
 app.use('/api/2fa', twoFactorRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/legal', legalRoutes);
@@ -219,7 +221,7 @@ async function bootstrapSuperAdmin() {
     const bcrypt = await import('bcryptjs');
     const existing = await prisma.user.findFirst({ where: { email: 'superadmin@tyap.com' } });
     if (!existing) {
-      const hashedPassword = await bcrypt.hash('SuperAdmin123!', 12);
+      const hashedPassword = await bcrypt.hash('SuperAdmin123!', 10);
       await prisma.user.create({
         data: {
           email: 'superadmin@tyap.com',

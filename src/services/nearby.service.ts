@@ -21,7 +21,7 @@ export class NearbyService {
     });
 
     const parksWithDistance = parks
-      .map((park) => {
+      .map((park: any) => {
         const parkLat = Number(park.latitude);
         const parkLng = Number(park.longitude);
         
@@ -43,8 +43,8 @@ export class NearbyService {
           distance: Math.round(distance * 10) / 10 
         };
       })
-      .filter((park) => park.distance <= radiusKm)
-      .sort((a, b) => a.distance - b.distance);
+      .filter((park: any) => park.distance <= radiusKm)
+      .sort((a: any, b: any) => a.distance - b.distance);
 
     return {
       parks: parksWithDistance,

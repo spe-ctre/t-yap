@@ -3,16 +3,21 @@ import { Request, Response } from 'express';
 
 import { prisma } from '../config/database';
 import { logAction } from './auditLog.controller';
+import { PythonAnalyticsService } from '../services/admin/python-analytics.service';
 
 export class AdminController {
   static getDashboardStats = async (req: Request, res: Response) => {
     try {
-      const [totalUsers, totalAgents, pendingKYC, openTickets, totalTransactions] = await Promise.all([
+      const period = (req.query.period as string) || 'monthly';
+      const [totalUsers, totalAgents, pendingKYC, openTickets, totalTransactions, pythonStats, revenueSplit, healthTrends] = await Promise.all([
         prisma.user.count(),
         prisma.agent.count({ where: { isActive: true } }),
         prisma.agent.count({ where: { kycStatus: 'PENDING' } }),
         prisma.supportTicket.count({ where: { status: 'OPEN' } }),
         prisma.transaction.aggregate({ _sum: { amount: true }, where: { status: 'SUCCESS' } }),
+        PythonAnalyticsService.getDeltaStats(),
+        PythonAnalyticsService.getRevenueSplit(),
+        PythonAnalyticsService.getSystemHealthTrend(period)
       ]);
       await logAction(req.user!.id, 'VIEWED_DASHBOARD_STATS');
       res.json({
@@ -20,6 +25,9 @@ export class AdminController {
         data: {
           totalUsers, totalAgents, pendingKYC, openTickets,
           totalTransactionVolume: totalTransactions._sum.amount || 0,
+          analytics: pythonStats.data,
+          revenueSplit: revenueSplit.data,
+          healthTrends: healthTrends.data
         }
       });
     } catch (error) {
@@ -48,7 +56,7 @@ export class AdminController {
         select: { id: true, email: true, role: true, walletBalance: true },
         orderBy: { walletBalance: 'desc' },
       });
-      const totalBalance = users.reduce((sum, user) => sum + user.walletBalance, 0);
+      const totalBalance = users.reduce((sum: number, user: any) => sum + user.walletBalance, 0);
       await logAction(req.user!.id, 'VIEWED_ALL_WALLETS', `Total balance: ${totalBalance}`);
       res.json({ success: true, data: { wallets: users, totalBalance } });
     } catch (error) {

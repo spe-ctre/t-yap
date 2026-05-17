@@ -357,7 +357,7 @@ export const completeTrip = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Passenger has insufficient transport wallet balance' });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Update trip status
       const updatedTrip = await tx.trip.update({
         where: { id: tripId },

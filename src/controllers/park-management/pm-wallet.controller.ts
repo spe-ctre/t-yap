@@ -19,7 +19,7 @@ export class PMWalletController {
         where: { route: { originParkId: parkManager.parkId } },
         select: { id: true }
       });
-      const tripIds = parkTrips.map(t => t.id);
+      const tripIds = parkTrips.map((t: any) => t.id);
 
       // Step 2: Aggregate transactions for these trips
       const parkRevenue = await prisma.transaction.aggregate({
@@ -51,7 +51,7 @@ export class PMWalletController {
       const { passengerId, amount } = req.body;
       if (!passengerId || !amount || amount <= 0) return res.status(400).json({ error: 'Valid passenger ID and amount required' });
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: any) => {
         const passenger = await tx.passenger.findUnique({ where: { id: passengerId } });
         if (!passenger) throw new Error('Passenger not found');
 
@@ -110,7 +110,7 @@ export class PMWalletController {
 
       return res.json({ 
         success: true, 
-        settlements: settlements.map(s => ({
+        settlements: settlements.map((s: any) => ({
           id: s.id,
           driverName: `${s.trip.driver?.firstName} ${s.trip.driver?.lastName}`,
           amount: Number(s.totalAmount),
@@ -176,7 +176,7 @@ export class PMWalletController {
       if (settlement.status === 'COMPLETED') return res.status(400).json({ error: 'Settlement already processed' });
 
       const driver = settlement.trip.driver;
-      const bankAccount = driver.user.bankAccounts.find(b => b.isDefault) || driver.user.bankAccounts[0];
+      const bankAccount = driver.user.bankAccounts.find((b: any) => b.isDefault) || driver.user.bankAccounts[0];
 
       if (!bankAccount) {
         return res.status(400).json({ error: 'Driver has no bank account registered' });

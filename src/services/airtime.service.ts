@@ -194,7 +194,7 @@ export class AirtimeService {
       }
 
       // VTpass succeeded - NOW create DB records and debit wallet
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: any) => {
         // Upsert ServiceProvider to ensure it exists
         const provider = await tx.serviceProvider.upsert({
           where: { code: data.serviceID },

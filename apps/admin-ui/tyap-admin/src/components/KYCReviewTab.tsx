@@ -21,6 +21,7 @@ const KYCReviewTab: React.FC = () => {
   const [action, setAction] = useState<'approve' | 'reject' | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     const fetchPendingKYC = async () => {
@@ -48,6 +49,8 @@ const KYCReviewTab: React.FC = () => {
       await kycService.approveKYC(selectedAgent.id);
       setAgents(prev => prev.filter(a => a.id !== selectedAgent.id));
       closeModal();
+      setSuccessMsg('KYC document successfully approved.');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (error) {
       console.error('Failed to approve KYC:', error);
     } finally {
@@ -62,6 +65,8 @@ const KYCReviewTab: React.FC = () => {
       await kycService.rejectKYC(selectedAgent.id, rejectionReason);
       setAgents(prev => prev.filter(a => a.id !== selectedAgent.id));
       closeModal();
+      setSuccessMsg('KYC document successfully rejected.');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (error) {
       console.error('Failed to reject KYC:', error);
     } finally {
@@ -77,6 +82,14 @@ const KYCReviewTab: React.FC = () => {
 
   return (
     <div>
+      {/* Local Success Toast */}
+      {successMsg && (
+        <div className="fixed top-6 right-6 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] flex items-center gap-2">
+          <span>✓</span>
+          <span>{successMsg}</span>
+        </div>
+      )}
+
       {/* Warning Banner */}
       <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />

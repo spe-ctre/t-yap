@@ -37,7 +37,7 @@ export class AuthService {
       throw createError('User already exists', 409);
     }
   
-    const hashedPassword = await bcrypt.hash(data.password, 12);
+    const hashedPassword = await bcrypt.hash(data.password, 10);
     const role = (data.role || 'PASSENGER') as any;
     
     // Create user with appropriate profile based on role
@@ -208,7 +208,7 @@ export class AuthService {
   }
 
   async createTransactionPin(userId: string, pin: string) {
-    const hashedPin = await bcrypt.hash(pin, 12);
+    const hashedPin = await bcrypt.hash(pin, 10);
     
     await prisma.passenger.update({
       where: { userId },
@@ -238,7 +238,7 @@ export class AuthService {
     }
 
     // Hash and update password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword }
@@ -281,7 +281,7 @@ export class AuthService {
     }
 
     // Hash and update PIN
-    const hashedPin = await bcrypt.hash(newPin, 12);
+    const hashedPin = await bcrypt.hash(newPin, 10);
     await prisma.passenger.update({
       where: { userId },
       data: { transactionPin: hashedPin }
@@ -330,7 +330,7 @@ export class AuthService {
     });
 
     // Update PIN
-    const hashedPin = await bcrypt.hash(newPin, 12);
+    const hashedPin = await bcrypt.hash(newPin, 10);
     await prisma.passenger.update({
       where: { userId },
       data: { transactionPin: hashedPin }
@@ -465,7 +465,7 @@ export class AuthService {
     });
 
     // Hash and update password
-    const hashedPassword = await bcrypt.hash(data.newPassword, 12);
+    const hashedPassword = await bcrypt.hash(data.newPassword, 10);
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword }

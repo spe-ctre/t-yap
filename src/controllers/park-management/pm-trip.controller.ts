@@ -44,7 +44,7 @@ export class PMTripController {
       const { passengerId, tripId, vehicleId } = req.body;
       if (!passengerId || !tripId || !vehicleId) return res.status(400).json({ error: 'Missing required fields' });
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: any) => {
         const passenger = await tx.passenger.findUnique({ 
           where: { id: passengerId },
           include: { user: true } 

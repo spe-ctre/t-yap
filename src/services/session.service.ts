@@ -56,7 +56,7 @@ export class SessionService {
       orderBy: { lastActivity: 'desc' }
     });
 
-    return sessions.map(session => ({
+    return sessions.map((session: any) => ({
       id: session.id,
       deviceName: session.deviceName,
       deviceType: session.deviceType,

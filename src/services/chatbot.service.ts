@@ -30,7 +30,7 @@ export class ChatbotService {
     if (faqs.length > 0) {
       return {
         message: `I found some information that might help:\n\n${faqs[0].answer}`,
-        relatedFaqs: faqs.map(f => f.question),
+        relatedFaqs: faqs.map((f: any) => f.question),
         suggestedActions: ["Contact Support", "Create Ticket"]
       };
     }

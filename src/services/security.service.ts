@@ -24,9 +24,9 @@ export class SecurityService {
     }
 
     // Hash all answers
-    const hashedAnswer1 = await bcrypt.hash(data.answer1.toLowerCase().trim(), 12);
-    const hashedAnswer2 = await bcrypt.hash(data.answer2.toLowerCase().trim(), 12);
-    const hashedAnswer3 = await bcrypt.hash(data.answer3.toLowerCase().trim(), 12);
+    const hashedAnswer1 = await bcrypt.hash(data.answer1.toLowerCase().trim(), 10);
+    const hashedAnswer2 = await bcrypt.hash(data.answer2.toLowerCase().trim(), 10);
+    const hashedAnswer3 = await bcrypt.hash(data.answer3.toLowerCase().trim(), 10);
 
     const securityQuestion = await prisma.securityQuestion.create({
       data: {
@@ -75,9 +75,9 @@ export class SecurityService {
     }
 
     // Hash all answers
-    const hashedAnswer1 = await bcrypt.hash(data.answer1.toLowerCase().trim(), 12);
-    const hashedAnswer2 = await bcrypt.hash(data.answer2.toLowerCase().trim(), 12);
-    const hashedAnswer3 = await bcrypt.hash(data.answer3.toLowerCase().trim(), 12);
+    const hashedAnswer1 = await bcrypt.hash(data.answer1.toLowerCase().trim(), 10);
+    const hashedAnswer2 = await bcrypt.hash(data.answer2.toLowerCase().trim(), 10);
+    const hashedAnswer3 = await bcrypt.hash(data.answer3.toLowerCase().trim(), 10);
 
     const securityQuestion = await prisma.securityQuestion.upsert({
       where: { userId },

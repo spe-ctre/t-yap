@@ -288,7 +288,7 @@ export class WalletService {
     }
 
     // Update wallet balance and transaction in a database transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Get current passenger data
       const passenger = await tx.passenger.findUnique({
         where: { userId }

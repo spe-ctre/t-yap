@@ -90,7 +90,7 @@ export class TransferService {
     }
 
     // Start transaction for atomic updates only
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       // 4. Check sender's daily limits
       await this.checkDailyLimits(senderId, amount, tx);
 
@@ -425,7 +425,7 @@ export class TransferService {
       take: limit,
     });
 
-    return transfers.map((transfer) => ({
+    return transfers.map((transfer: any) => ({
       id: transfer.id,
       reference: transfer.reference,
       amount: transfer.amount.toNumber(),

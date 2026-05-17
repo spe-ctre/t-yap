@@ -49,14 +49,14 @@ export class TransactionAnalyticsService {
     }
 
     const income = transactions
-      .filter((t) => t.type === TransactionType.CREDIT)
-      .reduce((sum, t) => sum + t.amount.toNumber(), 0);
+      .filter((t: any) => t.type === TransactionType.CREDIT)
+      .reduce((sum: number, t: any) => sum + t.amount.toNumber(), 0);
 
     const expenses = transactions
-      .filter((t) => t.type === TransactionType.DEBIT)
-      .reduce((sum, t) => sum + t.amount.toNumber(), 0);
+      .filter((t: any) => t.type === TransactionType.DEBIT)
+      .reduce((sum: number, t: any) => sum + t.amount.toNumber(), 0);
 
-    const amounts = transactions.map((t) => t.amount.toNumber());
+    const amounts = transactions.map((t: any) => t.amount.toNumber());
 
     return {
       totalIncome: income,
@@ -96,7 +96,7 @@ export class TransactionAnalyticsService {
     // Group by category
     const categoryMap = new Map<string, { amount: number; count: number }>();
 
-    transactions.forEach((t) => {
+    transactions.forEach((t: any) => {
       const category = t.category;
       const existing = categoryMap.get(category) || { amount: 0, count: 0 };
       categoryMap.set(category, {
@@ -164,7 +164,7 @@ export class TransactionAnalyticsService {
     // Group by date
     const trendMap = new Map<string, { income: number; expenses: number; count: number }>();
 
-    transactions.forEach((t) => {
+    transactions.forEach((t: any) => {
       const dateKey = this.getDateKey(t.createdAt, period);
       const existing = trendMap.get(dateKey) || { income: 0, expenses: 0, count: 0 };
 
@@ -214,7 +214,7 @@ export class TransactionAnalyticsService {
     const dayMap = new Map<number, { totalAmount: number; count: number }>();
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-    transactions.forEach((t) => {
+    transactions.forEach((t: any) => {
       const dayOfWeek = new Date(t.createdAt).getDay();
       const existing = dayMap.get(dayOfWeek) || { totalAmount: 0, count: 0 };
       dayMap.set(dayOfWeek, {
@@ -262,7 +262,7 @@ export class TransactionAnalyticsService {
     // Group by recipient
     const recipientMap = new Map<string, { email: string; totalAmount: number; count: number }>();
 
-    transfers.forEach((t) => {
+    transfers.forEach((t: any) => {
       const recipientId = t.recipientId;
       const existing = recipientMap.get(recipientId) || {
         email: t.recipient.email,

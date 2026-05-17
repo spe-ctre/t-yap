@@ -56,7 +56,7 @@ export class PMDashboardController {
       });
 
       const formattedTransactions = await Promise.all(
-        recentTransactions.map(async (transaction) => {
+        recentTransactions.map(async (transaction: any) => {
           const trip = await prisma.trip.findFirst({
             where: {
               passengerId: transaction.userId,

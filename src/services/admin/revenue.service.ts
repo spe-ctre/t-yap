@@ -25,7 +25,7 @@ export class RevenueService {
   static async processRevenue(type: RevenueType, amount: number, metadata: any) {
     const split = this.calculateSplit(type, amount);
     
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       // 1. Credit Company Wallet (Always present)
       await this.updateCompanyBalance(tx, split.companyCut);
 
@@ -131,7 +131,7 @@ export class RevenueService {
    * This is the "Monthly Salary" logic
    */
   static async releaseLockedFunds(role: 'AGENT' | 'PARK_MANAGER', id: string) {
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: any) => {
       let user;
       if (role === 'AGENT') {
         user = await tx.agent.findUnique({ where: { id } });

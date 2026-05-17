@@ -132,7 +132,7 @@ export class BankAccountService {
       ],
     });
 
-    return bankAccounts.map((account) => ({
+    return bankAccounts.map((account: any) => ({
       id: account.id,
       accountNumber: account.accountNumber,
       accountName: account.accountName,

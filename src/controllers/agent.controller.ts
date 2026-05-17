@@ -492,7 +492,7 @@ export const getAgentDashboard = async (req: Request, res: Response) => {
 
     // Calculate today's earnings
     const todayEarnings = todayTransactions.reduce(
-      (sum, transaction) => sum + Number(transaction.amount),
+      (sum: number, transaction: any) => sum + Number(transaction.amount),
       0
     );
 
@@ -879,7 +879,7 @@ export const activatePassengerWallet = async (req: Request, res: Response) => {
     const commissionRate = Number(agent.commissionRate || 20); // Default 20% commission for onboarding
     const agentCommission = (activationAmount * commissionRate) / 100;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Update passenger tier
       const updatedPassenger = await tx.passenger.update({
         where: { id: passengerId },
@@ -992,7 +992,7 @@ export const createDriver = async (req: Request, res: Response) => {
     }
 
     // Wrap everything in a transaction for atomicity
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Create or find user for driver
       let user = await tx.user.findUnique({
         where: { phoneNumber },
@@ -1108,7 +1108,7 @@ export const captureDriverBiometric = async (req: Request, res: Response) => {
     }
 
     // Use transaction to update both places
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // 1. Update Driver profile (for 1:1 app login)
       await tx.driver.update({
         where: { id: driverId },
@@ -1292,7 +1292,7 @@ export const topUpPassengerWallet = async (req: Request, res: Response) => {
 
     const amountToTransfer = Number(amount);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Verify agent has sufficient digital balance to transfer
       const currentAgent = await tx.agent.findUnique({ where: { id: agent.id } });
       if (!currentAgent || currentAgent.walletBalance.lt(amountToTransfer)) {
@@ -1422,7 +1422,7 @@ export const withdrawEarnings = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Bank account not found' });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Update agent wallet (decrement)
       const updatedAgent = await tx.agent.update({
         where: { id: agent.id },
@@ -1647,7 +1647,7 @@ export const getEarningsBreakdown = async (req: Request, res: Response) => {
         commissions: commissionTotal,
         referrals: 0,
       },
-      recentActivities: recentActivities.map(a => ({
+      recentActivities: recentActivities.map((a: any) => ({
         id: a.id,
         title: `Onboarded ${a.firstName} ${a.lastName}`,
         time: a.createdAt,
@@ -1692,7 +1692,7 @@ export const cashOut = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Biometric verification failed' });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // 2. Check sufficient balance
       const currentAgent = await tx.agent.findUnique({ where: { userId } });
       if (!currentAgent || currentAgent.walletBalance.lt(cashOutAmount)) {

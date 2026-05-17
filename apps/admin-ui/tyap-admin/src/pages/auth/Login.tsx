@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { ROLE_PERMISSIONS, AdminRole } from '../../utils/permissions';
+import { AuthService } from '../../services/auth.service';
 
 const Login = () => {
   const [loginId, setLoginId] = useState('');
@@ -18,7 +20,13 @@ const Login = () => {
     
     try {
       await login(loginId, password);
-      navigate('/dashboard');
+      
+      const user = AuthService.getUser();
+      const role = user?.role as AdminRole;
+      const allowedPages = role ? ROLE_PERMISSIONS[role] : ['dashboard'];
+      const firstPage = allowedPages && allowedPages.length > 0 ? allowedPages[0] : 'dashboard';
+      
+      navigate(`/${firstPage}`);
     } catch (err) {
       setError('Invalid credentials. Please try again.');
     } finally {
@@ -34,8 +42,7 @@ const Login = () => {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Login</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Don't have an account?{' '}
-            <span className="text-orange-500 cursor-pointer">Signup</span>
+            T-Yap Administrative Portal
           </p>
         </div>
 
@@ -79,10 +86,10 @@ const Login = () => {
 
           {/* Forgot Password */}
           <div className="flex justify-between items-center mb-6">
-            <span className="text-sm text-gray-500 cursor-pointer">
-              Forget password?
-            </span>
-            <span className="text-sm text-orange-500 cursor-pointer">
+            <span 
+              onClick={() => alert('For password resets or access requests, please contact tech@tyap.com.')}
+              className="text-xs text-orange-500 font-semibold cursor-pointer hover:underline"
+            >
               Forgot Password?
             </span>
           </div>
