@@ -11,18 +11,27 @@ const Dashboard: React.FC = () => {
   const [dismissedAlerts, setDismissedAlerts] = useState<number[]>([]);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
+    const fetchStats = async (showSpinner = true) => {
+      if (showSpinner) setLoading(true);
       try {
         const data = await dashboardService.getDashboardStats();
         setStats(data);
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error);
       } finally {
-        setLoading(false);
+        if (showSpinner) setLoading(false);
       }
     };
-    fetchStats();
+
+    // Initial fetch with loading spinner
+    fetchStats(true);
+
+    // Silent background poll every 30 seconds to keep all numbers and charts 100% real-time
+    const pollInterval = setInterval(() => {
+      fetchStats(false);
+    }, 30000);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Compute overall system health status from the latest trend data
