@@ -1,0 +1,615 @@
+openapi: 3.0.0
+info:
+  title: T-Yap Fintech API Specifications
+  description: >
+    Comprehensive API specifications for T-Yap Wallet Operations, P2P Transfers, 
+    Generic/Unified Payments, and Transport Wallet Funding.
+    
+    Includes clear user search capabilities, payment initialization/verification with 
+    robust sandbox mock fallbacks (when `ENABLE_SANDBOX_MOCKS=true` is set on the server).
+  version: 1.0.0
+servers:
+  - url: https://t-yap-ashen.vercel.app/api
+    description: Production Server
+  - url: http://localhost:5001/api
+    description: Local Development Server
+
+paths:
+  # ==========================================
+  # P2P & BANK TRANSFERS
+  # ==========================================
+  /transfers/search-user:
+    get:
+      summary: Search for T-Yap User (P2P Recipient Lookup)
+      description: >
+        Enables the mobile client to look up a T-Yap user by phone number or email before processing a P2P transfer.
+        This provides the target recipient's Database UUID (`recipientId`), full name, and masked privacy details 
+        so that users do not have to know or input internal database UUIDs.
+      tags:
+        - Transfers & P2P
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: The recipient's email address or phone number (supports local Nigerian or international format).
+          schema:
+            type: string
+            example: "08012345678"
+      responses:
+        "200":
+          description: User found successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      recipientId:
+                        type: string
+                        format: uuid
+                        example: "cmopovvuw00008odc3ddosc9w"
+                      name:
+                        type: string
+                        example: "Ben Dev"
+                      email:
+                        type: string
+                        example: "b***v@gmail.com"
+                      phoneNumber:
+                        type: string
+                        example: "080******78"
+        "404":
+          description: Recipient not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  statusCode:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "No T-Yap user found matching this email or phone number"
+
+  /transfers/validate:
+    post:
+      summary: Validate P2P Transfer (Pre-Check)
+      description: Performs limits checks, balances check, and P2P recipient validation before the transaction pin is prompted.
+      tags:
+        - Transfers & P2P
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recipientId
+                - amount
+              properties:
+                recipientId:
+                  type: string
+                  format: uuid
+                  description: The target user's UUID (obtained from /transfers/search-user).
+                  example: "cmopovvuw00008odc3ddosc9w"
+                amount:
+                  type: number
+                  minimum: 100
+                  description: Amount to transfer in NGN.
+                  example: 500
+      responses:
+        "200":
+          description: Validation successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "Transfer validation successful"
+                  data:
+                    type: object
+                    properties:
+                      valid:
+                        type: boolean
+                        example: true
+                      recipient:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "cmopovvuw00008odc3ddosc9w"
+                          name:
+                            type: string
+                            example: "Ben Dev"
+                          email:
+                            type: string
+                            example: "ben@gmail.com"
+                      amount:
+                        type: number
+                        example: 500
+                      fee:
+                        type: number
+                        example: 0
+                      total:
+                        type: number
+                        example: 500
+                      remainingDailyLimit:
+                        type: number
+                        example: 5000000
+
+  /transfers/p2p:
+    post:
+      summary: Process P2P Transfer
+      description: Executes the transfer from the current authenticated user's wallet to another T-Yap user.
+      tags:
+        - Transfers & P2P
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recipientId
+                - amount
+                - pin
+              properties:
+                recipientId:
+                  type: string
+                  format: uuid
+                  example: "cmopovvuw00008odc3ddosc9w"
+                amount:
+                  type: number
+                  example: 500
+                description:
+                  type: string
+                  example: "Lunch transfer"
+                pin:
+                  type: string
+                  pattern: '^[0-9]{4}$'
+                  description: 4-digit transaction pin.
+                  example: "1234"
+      responses:
+        "200":
+          description: Transfer executed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "Transfer completed successfully"
+                  data:
+                    type: object
+                    properties:
+                      transferId:
+                        type: string
+                        example: "clxyz12345"
+                      reference:
+                        type: string
+                        example: "TRF1715939281234"
+                      amount:
+                        type: number
+                        example: 500
+                      fee:
+                        type: number
+                        example: 0
+                      recipient:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "cmopovvuw00008odc3ddosc9w"
+                          name:
+                            type: string
+                            example: "Ben Dev"
+                      sender:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "sender_uuid_123"
+                          newBalance:
+                            type: number
+                            example: 4500
+
+  /transfers/limits:
+    get:
+      summary: Get Transfer Limits
+      tags:
+        - Transfers & P2P
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Transfer limits configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      limits:
+                        type: object
+                        properties:
+                          minimum:
+                            type: number
+                            example: 100
+                          maximumPerTransaction:
+                            type: number
+                            example: 1000000
+                          maximumDaily:
+                            type: number
+                            example: 5000000
+
+  /transfers/limits/remaining:
+    get:
+      summary: Get Remaining Transfer Limits
+      tags:
+        - Transfers & P2P
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Daily limit left for the user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      dailyLimit:
+                        type: number
+                        example: 5000000
+                      usedToday:
+                        type: number
+                        example: 500
+                      remainingToday:
+                        type: number
+                        example: 4999500
+                      transactionsToday:
+                        type: integer
+                        example: 1
+
+  # ==========================================
+  # PASSENGER WALLET TOP-UP (MONNIFY SPECIFIC)
+  # ==========================================
+  /wallet/topup/initialize:
+    post:
+      summary: Initialize Passenger Wallet Top-Up
+      description: >
+        Starts a top-up transaction. Generates a checkout payment URL via Monnify.
+        If `ENABLE_SANDBOX_MOCKS=true` is set in the environment variables, this endpoint automatically returns 
+        a simulated checkout URL and transaction reference bypassing external calls.
+      tags:
+        - Passenger Wallet Top-Up
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                  minimum: 100
+                  example: 2000
+      responses:
+        "200":
+          description: Top-Up initialization successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      transactionId:
+                        type: string
+                        example: "tx_uuid_123"
+                      paymentReference:
+                        type: string
+                        description: T-Yap reference. Pass this as "transactionReference" or "reference" in verification/status checks.
+                        example: "TOPUP_1715939281234_abc123"
+                      checkoutUrl:
+                        type: string
+                        description: Web-view checkout URL where the user enters card details or transfers bank funds.
+                        example: "https://sandbox.monnify.com/checkout/TOPUP_1715939281234"
+
+  /wallet/topup/verify:
+    post:
+      summary: Verify and Complete Top-Up
+      description: >
+        Validates the transaction status with Monnify and credits the passenger wallet.
+        Call this immediately after the mobile webview redirects back or the user triggers verification.
+      tags:
+        - Passenger Wallet Top-Up
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - transactionReference
+              properties:
+                transactionReference:
+                  type: string
+                  description: The `paymentReference` returned from `/wallet/topup/initialize`.
+                  example: "TOPUP_1715939281234_abc123"
+      responses:
+        "200":
+          description: Wallet funded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Wallet top-up successful"
+                  balance:
+                    type: object
+                    properties:
+                      previous:
+                        type: number
+                        example: 4500
+                      current:
+                        type: number
+                        example: 6500
+
+  /wallet/topup/status/{reference}:
+    get:
+      summary: Get Wallet Top-Up Status
+      description: Query the database status of a top-up transaction directly without requesting Monnify APIs.
+      tags:
+        - Passenger Wallet Top-Up
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          description: The T-Yap reference (`paymentReference`) generated in /wallet/topup/initialize.
+          schema:
+            type: string
+            example: "TOPUP_1715939281234_abc123"
+      responses:
+        "200":
+          description: Transaction status details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "tx_uuid_123"
+                  amount:
+                    type: number
+                    example: 2000
+                  status:
+                    type: string
+                    description: PENDING, SUCCESS, or FAILED.
+                    example: "SUCCESS"
+                  reference:
+                    type: string
+                    example: "TOPUP_1715939281234_abc123"
+                  createdAt:
+                    type: string
+                    example: "2026-05-18T12:00:00.000Z"
+
+  # ==========================================
+  # TRANSPORT WALLET OPERATIONS
+  # ==========================================
+  /transport-wallet/transfer:
+    post:
+      summary: Fund Transport Wallet (Main Wallet to Transport Wallet)
+      description: Moves NGN money from the user's primary/main account balance directly to their Transport transit wallet.
+      tags:
+        - Transport Wallet
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - pin
+              properties:
+                amount:
+                  type: number
+                  minimum: 100
+                  description: Amount to fund.
+                  example: 3000
+                pin:
+                  type: string
+                  pattern: '^[0-9]{4}$'
+                  example: "1234"
+      responses:
+        "200":
+          description: Funded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Transfer to transport wallet successful"
+                  data:
+                    type: object
+                    properties:
+                      previousBalance:
+                        type: number
+                        example: 1000
+                      newBalance:
+                        type: number
+                        example: 4000
+
+  /transport-wallet/balance:
+    get:
+      summary: Get Transport Wallet Balance
+      tags:
+        - Transport Wallet
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Wallet balance details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  statusCode:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      balance:
+                        type: number
+                        example: 4000
+
+  # ==========================================
+  # UNIFIED ROLE-BASED PAYMENTS
+  # ==========================================
+  /payments/topup/initialize:
+    post:
+      summary: Initialize Unified Payment (Supports Passengers/Drivers/Agents)
+      description: >
+        Role-agnostic checkout initiator. Dynamically handles funding for all roles.
+        If `ENABLE_SANDBOX_MOCKS=true` is set, it simulates initialization.
+      tags:
+        - Unified & Generic Payments
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+              properties:
+                amount:
+                  type: number
+                  minimum: 100
+                  example: 5000
+      responses:
+        "200":
+          description: Unified checkout payload.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Payment initialized successfully"
+                  data:
+                    type: object
+                    properties:
+                      reference:
+                        type: string
+                        example: "PAY_1715939281234_abc"
+                      checkoutUrl:
+                        type: string
+                        example: "https://sandbox.monnify.com/checkout/PAY_1715939281234"
+
+  /payments/topup/verify:
+    post:
+      summary: Verify Unified Payment
+      description: Verifies checkout status for generic role-based payments.
+      tags:
+        - Unified & Generic Payments
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reference
+              properties:
+                reference:
+                  type: string
+                  example: "PAY_1715939281234_abc"
+      responses:
+        "200":
+          description: Payment successful and account funded.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

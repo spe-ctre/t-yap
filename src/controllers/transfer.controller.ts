@@ -425,4 +425,72 @@ export class TransferController {
       next(error);
     }
   }
+
+  /**
+   * GET /api/transfers/search-user
+   * Search for a T-Yap user by phone number or email for P2P transfer
+   */
+  static async searchUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { query } = req.query;
+      if (!query || typeof query !== 'string') {
+        throw new AppError('Search query (phone number or email) is required', 400);
+      }
+
+      const { PrismaClient } = require('@prisma/client');
+      const prisma = new PrismaClient();
+
+      // Find user by email or phone number
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: query.trim(), mode: 'insensitive' } },
+            { phoneNumber: { equals: query.trim() } },
+            // Handle phone format variants: e.g. +23480... or 080...
+            { phoneNumber: { equals: query.trim().replace(/^\+234/, '0') } },
+            { phoneNumber: { equals: '+234' + query.trim().replace(/^0/, '') } }
+          ]
+        },
+        include: {
+          passenger: true
+        }
+      });
+
+      if (!user) {
+        throw new AppError('No T-Yap user found matching this email or phone number', 404);
+      }
+
+      if (user.id === req.user!.id) {
+        throw new AppError('You cannot transfer to yourself', 400);
+      }
+
+      if (!user.passenger) {
+        throw new AppError('This user does not have an active passenger profile', 400);
+      }
+
+      // Mask email and phone for user privacy
+      const maskEmail = (email: string) => {
+        const [name, domain] = email.split('@');
+        if (name.length <= 2) return `${name[0]}***@${domain}`;
+        return `${name[0]}${'*'.repeat(name.length - 2)}${name[name.length - 1]}@${domain}`;
+      };
+
+      const maskPhone = (phone: string) => {
+        if (phone.length <= 5) return '***';
+        return `${phone.substring(0, 3)}******${phone.substring(phone.length - 2)}`;
+      };
+
+      res.status(200).json({
+        status: 'success',
+        data: {
+          recipientId: user.id,
+          name: `${user.passenger.firstName || ''} ${user.passenger.lastName || ''}`.trim() || 'T-Yap User',
+          email: maskEmail(user.email),
+          phoneNumber: maskPhone(user.phoneNumber),
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

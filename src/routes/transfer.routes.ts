@@ -12,6 +12,14 @@ const router = Router();
 router.use(authMiddleware as any);
 
 /**
+ * @route   GET /api/transfers/search-user
+ * @desc    Search for T-Yap user by phone/email
+ * @access  Private
+ * @query   query (phone number or email)
+ */
+router.get('/search-user', TransferController.searchUser);
+
+/**
  * @route   POST /api/transfers/p2p
  * @desc    Process peer-to-peer transfer
  * @access  Private

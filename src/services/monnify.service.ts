@@ -121,7 +121,7 @@ export class MonnifyService {
    * Check if Monnify is properly configured
    */
   isAvailable(): boolean {
-    return this.isConfigured;
+    return this.isConfigured || process.env.ENABLE_SANDBOX_MOCKS === 'true';
   }
 
   /**
@@ -187,6 +187,20 @@ export class MonnifyService {
     paymentDescription: string;
     redirectUrl?: string;
   }): Promise<InitializePaymentResponse['responseBody']> {
+    // Strict toggle for sandbox mocks to ensure QA testing integrity
+    const useMocks = process.env.ENABLE_SANDBOX_MOCKS === 'true';
+    if (useMocks && (!this.isConfigured || process.env.NODE_ENV === 'development' || this.baseUrl.includes('sandbox'))) {
+      console.warn(`⚠️ [MOCK ENABLED] Simulating Monnify payment initialization for ₦${params.amount}.`);
+      return {
+        transactionReference: `MOCK_TX_${Date.now()}`,
+        paymentReference: params.paymentReference,
+        merchantName: 'T-Yap Sandbox Merchant',
+        apiKey: this.apiKey || 'MOCK_API_KEY',
+        enabledPaymentMethod: ['CARD', 'ACCOUNT_TRANSFER', 'USSD'],
+        checkoutUrl: `https://sandbox.monnify.com/checkout/${params.paymentReference}`
+      };
+    }
+
     try {
       const token = await this.getAccessToken();
 
@@ -236,6 +250,52 @@ export class MonnifyService {
    * Verify a payment transaction
    */
   async verifyPayment(transactionReference: string): Promise<VerifyPaymentResponse['responseBody']> {
+    // Strict toggle for sandbox mocks to ensure QA testing integrity
+    const useMocks = process.env.ENABLE_SANDBOX_MOCKS === 'true';
+    if (useMocks && (!this.isConfigured || process.env.NODE_ENV === 'development' || this.baseUrl.includes('sandbox') || transactionReference.includes('MOCK'))) {
+      console.warn(`⚠️ [MOCK ENABLED] Simulating payment verification for reference ${transactionReference}.`);
+      
+      let amount = 100.00;
+      try {
+        const { prisma } = require('../config/database');
+        const tx = await prisma.transaction.findFirst({
+          where: {
+            OR: [
+              { reference: transactionReference },
+              {
+                metadata: {
+                  path: ['monnifyReference'],
+                  equals: transactionReference
+                }
+              }
+            ]
+          }
+        });
+        if (tx) {
+          amount = tx.amount.toNumber();
+        }
+      } catch (dbErr) {
+        console.warn('Failed to fetch transaction amount for mock verification, using default 100', dbErr);
+      }
+
+      return {
+        transactionReference: transactionReference.includes('MOCK') ? transactionReference : `MOCK_TX_${Date.now()}`,
+        paymentReference: transactionReference,
+        amountPaid: amount.toFixed(2),
+        totalPayable: amount.toFixed(2),
+        settlementAmount: amount.toFixed(2),
+        paidOn: new Date().toISOString(),
+        paymentStatus: 'PAID',
+        paymentDescription: 'Mock payment verified successfully',
+        currency: 'NGN',
+        paymentMethod: 'MOCK_CARD',
+        customer: {
+          email: 'sandbox@tyap.com',
+          name: 'Sandbox User'
+        }
+      };
+    }
+
     if (!this.isConfigured) {
       throw createError('Monnify is not configured. Please set MONNIFY_BASE_URL, MONNIFY_API_KEY, MONNIFY_SECRET_KEY, and MONNIFY_CONTRACT_CODE environment variables.', 503);
     }
