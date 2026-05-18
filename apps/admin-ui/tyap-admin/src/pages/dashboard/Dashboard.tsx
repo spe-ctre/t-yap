@@ -14,7 +14,7 @@ const Dashboard: React.FC = () => {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const data = await dashboardService.getDashboardStats(period);
+        const data = await dashboardService.getDashboardStats();
         setStats(data);
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error);
@@ -23,12 +23,13 @@ const Dashboard: React.FC = () => {
       }
     };
     fetchStats();
-  }, [period]);
+  }, []);
 
   // Compute overall system health status from the latest trend data
   const getOverallHealth = () => {
-    if (!stats?.healthTrends?.length) return { label: 'No Data', color: 'gray' };
-    const latest = stats.healthTrends[stats.healthTrends.length - 1];
+    const trends = stats?.healthTrends?.[period];
+    if (!trends || !trends.length) return { label: 'No Data', color: 'gray' };
+    const latest = trends[trends.length - 1];
     if (latest.health >= 95) return { label: 'Optimal', color: 'green' };
     if (latest.health >= 80) return { label: 'Stable', color: 'blue' };
     if (latest.health >= 50) return { label: 'Warning', color: 'orange' };
@@ -152,7 +153,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           <ResponsiveContainer width="100%" height={380}>
-            <LineChart data={stats?.healthTrends || []} margin={{ left: 10, right: 30, top: 20, bottom: 20 }}>
+            <LineChart data={stats?.healthTrends?.[period] || []} margin={{ left: 10, right: 30, top: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis
                 dataKey="time"

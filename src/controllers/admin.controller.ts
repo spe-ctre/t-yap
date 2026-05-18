@@ -8,8 +8,18 @@ import { PythonAnalyticsService } from '../services/admin/python-analytics.servi
 export class AdminController {
   static getDashboardStats = async (req: Request, res: Response) => {
     try {
-      const period = (req.query.period as string) || 'monthly';
-      const [totalUsers, totalAgents, pendingKYC, openTickets, totalTransactions, pythonStats, revenueSplit, healthTrends] = await Promise.all([
+      const [
+        totalUsers,
+        totalAgents,
+        pendingKYC,
+        openTickets,
+        totalTransactions,
+        pythonStats,
+        revenueSplit,
+        monthlyTrends,
+        weeklyTrends,
+        dailyTrends
+      ] = await Promise.all([
         prisma.user.count(),
         prisma.agent.count({ where: { isActive: true } }),
         prisma.agent.count({ where: { kycStatus: 'PENDING' } }),
@@ -17,17 +27,27 @@ export class AdminController {
         prisma.transaction.aggregate({ _sum: { amount: true }, where: { status: 'SUCCESS' } }),
         PythonAnalyticsService.getDeltaStats(),
         PythonAnalyticsService.getRevenueSplit(),
-        PythonAnalyticsService.getSystemHealthTrend(period)
+        PythonAnalyticsService.getSystemHealthTrend('monthly'),
+        PythonAnalyticsService.getSystemHealthTrend('weekly'),
+        PythonAnalyticsService.getSystemHealthTrend('daily')
       ]);
+
       await logAction(req.user!.id, 'VIEWED_DASHBOARD_STATS');
       res.json({
         success: true,
         data: {
-          totalUsers, totalAgents, pendingKYC, openTickets,
+          totalUsers,
+          totalAgents,
+          pendingKYC,
+          openTickets,
           totalTransactionVolume: totalTransactions._sum.amount || 0,
           analytics: pythonStats.data,
           revenueSplit: revenueSplit.data,
-          healthTrends: healthTrends.data
+          healthTrends: {
+            monthly: monthlyTrends.data || [],
+            weekly: weeklyTrends.data || [],
+            daily: dailyTrends.data || []
+          }
         }
       });
     } catch (error) {
