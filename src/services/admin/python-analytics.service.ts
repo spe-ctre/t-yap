@@ -10,7 +10,7 @@ import { prisma } from '../../config/database';
  */
 export class PythonAnalyticsService {
   private static readonly PYTHON_API_URL = process.env.PYTHON_ANALYTICS_URL || 'https://tyap-analytics-engine.onrender.com/api/analytics';
-  private static readonly TIMEOUT = 3000; // 3 second timeout
+  private static readonly TIMEOUT = 12000; // 12 second timeout (allows Render free tier cold starts)
 
   /**
    * Get KPI Delta Stats (Total Wallet, Revenue, Users, Success Rate)
