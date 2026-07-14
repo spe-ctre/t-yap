@@ -8,7 +8,196 @@ async function main() {
   // Clear existing data (optional - comment out if you want to keep existing data)
   await prisma.fAQ.deleteMany();
   await prisma.helpContent.deleteMany();
+  await prisma.park.deleteMany();
   console.log('✨ Cleared existing data');
+
+  // ============================================================
+  // Seed Motor Parks — 15 major Nigerian parks across key states
+  // ============================================================
+  const parks = await Promise.all([
+    prisma.park.create({
+      data: {
+        name: 'Jabi Motor Park',
+        address: 'Jabi, Abuja Municipal Area Council',
+        city: 'Abuja',
+        state: 'FCT',
+        country: 'Nigeria',
+        latitude: 9.0765,
+        longitude: 7.4098,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Utako Market Park',
+        address: 'Utako District, Abuja',
+        city: 'Abuja',
+        state: 'FCT',
+        country: 'Nigeria',
+        latitude: 9.0820,
+        longitude: 7.4700,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Murtala Muhammed Way Park',
+        address: 'Murtala Muhammed Way, Kano',
+        city: 'Kano',
+        state: 'Kano',
+        country: 'Nigeria',
+        latitude: 12.0022,
+        longitude: 8.5920,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Ojota Motor Park',
+        address: 'Ojota, Lagos',
+        city: 'Lagos',
+        state: 'Lagos',
+        country: 'Nigeria',
+        latitude: 6.5960,
+        longitude: 3.3980,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Mile 2 Motor Park',
+        address: 'Mile 2, Amuwo-Odofin, Lagos',
+        city: 'Lagos',
+        state: 'Lagos',
+        country: 'Nigeria',
+        latitude: 6.4698,
+        longitude: 3.3004,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Yola Motor Park',
+        address: 'Jimeta, Yola North',
+        city: 'Yola',
+        state: 'Adamawa',
+        country: 'Nigeria',
+        latitude: 9.2035,
+        longitude: 12.4954,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Port Harcourt Mile 3 Motor Park',
+        address: 'Mile 3, Diobu, Port Harcourt',
+        city: 'Port Harcourt',
+        state: 'Rivers',
+        country: 'Nigeria',
+        latitude: 4.8156,
+        longitude: 7.0498,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'New Artisan Market Park',
+        address: 'Artisan Market, Enugu',
+        city: 'Enugu',
+        state: 'Enugu',
+        country: 'Nigeria',
+        latitude: 6.4584,
+        longitude: 7.5464,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Iwo Road Motor Park',
+        address: 'Iwo Road, Ibadan North',
+        city: 'Ibadan',
+        state: 'Oyo',
+        country: 'Nigeria',
+        latitude: 7.4137,
+        longitude: 3.8989,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Ring Road Motor Park',
+        address: 'Ring Road, Benin City',
+        city: 'Benin City',
+        state: 'Edo',
+        country: 'Nigeria',
+        latitude: 6.3350,
+        longitude: 5.6290,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Berger Motor Park',
+        address: 'Berger Bus Stop, Lagos-Ibadan Expressway',
+        city: 'Lagos',
+        state: 'Lagos',
+        country: 'Nigeria',
+        latitude: 6.6394,
+        longitude: 3.3744,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Kasuwar Barchi Motor Park',
+        address: 'Kasuwar Barchi, Kano Municipal',
+        city: 'Kano',
+        state: 'Kano',
+        country: 'Nigeria',
+        latitude: 11.9960,
+        longitude: 8.5189,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Maza Maza Motor Park',
+        address: 'Maza Maza, Amuwo-Odofin, Lagos',
+        city: 'Lagos',
+        state: 'Lagos',
+        country: 'Nigeria',
+        latitude: 6.4780,
+        longitude: 3.2950,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Trans-Ekulu Park',
+        address: 'Trans-Ekulu, Enugu East',
+        city: 'Enugu',
+        state: 'Enugu',
+        country: 'Nigeria',
+        latitude: 6.4764,
+        longitude: 7.5721,
+        isActive: true,
+      },
+    }),
+    prisma.park.create({
+      data: {
+        name: 'Wuse Zone 4 Park',
+        address: 'Wuse Zone 4, Abuja',
+        city: 'Abuja',
+        state: 'FCT',
+        country: 'Nigeria',
+        latitude: 9.0579,
+        longitude: 7.4951,
+        isActive: true,
+      },
+    }),
+  ]);
+
+  console.log(`✅ Created ${parks.length} motor parks`);
 
   // Seed FAQs
   const faqs = await Promise.all([

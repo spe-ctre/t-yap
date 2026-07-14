@@ -4,7 +4,7 @@ export class NearbyService {
   /**
    * Find nearby parks based on coordinates and radius
    */
-  static async findNearbyParks(lat: number, lng: number, radiusKm: number = 10) {
+  static async findNearbyParks(lat: number, lng: number, radiusKm: number = 50) {
     const parks = await prisma.park.findMany({
       where: {
         isActive: true,

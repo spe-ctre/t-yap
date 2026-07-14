@@ -16,6 +16,9 @@
     "db:push": "dotenv -o -e .env -e .env.local -- prisma db push",
     "postinstall": "prisma generate"
   },
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
+  },
   "dependencies": {
     "@prisma/client": "5.22.0",
     "@sendgrid/mail": "^8.1.6",

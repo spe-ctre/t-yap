@@ -71,22 +71,33 @@ export class AuthService {
         userId: user.id,
         code: verificationCode,
         type: 'EMAIL_VERIFICATION',
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        expiresAt: new Date(Date.now() + 3 * 60 * 1000) // 3 minutes
       }
     });
   
-    // Queue verification email (No await for instant response)
+    // Queue verification email — fall back to direct send if queue fails
     queueService.sendNotification({
       email: user.email,
       type: 'EMAIL',
       subject: 'Verify your T-Yap Account',
-      message: `Your T-Yap verification code is: ${verificationCode}. Valid for 10 minutes.`
-    }).catch(err => console.error('🔴 Queue failed:', err));
+      message: `Your T-Yap verification code is: ${verificationCode}. Valid for 3 minutes.`
+    }).catch(async (err) => {
+      console.error('🔴 Queue failed, falling back to direct email send:', err);
+      try {
+        await this.emailService.sendEmail(
+          user.email,
+          'Verify your T-Yap Account',
+          `Your T-Yap verification code is: ${verificationCode}. Valid for 3 minutes.`
+        );
+      } catch (emailErr) {
+        console.error('🔴 Direct email fallback also failed:', emailErr);
+      }
+    });
     
     // No session created - user must verify email first
     return {
       user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
-      message: 'Verification code sent to email. Please verify your email to continue.',
+      message: 'Verification code sent to email. Please verify your email to continue. Code expires in 3 minutes.',
       ...(process.env.NODE_ENV !== 'production' && { otp: verificationCode })
     };
   }
@@ -368,17 +379,28 @@ export class AuthService {
         userId: user.id,
         code: resetCode,
         type: 'PIN_RESET' as VerificationType,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        expiresAt: new Date(Date.now() + 3 * 60 * 1000) // 3 minutes
       }
     });
 
-    // Send email with reset code
+    // Send email with reset code — fall back to direct send if queue fails
     queueService.sendNotification({
       email: user.email,
       type: 'EMAIL',
       subject: 'Reset your T-Yap PIN',
-      message: `Your T-Yap transaction PIN reset code is: ${resetCode}. Valid for 10 minutes.`
-    }).catch(err => console.error('🔴 Queue failed:', err));
+      message: `Your T-Yap transaction PIN reset code is: ${resetCode}. Valid for 3 minutes.`
+    }).catch(async (err) => {
+      console.error('🔴 Queue failed, falling back to direct email send:', err);
+      try {
+        await this.emailService.sendEmail(
+          user.email,
+          'Reset your T-Yap PIN',
+          `Your T-Yap transaction PIN reset code is: ${resetCode}. Valid for 3 minutes.`
+        );
+      } catch (emailErr) {
+        console.error('🔴 Direct email fallback also failed:', emailErr);
+      }
+    });
 
     return { 
       message: 'PIN reset code sent to email',
@@ -416,17 +438,28 @@ export class AuthService {
         userId: user.id,
         code: resetCode,
         type: 'PASSWORD_RESET',
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        expiresAt: new Date(Date.now() + 3 * 60 * 1000) // 3 minutes
       }
     });
 
-    // Send email with reset code
+    // Send email with reset code — fall back to direct send if queue fails
     queueService.sendNotification({
       email: user.email,
       type: 'EMAIL',
       subject: 'Reset your T-Yap Password',
-      message: `Your T-Yap password reset code is: ${resetCode}. Valid for 10 minutes.`
-    }).catch(err => console.error('🔴 Queue failed:', err));
+      message: `Your T-Yap password reset code is: ${resetCode}. Valid for 3 minutes.`
+    }).catch(async (err) => {
+      console.error('🔴 Queue failed, falling back to direct email send:', err);
+      try {
+        await this.emailService.sendEmail(
+          user.email,
+          'Reset your T-Yap Password',
+          `Your T-Yap password reset code is: ${resetCode}. Valid for 3 minutes.`
+        );
+      } catch (emailErr) {
+        console.error('🔴 Direct email fallback also failed:', emailErr);
+      }
+    });
 
     return { 
       message: 'If an account exists with this email, a password reset code has been sent',
@@ -527,23 +560,34 @@ export class AuthService {
         userId: user.id,
         code: verificationCode,
         type: data.type as any,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        expiresAt: new Date(Date.now() + 3 * 60 * 1000) // 3 minutes
       }
     });
 
-    // Send verification code via background queue
+    // Send verification code via background queue — fall back to direct send if queue fails
     if (data.type === 'EMAIL_VERIFICATION') {
       queueService.sendNotification({
         email: user.email,
         type: 'EMAIL',
         subject: 'T-Yap Verification Code',
-        message: `Your T-Yap verification code is: ${verificationCode}. Valid for 10 minutes.`
-      }).catch(err => console.error('🔴 Queue failed:', err));
+        message: `Your T-Yap verification code is: ${verificationCode}. Valid for 3 minutes.`
+      }).catch(async (err) => {
+        console.error('🔴 Queue failed, falling back to direct email send:', err);
+        try {
+          await this.emailService.sendEmail(
+            user.email,
+            'T-Yap Verification Code',
+            `Your T-Yap verification code is: ${verificationCode}. Valid for 3 minutes.`
+          );
+        } catch (emailErr) {
+          console.error('🔴 Direct email fallback also failed:', emailErr);
+        }
+      });
     } else if (data.type === 'PHONE_VERIFICATION') {
       queueService.sendNotification({
         phoneNumber: user.phoneNumber,
         type: 'SMS',
-        message: `Your T-Yap verification code is: ${verificationCode}. Valid for 10 minutes.`
+        message: `Your T-Yap verification code is: ${verificationCode}. Valid for 3 minutes.`
       }).catch(err => console.error('🔴 Queue failed:', err));
     }
 

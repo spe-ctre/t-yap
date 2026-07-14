@@ -79,7 +79,7 @@ export class EmailService {
           <div style="background: #f9f9f9; padding: 20px; text-align: center; border-radius: 5px;">
             <h1 style="color: #E8572A; letter-spacing: 8px; margin: 0;">${code}</h1>
           </div>
-          <p style="color: #666; margin-top: 20px;">This code expires in 10 minutes.</p>
+          <p style="color: #666; margin-top: 20px;">This code expires in 3 minutes.</p>
           <p style="color: #999; font-size: 12px;">If you did not create a T-Yap account, please ignore this email.</p>
         </div>
       `
@@ -98,7 +98,7 @@ export class EmailService {
           <div style="background: #f9f9f9; padding: 20px; text-align: center; border-radius: 5px;">
             <h1 style="color: #E8572A; letter-spacing: 8px; margin: 0;">${code}</h1>
           </div>
-          <p style="color: #666; margin-top: 20px;">This code expires in 10 minutes.</p>
+          <p style="color: #666; margin-top: 20px;">This code expires in 3 minutes.</p>
           <p style="color: #999; font-size: 12px;">If you did not request this reset, please contact support immediately.</p>
         </div>
       `
@@ -117,7 +117,7 @@ export class EmailService {
           <div style="background: #f9f9f9; padding: 20px; text-align: center; border-radius: 5px;">
             <h1 style="color: #E8572A; letter-spacing: 8px; margin: 0;">${code}</h1>
           </div>
-          <p style="color: #666; margin-top: 20px;">This code expires in 10 minutes.</p>
+          <p style="color: #666; margin-top: 20px;">This code expires in 3 minutes.</p>
           <p style="color: #999; font-size: 12px;">If you did not request this reset, please contact support immediately.</p>
         </div>
       `

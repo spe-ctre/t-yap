@@ -59,7 +59,7 @@ export const changePasswordSchema = Joi.object({
 export const updatePinSchema = Joi.object({
   currentPin: Joi.string().length(4).pattern(/^\d+$/).required(),
   newPin: Joi.string().length(4).pattern(/^\d+$/).required(),
-  confirmPin: Joi.string().valid(Joi.ref('newPin')).required()
+  confirmPin: Joi.string().valid(Joi.ref('newPin')).optional() // Mobile app confirms client-side
 });
 
 export const verifyPinSchema = Joi.object({

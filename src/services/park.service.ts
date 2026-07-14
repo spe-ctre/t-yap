@@ -14,7 +14,7 @@ export class ParkService {
   async findNearbyParks(
     latitude: number,
     longitude: number,
-    radiusKm: number = 10
+    radiusKm: number = 50
   ) {
     // Validate coordinates
     if (!isValidCoordinates(latitude, longitude)) {

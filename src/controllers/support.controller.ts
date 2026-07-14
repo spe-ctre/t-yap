@@ -184,6 +184,8 @@ export class SupportController {
           },
           customerCare: {
             phone: '070-0007-2545',
+            email: 'support@tyap.com',
+            whatsapp: 'https://wa.me/2347000072545',
             available: '24/7'
           }
         }
