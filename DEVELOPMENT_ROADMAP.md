@@ -1,490 +1,204 @@
-# 🗺️ Development Roadmap - Transaction & Financial Services
-
-## 📊 Current Status
-
-### ✅ **Already Built:**
-- ✅ Authentication system (signup, login, verify, PIN)
-- ✅ Database schema (all models ready)
-- ✅ Wallet balance check endpoint
-- ✅ Basic wallet service structure
-
-### 🚧 **What You Need to Build:**
-Based on your assigned scope, you need to build the **Core Transaction Engine** and related financial services.
+# 🗺️ TYAP Backend — Development Roadmap
+> Last Updated: **14 July 2026 — 09:00 WAT**
+> This file tracks what has been built, what is currently pending, and what comes next.
 
 ---
 
-## 🎯 Implementation Priority (Start Here!)
+## ✅ PHASE 0 — Foundation (COMPLETE)
 
-### **PHASE 1: Core Transaction Engine** ⭐ (START HERE - Foundation for everything)
+| Item | Status |
+|---|---|
+| Project setup — TypeScript, Express, Prisma | ✅ Done |
+| Database schema — all models defined | ✅ Done |
+| Authentication — signup, login, verify, PIN | ✅ Done |
+| Middleware — auth, error handling, rate limiting, validation | ✅ Done |
+| Server entry point — clustering, workers, routes mounted | ✅ Done |
 
-**Why First?** Everything else depends on this. It's the heart of the payment system.
+---
 
-#### **1.1 Transaction Service** (`src/services/transaction.service.ts`)
+## ✅ PHASE 1 — Core Transaction Engine (COMPLETE)
 
-**What to Build:**
-- ✅ Create transaction records
-- ✅ Update transaction status
-- ✅ Handle transaction state machine (pending → processing → success/failed)
-- ✅ Real-time balance updates
-- ✅ Transaction locking for concurrency
-- ✅ Transaction validation
+| Item | File | Status |
+|---|---|---|
+| Wallet service — balance check | `src/services/wallet.service.ts` | ✅ Done |
+| Transaction service — create, update, history | `src/services/transaction.service.ts` | ✅ Done |
+| Balance reconciliation | `src/services/balance-reconciliation.service.ts` | ✅ Done |
+| Transaction analytics | `src/services/transaction-analytics.service.ts` | ✅ Done |
+| Transaction log | `src/services/transaction-log.service.ts` | ✅ Done |
+| Idempotency service — prevent duplicate transactions | `src/services/idempotency.service.ts` | ✅ Done |
 
-**Key Methods to Implement:**
-```typescript
-class TransactionService {
-  // Core transaction creation
-  async createTransaction(data: CreateTransactionDto)
-  
-  // State management
-  async updateTransactionStatus(transactionId: string, status: TransactionStatus)
-  
-  // Balance operations
-  async updateBalance(userId: string, amount: number, type: 'CREDIT' | 'DEBIT')
-  
-  // Locking mechanism
-  async lockBalance(userId: string, amount: number)
-  async unlockBalance(userId: string, amount: number)
-  
-  // History & querying
-  async getTransactionHistory(userId: string, filters: TransactionFilters)
-  async getTransactionById(transactionId: string)
-}
+---
+
+## ✅ PHASE 2 — Top-Up / Wallet Funding (COMPLETE)
+
+| Item | File | Status |
+|---|---|---|
+| Monnify payment gateway — virtual accounts | `src/services/monnify.service.ts` | ✅ Done |
+| Payment service — top-up orchestration | `src/services/payment.service.ts` | ✅ Done |
+| Withdrawal service — bank withdrawal | `src/services/withdrawal.service.ts` | ✅ Done |
+| Transport wallet service | `src/services/transport-wallet.service.ts` | ✅ Done |
+
+---
+
+## ✅ PHASE 3 — Bank Account Management (COMPLETE)
+
+| Item | File | Status |
+|---|---|---|
+| Bank account service — add/remove/verify/primary | `src/services/bank-account.service.ts` | ✅ Done |
+
+---
+
+## ✅ PHASE 4 — Peer-to-Peer Transfers (COMPLETE)
+
+| Item | File | Status |
+|---|---|---|
+| Transfer service — P2P wallet transfers with PIN | `src/services/transfer.service.ts` | ✅ Done |
+
+---
+
+## ✅ PHASE 5 — VAS (Value Added Services) (COMPLETE)
+
+| Item | File | Status |
+|---|---|---|
+| Airtime purchase (MTN, Glo, Airtel, 9mobile) | `src/services/airtime.service.ts` | ✅ Done |
+| Data bundle purchase | `src/services/data.service.ts` | ✅ Done |
+| Electricity bill payment | `src/services/electricity.service.ts` | ✅ Done |
+| Cable TV subscription (DStv, GOtv, Startimes) | `src/services/tv-subscription.service.ts` | ✅ Done |
+| VTPass provider adapter | `src/services/vtpass-provider.service.ts` | ✅ Done |
+
+---
+
+## ✅ PHASE 6 — Transport (T-Ride) (COMPLETE — Data Pending)
+
+| Item | File | Status |
+|---|---|---|
+| Park service — motor park management | `src/services/park.service.ts` | ✅ Done |
+| Nearby service — find parks by GPS (Haversine, 50km radius) | `src/services/nearby.service.ts` | ✅ Done |
+| Trip service — ride booking and management | `src/services/trip.service.ts` | ✅ Done |
+| Vehicle service — vehicle registration | `src/services/vehicle.service.ts` | ✅ Done |
+| T-Ride service — T-Ride business logic | `src/services/t-ride.service.ts` | ✅ Done |
+| **SEED DATA — 15 parks in DB** | `prisma/seed.ts` | ⚠️ **PENDING: Run `npx prisma db seed`** |
+
+---
+
+## ✅ PHASE 7 — User Profile & KYC (COMPLETE)
+
+| Item | File | Status |
+|---|---|---|
+| Profile service — view/update/photo upload | `src/services/profile.service.ts` | ✅ Done |
+| KYC service — identity verification | `src/services/kyc.service.ts` | ✅ Done |
+| Settings service — user preferences | `src/services/settings.service.ts` | ✅ Done |
+| Session service — multi-device session management | `src/services/session.service.ts` | ✅ Done |
+| Security service — PIN, security questions | `src/services/security.service.ts` | ✅ Done |
+
+---
+
+## ✅ PHASE 8 — Notifications & Communication (COMPLETE)
+
+| Item | File | Status |
+|---|---|---|
+| Email service — SendGrid (from `noreply@tyap.com`) | `src/services/email.service.ts` | ✅ Done |
+| SMS service — Termii | `src/services/sms.service.ts` | ✅ Done |
+| Push notification — FCM | `src/services/push-notification.service.ts` | ✅ Done |
+| Notification orchestration | `src/services/notification.service.ts` | ✅ Done |
+| Queue service — BullMQ + Redis + fallback | `src/services/queue.service.ts` | ✅ Done |
+| **SPF/DKIM DNS records for tyap.com** | Domain Registrar | ⚠️ **PENDING: Manual DNS setup** |
+
+---
+
+## ✅ PHASE 9 — Support, FAQ & Chatbot (COMPLETE — Data Pending)
+
+| Item | File | Status |
+|---|---|---|
+| FAQ service — search, categories, popular | `src/services/faq.service.ts` | ✅ Done |
+| Help content service — guides and articles | `src/services/help-content.service.ts` | ✅ Done |
+| Support ticket service — create, track, manage | `src/services/support-ticket.service.ts` | ✅ Done |
+| Chatbot (Nick) — greeting + keyword intent detection | `src/services/chatbot.service.ts` | ✅ Done |
+| Contact info — phone + email + WhatsApp | `src/controllers/support.controller.ts` | ✅ Done |
+| **SEED DATA — 12 FAQs + 6 help articles in DB** | `prisma/seed.ts` | ⚠️ **PENDING: Run `npx prisma db seed`** |
+
+---
+
+## ✅ PHASE 10 — Admin & Analytics (COMPLETE)
+
+| Item | File | Status |
+|---|---|---|
+| Admin finance service | `src/services/admin-finance.service.ts` | ✅ Done |
+| Analytics service — spending, categorization, exports | `src/services/transaction-analytics.service.ts` | ✅ Done |
+| Live data service | `src/services/live-data.service.ts` | ✅ Done |
+| Receipt service — transaction receipts | `src/services/receipt.service.ts` | ✅ Done |
+| Referral service — referral code + tracking | `src/services/referral.service.ts` | ✅ Done |
+
+---
+
+## ✅ PHASE 11 — UAT Bug Fixes (COMPLETE — 2 actions pending)
+
+> All bugs from the T-Yap UAT Bug Report (15–16 June 2026) addressed.
+
+| Bug ID | Issue | Status |
+|---|---|---|
+| B1 · P1 | OTP delay — sandbox mock disabled, direct email fallback added | ✅ Fixed |
+| B2 · P2 | OTP in spam — sender changed to `noreply@tyap.com` | ✅ Code fixed, ⚠️ DNS pending |
+| B3 · P2 | OTP expiry 10min → 3min (all 4 locations in auth.service.ts) | ✅ Fixed |
+| B4 · P2 | Change PIN fails — `confirmPin` made optional in validation | ✅ Fixed |
+| B5 · P2 | Chatbot generic replies — keyword intent detection added (9 intents) | ✅ Fixed |
+| B6 · P2 | FAQ empty — seed.ts updated with 12 real FAQs | ✅ Code ready, ⚠️ Seed pending |
+| B7 · P1 | 0 parks — seed.ts updated with 15 Nigerian motor parks + 50km radius | ✅ Code ready, ⚠️ Seed pending |
+| B8 · P3 | Refer & Earn "My Code" — API was always fine, RN frontend issue | N/A (RN dev) |
+| B9 · P2 | Contact support missing email/WhatsApp — added to response | ✅ Fixed |
+| Email templates | "expires in 10 minutes" text corrected to "3 minutes" | ✅ Fixed |
+
+---
+
+## 🔴 WHAT TO DO NEXT — In Priority Order
+
+### 🥇 STEP 1: Run Database Seed (URGENT)
+**When:** As soon as Supabase is healthy (check https://status.supabase.com)
+**Command:**
+```bash
+cd /Users/Apple/t-yap
+npx prisma db seed
 ```
-
-**Files to Create:**
-- `src/services/transaction.service.ts`
-- `src/controllers/transaction.controller.ts`
-- `src/routes/transaction.routes.ts`
-- `src/utils/transaction-lock.ts` (for concurrency)
-
----
-
-#### **1.2 Balance Management Service** (`src/services/balance.service.ts`)
-
-**What to Build:**
-- ✅ Real-time balance calculation
-- ✅ Balance locking for pending transactions
-- ✅ Balance history tracking
-- ✅ Reconciliation processes
-
-**Key Methods:**
-```typescript
-class BalanceService {
-  async getCurrentBalance(userId: string)
-  async calculateBalance(userId: string) // From transaction ledger
-  async lockBalance(userId: string, amount: number)
-  async unlockBalance(userId: string, amount: number)
-  async updateBalance(userId: string, amount: number, type: 'CREDIT' | 'DEBIT')
-  async getBalanceHistory(userId: string, dateRange: DateRange)
-}
-```
-
-**Files to Create:**
-- `src/services/balance.service.ts`
+**What it does:**
+- Clears old/corrupt park and FAQ data
+- Inserts 15 Nigerian motor parks with GPS coordinates
+- Inserts 12 FAQs across 5 categories
+- Inserts 6 help articles
+- Fixes B6 (FAQ) and B7 (Parks/Nearby Terminals) for real
 
 ---
 
-#### **1.3 Transaction History & Filtering**
-
-**What to Build:**
-- ✅ Query transactions with filters (date, type, category, status)
-- ✅ Pagination support
-- ✅ Sorting options
-- ✅ Export functionality (CSV/PDF)
-
-**Key Methods:**
-```typescript
-async getTransactionHistory(userId: string, options: {
-  limit?: number
-  offset?: number
-  startDate?: Date
-  endDate?: Date
-  type?: TransactionType
-  category?: TransactionCategory
-  status?: TransactionStatus
-  sortBy?: 'date' | 'amount'
-  sortOrder?: 'asc' | 'desc'
-})
-```
-
-**Update Existing:**
-- `src/services/wallet.service.ts` - Complete the `getTransactionHistory` method
+### 🥈 STEP 2: Configure SPF/DKIM DNS
+**When:** Log into your domain registrar for `tyap.com`
+**What to do:**
+1. Add SendGrid SPF record (TXT): `v=spf1 include:sendgrid.net ~all`
+2. Add DKIM records from SendGrid → Settings → Sender Authentication → Domain Authentication
+3. This prevents OTP emails from landing in spam (fixes B2 fully)
 
 ---
 
-### **PHASE 2: Top-Up Service** (Depends on Phase 1)
-
-#### **2.1 Top-Up Service** (`src/services/topup.service.ts`)
-
-**What to Build:**
-- ✅ Account number validation
-- ✅ Payment gateway integration (Flutterwave, Paystack, etc.)
-- ✅ Top-up limits and validation
-- ✅ Transaction confirmation workflow
-- ✅ Webhook handling
-
-**Key Methods:**
-```typescript
-class TopUpService {
-  async initiateTopUp(userId: string, data: TopUpRequest)
-  async validateAccountNumber(accountNumber: string, bankCode: string)
-  async processTopUp(transactionId: string, paymentReference: string)
-  async handleWebhook(payload: WebhookPayload)
-  async checkTopUpLimits(userId: string, amount: number)
-}
-```
-
-**Files to Create:**
-- `src/services/topup.service.ts`
-- `src/controllers/topup.controller.ts`
-- `src/routes/topup.routes.ts`
-- `src/services/payment-gateway.service.ts` (Flutterwave/Paystack wrapper)
-- `src/utils/account-validation.ts`
-- `src/middleware/webhook.middleware.ts`
-
-**Payment Gateway Integration:**
-- Create adapter pattern for multiple providers
-- Support Flutterwave, Paystack, or both
+### 🥉 STEP 3: React Native Bug Fixes (F1–F12)
+**Owner:** React Native developer (separate codebase)
+**Prompt already prepared** — see the conversation or ask the AI to regenerate it.
+**Covers:** App icon, OTP auto-advance, login error message, remember me, onboarding, utility icon crashes, notification icon, save changes button, profile photo sync, referral code display, link bank account CTA, biometric prompt.
 
 ---
 
-### **PHASE 3: Bank Account Management** (Can be built in parallel with Phase 2)
-
-#### **3.1 Bank Account Service** (`src/services/bank-account.service.ts`)
-
-**What to Build:**
-- ✅ Add/remove bank account endpoints
-- ✅ Bank verification service (BVN, NUBAN validation)
-- ✅ Account linking workflow
-- ✅ Primary account designation
-- ✅ Security checks
-
-**Key Methods:**
-```typescript
-class BankAccountService {
-  async addBankAccount(userId: string, data: AddBankAccountDto)
-  async removeBankAccount(userId: string, accountId: string)
-  async verifyBankAccount(accountNumber: string, bankCode: string)
-  async setPrimaryAccount(userId: string, accountId: string)
-  async getBankAccounts(userId: string)
-  async validateAccountOwnership(userId: string, accountId: string)
-}
-```
-
-**Files to Create:**
-- `src/services/bank-account.service.ts`
-- `src/controllers/bank-account.controller.ts`
-- `src/routes/bank-account.routes.ts`
-- `src/services/bank-verification.service.ts` (Paystack/Flutterwave BVN API)
-
----
-
-### **PHASE 4: Peer-to-Peer Transfers** (Depends on Phase 1 & 3)
-
-#### **4.1 Transfer Service** (`src/services/transfer.service.ts`)
-
-**What to Build:**
-- ✅ P2P transfer logic
-- ✅ Transfer validation
-- ✅ PIN verification
-- ✅ Transaction processing
-
-**Key Methods:**
-```typescript
-class TransferService {
-  async initiateTransfer(userId: string, data: TransferRequest)
-  async validateTransfer(userId: string, amount: number, recipientId: string)
-  async verifyPin(userId: string, pin: string)
-  async processTransfer(transferId: string)
-  async getTransferHistory(userId: string)
-}
-```
-
-**Files to Create:**
-- `src/services/transfer.service.ts`
-- `src/controllers/transfer.controller.ts`
-- `src/routes/transfer.routes.ts`
-
----
-
-### **PHASE 5: Transaction Analytics** (Depends on Phase 1)
-
-#### **5.1 Analytics Service** (`src/services/analytics.service.ts`)
-
-**What to Build:**
-- ✅ Spending pattern analysis
-- ✅ Transaction categorization
-- ✅ Monthly/weekly summaries
-- ✅ Export functionality (CSV/PDF)
-
-**Key Methods:**
-```typescript
-class AnalyticsService {
-  async getSpendingPatterns(userId: string, period: 'week' | 'month' | 'year')
-  async categorizeTransactions(userId: string)
-  async generateSummary(userId: string, period: DateRange)
-  async exportTransactions(userId: string, format: 'csv' | 'pdf', filters: Filters)
-}
-```
-
-**Files to Create:**
-- `src/services/analytics.service.ts`
-- `src/controllers/analytics.controller.ts`
-- `src/routes/analytics.routes.ts`
-- `src/utils/export-utils.ts` (CSV/PDF generation)
-
----
-
-## 🚀 Step-by-Step: Where to Start
-
-### **Step 1: Build Transaction Service (Foundation)**
-
-**File:** `src/services/transaction.service.ts`
-
-**Start with these methods:**
-1. `createTransaction()` - Create transaction record
-2. `updateTransactionStatus()` - Update status
-3. `updateBalance()` - Update wallet balance atomically
-
-**Example Structure:**
-```typescript
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
-import { Decimal } from '@prisma/client/runtime/library';
-
-export class TransactionService {
-  async createTransaction(data: {
-    userId: string;
-    type: 'CREDIT' | 'DEBIT';
-    category: TransactionCategory;
-    amount: number;
-    description?: string;
-    reference: string;
-    metadata?: any;
-  }) {
-    // 1. Get current balance
-    // 2. Calculate new balance
-    // 3. Create transaction record
-    // 4. Update passenger wallet balance
-    // 5. Return transaction
-  }
-
-  async updateTransactionStatus(
-    transactionId: string,
-    status: TransactionStatus
-  ) {
-    // Update transaction status
-    // Handle balance rollback if failed
-  }
-}
+### STEP 4: Push Code to GitHub (Optional)
+```bash
+cd /Users/Apple/t-yap
+git push origin main
 ```
 
 ---
 
-### **Step 2: Add Transaction Locking**
+## 🚀 RESUME INSTRUCTIONS (If Chat History is Lost)
 
-**File:** `src/utils/transaction-lock.ts`
+If you open a new chat session and your history is gone, paste this to the AI:
 
-**Purpose:** Prevent concurrent transactions from causing balance issues
-
-**Implementation:**
-- Use database transactions (Prisma transactions)
-- Use row-level locking
-- Implement retry logic
-
----
-
-### **Step 3: Complete Transaction History**
-
-**Update:** `src/services/wallet.service.ts`
-
-**Replace the placeholder with real implementation:**
-```typescript
-async getTransactionHistory(userId: string, limit: number = 10, offset: number = 0) {
-  const transactions = await prisma.transaction.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    skip: offset,
-    include: {
-      trip: true,
-      vasPurchase: true
-    }
-  });
-
-  const total = await prisma.transaction.count({
-    where: { userId }
-  });
-
-  return {
-    transactions,
-    total,
-    limit,
-    offset
-  };
-}
-```
-
----
-
-### **Step 4: Build Top-Up Service**
-
-**File:** `src/services/topup.service.ts`
-
-**Integration Points:**
-- Use TransactionService to create transaction
-- Use BalanceService to update balance
-- Integrate with payment gateway (Flutterwave/Paystack)
-
----
-
-## 📁 File Structure You'll Create
-
-```
-src/
-├── services/
-│   ├── transaction.service.ts      ⭐ START HERE
-│   ├── balance.service.ts
-│   ├── topup.service.ts
-│   ├── bank-account.service.ts
-│   ├── transfer.service.ts
-│   ├── analytics.service.ts
-│   └── payment-gateway.service.ts
-├── controllers/
-│   ├── transaction.controller.ts
-│   ├── topup.controller.ts
-│   ├── bank-account.controller.ts
-│   ├── transfer.controller.ts
-│   └── analytics.controller.ts
-├── routes/
-│   ├── transaction.routes.ts
-│   ├── topup.routes.ts
-│   ├── bank-account.routes.ts
-│   ├── transfer.routes.ts
-│   └── analytics.routes.ts
-├── utils/
-│   ├── transaction-lock.ts
-│   ├── account-validation.ts
-│   └── export-utils.ts
-└── middleware/
-    └── webhook.middleware.ts
-```
-
----
-
-## 🔗 Dependencies & Order
-
-```
-Phase 1: Transaction Engine
-  └─> Foundation for everything
-
-Phase 2: Top-Up Service
-  └─> Depends on: Transaction Engine
-
-Phase 3: Bank Account Management
-  └─> Independent (can build in parallel)
-
-Phase 4: P2P Transfers
-  └─> Depends on: Transaction Engine + Bank Accounts
-
-Phase 5: Analytics
-  └─> Depends on: Transaction Engine
-```
-
----
-
-## 🎯 Your First Task (Start Here!)
-
-### **Task 1: Create Transaction Service**
-
-1. **Create file:** `src/services/transaction.service.ts`
-2. **Implement:**
-   - `createTransaction()` method
-   - `updateTransactionStatus()` method
-   - `updateBalance()` method (atomic operation)
-
-3. **Test it:**
-   - Create a test transaction
-   - Verify balance updates correctly
-   - Test status updates
-
-**Time Estimate:** 2-3 hours
-
----
-
-## 💡 Key Implementation Tips
-
-### **1. Use Database Transactions**
-```typescript
-await prisma.$transaction(async (tx) => {
-  // Create transaction record
-  // Update balance
-  // All or nothing!
-});
-```
-
-### **2. Handle Concurrency**
-- Use Prisma's `update` with `where` conditions
-- Implement optimistic locking
-- Use database-level locks
-
-### **3. Balance Updates**
-- Always calculate: `balanceAfter = balanceBefore + amount`
-- Store both `balanceBefore` and `balanceAfter` in transaction
-- Update passenger balance atomically
-
-### **4. Error Handling**
-- Rollback on failures
-- Log all errors
-- Return user-friendly messages
-
----
-
-## 📚 Resources You'll Need
-
-### **Payment Gateway Docs:**
-- Flutterwave: https://developer.flutterwave.com/
-- Paystack: https://paystack.com/docs/
-
-### **Bank Verification:**
-- Paystack Bank Verification: https://paystack.com/docs/api/#bank
-- Flutterwave BVN: https://developer.flutterwave.com/reference#bvn
-
-### **Prisma Transactions:**
-- https://www.prisma.io/docs/concepts/components/prisma-client/transactions
-
----
-
-## ✅ Success Criteria
-
-**Phase 1 Complete When:**
-- ✅ Can create transactions
-- ✅ Balance updates correctly
-- ✅ Transaction history works
-- ✅ Concurrent transactions handled safely
-
-**Phase 2 Complete When:**
-- ✅ Can top-up wallet
-- ✅ Payment gateway integrated
-- ✅ Webhooks working
-- ✅ Top-up limits enforced
-
-**Phase 3 Complete When:**
-- ✅ Can add/remove bank accounts
-- ✅ Bank verification works
-- ✅ Primary account can be set
-
----
-
-## 🚦 Ready to Start?
-
-**Your first file to create:** `src/services/transaction.service.ts`
-
-**Your first method to implement:** `createTransaction()`
-
-**Need help?** Follow the pattern from `wallet.service.ts` and `auth.service.ts`!
-
----
-
-**Let's build this! 🚀**
-
+> "Read `/Users/Apple/t-yap/COMPLETION_CHECKLIST.md` and `/Users/Apple/t-yap/DEVELOPMENT_ROADMAP.md` in full before doing anything.
+> Then:
+> 1. Check if Supabase is healthy at https://status.supabase.com
+> 2. If healthy, run `npx prisma db seed` in `/Users/Apple/t-yap` to complete B6 and B7
+> 3. If not healthy, proceed to set up SPF/DKIM DNS for `tyap.com` (explain what to do)
+> The last git commit is `56e2c9b` — message: `fix(backend): resolve UAT backend issues (B1-B7, B9)`"
