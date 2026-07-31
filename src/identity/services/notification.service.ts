@@ -1,8 +1,8 @@
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { NotificationType } from '@prisma/client';
-import { createError } from '../middleware/error.middleware';
-import { appCache } from './cache.service';
-import { queueService } from './queue.service';
+import { createError } from '../../shared/middleware/error.middleware';
+import { appCache } from '../../shared/cache.service';
+import { queueService } from '../../shared/queue.service';
 
 export class NotificationService {
   

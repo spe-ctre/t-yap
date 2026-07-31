@@ -1,8 +1,8 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 
 import { TransactionAnalyticsService } from '../services/transaction-analytics.service';
-import { AppError } from '../utils/errors';
+import { AppError } from '../../shared/utils/errors';
 
 export class TransactionAnalyticsController {
   /**

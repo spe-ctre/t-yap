@@ -1,10 +1,10 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import { ProfileService } from '../services/profile.service';
-import { updateProfileSchema, updateSettingsSchema } from '../utils/validation';
-import { createError } from '../middleware/error.middleware';
-import { validateFile } from '../utils/file.util';
-import { getValidationErrorMessage } from '../utils/validation-error.util';
+import { updateProfileSchema, updateSettingsSchema } from '../../shared/utils/validation';
+import { createError } from '../../shared/middleware/error.middleware';
+import { validateFile } from '../../shared/utils/file.util';
+import { getValidationErrorMessage } from '../../shared/utils/validation-error.util';
 
 export class ProfileController {
   private profileService: ProfileService;
@@ -115,7 +115,7 @@ export class ProfileController {
   getTiersAndLimits = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
-      const { prisma } = require('../config/database');
+      const { prisma } = require('../../shared/config/database');
       const passenger = await prisma.passenger.findUnique({
         where: { userId },
         select: { tier: true }

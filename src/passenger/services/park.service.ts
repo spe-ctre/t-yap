@@ -1,7 +1,7 @@
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
-import { calculateDistance, isValidCoordinates } from '../utils/location.util';
-import { appCache } from './cache.service';
+import { prisma } from '../../shared/config/database';
+import { createError } from '../../shared/middleware/error.middleware';
+import { calculateDistance, isValidCoordinates } from '../../shared/utils/location.util';
+import { appCache } from '../../shared/cache.service';
 
 export class ParkService {
   /**

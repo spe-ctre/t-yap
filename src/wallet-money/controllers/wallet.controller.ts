@@ -1,7 +1,7 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import { WalletService } from '../services/wallet.service';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 
 
 
@@ -138,7 +138,7 @@ export class WalletController {
   getTransportBalance = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
-      const { prisma } = require('../config/database');
+      const { prisma } = require('../../shared/config/database');
       const passenger = await prisma.passenger.findUnique({
         where: { userId },
         select: { transportWalletBalance: true }
@@ -164,7 +164,7 @@ export class WalletController {
       const { amount, pin } = req.body;
       if (!amount || !pin) throw createError('Amount and PIN are required', 400);
       if (amount <= 0) throw createError('Amount must be greater than 0', 400);
-      const { prisma } = require('../config/database');
+      const { prisma } = require('../../shared/config/database');
       const bcrypt = require('bcryptjs');
       const passenger = await prisma.passenger.findUnique({ where: { userId } });
       if (!passenger) throw createError('Passenger profile not found', 404);

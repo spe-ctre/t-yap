@@ -1,5 +1,5 @@
-import { messaging } from '../config/firebase';
-import { prisma } from '../config/database';
+import { messaging } from '../../shared/config/firebase';
+import { prisma } from '../../shared/config/database';
 import { NotificationType } from '@prisma/client';
 import { SettingsService } from './settings.service';
 import { NotificationService } from './notification.service';

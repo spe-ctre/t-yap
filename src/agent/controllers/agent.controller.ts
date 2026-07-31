@@ -1,12 +1,12 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response } from 'express';
 
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import * as bcrypt from 'bcryptjs';
-import { SMSService } from '../services/sms.service';
-import { BiometricService } from '../services/biometric.service';
-import { MonnifyService } from '../services/monnify.service';
-import { ProfileService } from '../services/profile.service';
+import { SMSService } from '../../identity/services/sms.service';
+import { BiometricService } from '../../identity/services/biometric.service';
+import { MonnifyService } from '../../wallet-money/services/monnify.service';
+import { ProfileService } from '../../identity/services/profile.service';
 
 const smsService = new SMSService();
 const biometricService = new BiometricService();

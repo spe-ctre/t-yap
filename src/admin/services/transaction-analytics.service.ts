@@ -1,6 +1,6 @@
 // src/services/transaction-analytics.service.ts
 
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { TransactionStatus, TransactionType, TransactionCategory } from '@prisma/client';
 import {
   TransactionSummary,
@@ -10,7 +10,7 @@ import {
   TopRecipient,
   AnalyticsPeriod,
   ExportData,
-} from '../types/analytics.types';
+} from '../../shared/types/analytics.types';
 
 export class TransactionAnalyticsService {
   /**

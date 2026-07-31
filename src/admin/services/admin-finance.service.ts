@@ -1,7 +1,7 @@
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { TransactionStatus, TransactionCategory, TransactionType } from '@prisma/client';
-import { AppError } from '../utils/errors';
-import { initiateBankTransfer } from '../utils/monnify.utils';
+import { AppError } from '../../shared/utils/errors';
+import { initiateBankTransfer } from '../../shared/utils/monnify.utils';
 
 export class AdminFinanceService {
   /**

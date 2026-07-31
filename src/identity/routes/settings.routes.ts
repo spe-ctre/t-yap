@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { SettingsController } from '../controllers/settings.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const settingsController = new SettingsController();

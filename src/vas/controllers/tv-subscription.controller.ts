@@ -1,10 +1,10 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 
 import { TVSubscriptionService } from '../services/tv-subscription.service';
-import { createError } from '../middleware/error.middleware';
-import { getValidationErrorMessage } from '../utils/validation-error.util';
-import { tvGetVariationsSchema, tvVerifySmartcardSchema, tvPurchaseSchema, tvHistorySchema, tvRequerySchema } from '../utils/validation';
+import { createError } from '../../shared/middleware/error.middleware';
+import { getValidationErrorMessage } from '../../shared/utils/validation-error.util';
+import { tvGetVariationsSchema, tvVerifySmartcardSchema, tvPurchaseSchema, tvHistorySchema, tvRequerySchema } from '../../shared/utils/validation';
 
 export class TVSubscriptionController {
   private service: TVSubscriptionService;

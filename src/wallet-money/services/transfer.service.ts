@@ -1,12 +1,12 @@
 // src/services/transfer.service.ts
 
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { TransactionStatus, TransactionType, TransactionCategory, UserRole, TransferStatus } from '@prisma/client';
-import { AppError } from '../utils/errors';
+import { AppError } from '../../shared/utils/errors';
 import * as bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
-import { logAction } from '../controllers/auditLog.controller';
-import { PushNotificationService } from './push-notification.service';
+import { logAction } from '../../admin/controllers/auditLog.controller';
+import { PushNotificationService } from '../../identity/services/push-notification.service';
 
 const HIGH_VALUE_THRESHOLD = 50000;
 

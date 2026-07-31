@@ -1,8 +1,8 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/payment.service';
-import { createError } from '../middleware/error.middleware';
-import { prisma } from '../config/database';
+import { createError } from '../../shared/middleware/error.middleware';
+import { prisma } from '../../shared/config/database';
 
 
 

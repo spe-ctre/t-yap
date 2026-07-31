@@ -1,9 +1,9 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
+import { prisma } from '../../shared/config/database';
+import { createError } from '../../shared/middleware/error.middleware';
 
 export class TwoFactorController {
 

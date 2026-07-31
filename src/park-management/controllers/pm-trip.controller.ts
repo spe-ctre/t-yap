@@ -1,6 +1,6 @@
-/// <reference path="../../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response } from 'express';
-import { prisma } from '../../config/database';
+import { prisma } from '../../shared/config/database';
 
 export class PMTripController {
   static async getAvailableVehicles(req: Request, res: Response) {
@@ -90,7 +90,7 @@ export class PMTripController {
 
         // 3. IMMEDIATELY split the revenue (Pay-on-Entry model)
         try {
-          const { RevenueService, RevenueType } = require('../../services/admin/revenue.service');
+          const { RevenueService, RevenueType } = require('../../admin/services/admin/revenue.service');
           // Fetch the PM ID of the manager performing the check-in
           const currentPM = await tx.parkManager.findUnique({ where: { userId: req.user!.id } });
           

@@ -1,8 +1,8 @@
 // src/jobs/cron-jobs.ts
 import cron from 'node-cron';
-import { BalanceReconciliationService } from '../services/balance-reconciliation.service';
+import { BalanceReconciliationService } from '../../wallet-money/services/balance-reconciliation.service';
 import { prisma } from '../config/database';
-import { emailService } from '../services/email.service';
+import { emailService } from '../../identity/services/email.service';
 
 /**
  * Setup all cron jobs

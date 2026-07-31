@@ -1,11 +1,11 @@
 // src/services/wallet.service.ts
 
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
+import { prisma } from '../../shared/config/database';
+import { createError } from '../../shared/middleware/error.middleware';
 import { MonnifyService } from './monnify.service';
 import { TransactionType, TransactionCategory, TransactionStatus, UserRole } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { appCache } from './cache.service';
+import { appCache } from '../../shared/cache.service';
 
 /**
  * WalletService - Handles all wallet-related operations

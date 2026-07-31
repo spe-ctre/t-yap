@@ -1,15 +1,15 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import { UserRole, TripStatus } from '@prisma/client'; 
 import { TripService } from '../services/trip.service';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 import {
   createTripSchema,
   tripIdParamSchema,
   updateTripStatusSchema,
   tripQuerySchema
-} from '../utils/validation';
-import { getValidationErrorMessage } from '../utils/validation-error.util';
+} from '../../shared/utils/validation';
+import { getValidationErrorMessage } from '../../shared/utils/validation-error.util';
 
 
 

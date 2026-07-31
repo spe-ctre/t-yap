@@ -1,9 +1,9 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import { SecurityService } from '../services/security.service';
-import { setSecurityQuestionsSchema, verifySecurityQuestionsSchema } from '../utils/validation';
-import { createError } from '../middleware/error.middleware';
-import { getValidationErrorMessage } from '../utils/validation-error.util';
+import { setSecurityQuestionsSchema, verifySecurityQuestionsSchema } from '../../shared/utils/validation';
+import { createError } from '../../shared/middleware/error.middleware';
+import { getValidationErrorMessage } from '../../shared/utils/validation-error.util';
 
 export class SecurityController {
   private securityService: SecurityService;

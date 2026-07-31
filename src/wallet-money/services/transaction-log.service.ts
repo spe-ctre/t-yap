@@ -1,4 +1,4 @@
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
 export type LogType = 'REQUEST' | 'RESPONSE' | 'ERROR' | 'WEBHOOK' | 'REQUERY';

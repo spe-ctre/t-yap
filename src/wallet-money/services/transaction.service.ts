@@ -1,5 +1,5 @@
 // src/services/transaction.service.ts
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { v4 as uuidv4 } from 'uuid';
 import { TransactionType, TransactionCategory, UserRole } from '@prisma/client';
 

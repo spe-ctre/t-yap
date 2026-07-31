@@ -2,7 +2,7 @@
 
 import { PrismaClient, UserRole, TransactionStatus, TransactionType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { prisma } from '../config/database'; // Use shared instance
+import { prisma } from '../../shared/config/database'; // Use shared instance
 
 interface ReconciliationResult {
   userId: string;

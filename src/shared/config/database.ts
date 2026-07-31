@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { appCache } from '../services/cache.service';
+import { appCache } from '../cache.service';
 
 /**
  * T-Yap High-Performance Database Engine

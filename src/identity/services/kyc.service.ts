@@ -1,6 +1,6 @@
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import axios from 'axios';
-import { AppError } from '../utils/errors';
+import { AppError } from '../../shared/utils/errors';
 
 export class KYCService {
   /**

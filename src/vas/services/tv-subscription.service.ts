@@ -1,9 +1,9 @@
 import { TransactionCategory, TransactionStatus, TransactionType, UserRole, VASCategory, VASPurchaseStatus } from '@prisma/client';
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
-import { VTpassProviderService } from './vtpass-provider.service';
-import { IdempotencyService } from './idempotency.service';
-import { TransactionLogService } from './transaction-log.service';
+import { prisma } from '../../shared/config/database';
+import { createError } from '../../shared/middleware/error.middleware';
+import { VTpassProviderService } from '../../wallet-money/services/vtpass-provider.service';
+import { IdempotencyService } from '../../wallet-money/services/idempotency.service';
+import { TransactionLogService } from '../../wallet-money/services/transaction-log.service';
 
 interface DeviceInfo {
   ipAddress?: string;

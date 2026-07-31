@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { SessionController } from '../controllers/session.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const sessionController = new SessionController();

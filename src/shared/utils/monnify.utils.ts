@@ -1,4 +1,4 @@
-import { MonnifyService } from '../services/monnify.service';
+import { MonnifyService } from '../../wallet-money/services/monnify.service';
 import { AppError } from './errors';
 
 const monnifyService = new MonnifyService();

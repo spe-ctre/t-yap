@@ -1,13 +1,13 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import { TRideService } from '../services/t-ride.service';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 import {
   nearbyParksQuerySchema,
   parkIdParamSchema,
   vehicleIdParamSchema
-} from '../utils/validation';
-import { getValidationErrorMessage } from '../utils/validation-error.util';
+} from '../../shared/utils/validation';
+import { getValidationErrorMessage } from '../../shared/utils/validation-error.util';
 
 
 

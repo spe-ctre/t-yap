@@ -1,7 +1,7 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import { PushNotificationService } from '../services/push-notification.service';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 
 
 export class DeviceTokenController {

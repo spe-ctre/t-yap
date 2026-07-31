@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ProfileController } from '../controllers/profile.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { uploadSingle } from '../middleware/upload.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { uploadSingle } from '../../shared/middleware/upload.middleware';
 
 const router = Router();
 const profileController = new ProfileController();

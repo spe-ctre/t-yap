@@ -1,9 +1,9 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 import { FAQService } from '../services/faq.service';
 import { SupportTicketService } from '../services/support-ticket.service';
 import { HelpContentService } from '../services/help-content.service';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 
 
 export class SupportController {

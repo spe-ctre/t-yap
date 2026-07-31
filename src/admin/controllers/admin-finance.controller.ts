@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AdminFinanceService } from '../services/admin-finance.service';
-import { AppError } from '../utils/errors';
+import { AppError } from '../../shared/utils/errors';
 
 export class AdminFinanceController {
   

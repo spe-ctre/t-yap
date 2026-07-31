@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { hasRole } from '../middleware/role.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { hasRole } from '../../shared/middleware/role.middleware';
 
 import {
   getDriverDashboard,

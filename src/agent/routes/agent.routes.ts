@@ -53,7 +53,7 @@ import {
   getAgentGuide,
 } from '../controllers/agent.controller';
 
-import { authenticateToken } from '../middleware/auth.middleware';
+import { authenticateToken } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 

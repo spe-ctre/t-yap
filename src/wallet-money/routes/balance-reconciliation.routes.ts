@@ -1,8 +1,8 @@
 // src/routes/balance-reconciliation.routes.ts
 import { Router } from 'express';
 import { BalanceReconciliationController } from '../controllers/balance-reconciliation.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { isAdmin } from '../middleware/role.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { isAdmin } from '../../shared/middleware/role.middleware';
 
 const router = Router();
 

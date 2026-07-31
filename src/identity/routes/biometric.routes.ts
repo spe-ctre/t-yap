@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { BiometricController } from '../controllers/biometric.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { requirePassenger } from '../middleware/role.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { requirePassenger } from '../../shared/middleware/role.middleware';
 
 const router = Router();
 const biometricController = new BiometricController();

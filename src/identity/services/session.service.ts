@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
-import { UserRole } from '../middleware/auth.middleware';
+import { prisma } from '../../shared/config/database';
+import { createError } from '../../shared/middleware/error.middleware';
+import { UserRole } from '../../shared/middleware/auth.middleware';
 
 export class SessionService {
   /**

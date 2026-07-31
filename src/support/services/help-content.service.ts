@@ -1,5 +1,5 @@
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
+import { prisma } from '../../shared/config/database';
+import { createError } from '../../shared/middleware/error.middleware';
 
 export class HelpContentService {
   

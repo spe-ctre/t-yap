@@ -1,12 +1,12 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { MonnifyService } from '../services/monnify.service';
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 
 const monnifyService = new MonnifyService();
 import { Request, Response, NextFunction } from 'express';
 
 import { TransferService } from '../services/transfer.service';
-import { AppError } from '../utils/errors';
+import { AppError } from '../../shared/utils/errors';
 
 export class TransferController {
   /**

@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { ElectricityController } from '../controllers/electricity.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { requireEmailVerification } from '../middleware/verification.middleware';
-import { requirePinVerification } from '../middleware/pin.middleware';
-import { extractDeviceInfo } from '../middleware/device.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { requireEmailVerification } from '../../shared/middleware/verification.middleware';
+import { requirePinVerification } from '../../shared/middleware/pin.middleware';
+import { extractDeviceInfo } from '../../shared/middleware/device.middleware';
 
 const router = Router();
 const controller = new ElectricityController();

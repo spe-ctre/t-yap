@@ -1,7 +1,7 @@
-/// <reference path="../../types/express.d.ts" />
+/// <reference path="../../../shared/types/express" />
 import { Request, Response } from 'express';
-import { prisma } from '../../config/database';
-import { BiometricService } from '../../services/biometric.service';
+import { prisma } from '../../../shared/config/database';
+import { BiometricService } from '../../../identity/services/biometric.service';
 
 export class BiometricDebugController {
   private biometricService: BiometricService;

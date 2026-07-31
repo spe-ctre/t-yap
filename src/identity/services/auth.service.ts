@@ -1,13 +1,13 @@
 import * as bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { VerificationType } from '@prisma/client';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 import { EmailService } from './email.service';
 import { SessionService } from './session.service';
 import { SMSService } from './sms.service';
-import { prisma } from '../config/database';
-import { normalizePhoneNumber, isValidNigerianPhone } from '../utils/phone';
-import { queueService } from './queue.service';
+import { prisma } from '../../shared/config/database';
+import { normalizePhoneNumber, isValidNigerianPhone } from '../../shared/utils/phone';
+import { queueService } from '../../shared/queue.service';
 
 export class AuthService {
   private emailService: EmailService;

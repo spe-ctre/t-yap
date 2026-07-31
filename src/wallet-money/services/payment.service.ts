@@ -1,11 +1,11 @@
 // src/services/payment.service.ts
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { TransactionService } from './transaction.service';
 import { UserRole, TransactionType, TransactionCategory } from '@prisma/client';
-import { verifyWalletTopup } from '../utils/monnify.utils';
-import { createError } from '../middleware/error.middleware';
+import { verifyWalletTopup } from '../../shared/utils/monnify.utils';
+import { createError } from '../../shared/middleware/error.middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { PushNotificationService } from './push-notification.service';
+import { PushNotificationService } from '../../identity/services/push-notification.service';
 
 interface InitializePaymentInput {
   userId: string;

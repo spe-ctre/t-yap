@@ -1,12 +1,12 @@
 // src/services/withdrawal.service.ts
 
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { TransactionStatus, TransactionType, TransactionCategory, UserRole } from '@prisma/client';
-import { AppError } from '../utils/errors';
+import { AppError } from '../../shared/utils/errors';
 import * as bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
-import { initiateBankTransfer } from '../utils/monnify.utils';
-import { logAction } from '../controllers/auditLog.controller';
+import { initiateBankTransfer } from '../../shared/utils/monnify.utils';
+import { logAction } from '../../admin/controllers/auditLog.controller';
 
 const HIGH_VALUE_THRESHOLD = 50000;
 

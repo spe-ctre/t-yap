@@ -1,6 +1,6 @@
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { SupportCategory, TicketPriority } from '@prisma/client';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 
 export class SupportTicketService {
   

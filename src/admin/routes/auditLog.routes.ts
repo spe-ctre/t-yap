@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AuditLogController } from '../controllers/auditLog.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { requireClearance } from '../middleware/role.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { requireClearance } from '../../shared/middleware/role.middleware';
 
 const router = Router();
 const auditLogController = new AuditLogController();

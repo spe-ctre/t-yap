@@ -1,10 +1,10 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 
 import { ElectricityService } from '../services/electricity.service';
-import { createError } from '../middleware/error.middleware';
-import { getValidationErrorMessage } from '../utils/validation-error.util';
-import { electricityValidateMeterSchema, electricityPurchaseSchema, electricityHistorySchema } from '../utils/validation';
+import { createError } from '../../shared/middleware/error.middleware';
+import { getValidationErrorMessage } from '../../shared/utils/validation-error.util';
+import { electricityValidateMeterSchema, electricityPurchaseSchema, electricityHistorySchema } from '../../shared/utils/validation';
 
 export class ElectricityController {
   private service: ElectricityService;

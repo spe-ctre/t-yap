@@ -1,7 +1,7 @@
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
+import { prisma } from '../../shared/config/database';
+import { createError } from '../../shared/middleware/error.middleware';
 import { TripStatus } from '@prisma/client';
-import { PushNotificationService } from './push-notification.service';
+import { PushNotificationService } from '../../identity/services/push-notification.service';
 
 interface CreateTripData {
   routeId: string;

@@ -1,7 +1,7 @@
 // src/services/monnify.service.ts
 
 import axios from 'axios';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 import * as crypto from 'crypto';
 
 interface MonnifyAuthResponse {
@@ -257,7 +257,7 @@ export class MonnifyService {
       
       let amount = 100.00;
       try {
-        const { prisma } = require('../config/database');
+        const { prisma } = require('../../shared/config/database');
         const tx = await prisma.transaction.findFirst({
           where: {
             OR: [

@@ -1,6 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { TRideController } from '../controllers/t-ride.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const tRideController = new TRideController();

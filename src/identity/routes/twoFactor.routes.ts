@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { TwoFactorController } from '../controllers/twoFactor.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const twoFactorController = new TwoFactorController();

@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { createError } from '../middleware/error.middleware';
+import { createError } from '../../shared/middleware/error.middleware';
 
 interface VTpassConfig {
   baseUrl: string;

@@ -73,10 +73,10 @@ export class QueueService {
     // This is the "safety net" if Redis is down
     try {
       if (data.type === 'SMS') {
-        const { smsService } = await import('./sms.service');
+        const { smsService } = await import('../identity/services/sms.service');
         await smsService.sendSMS(data.phoneNumber || '', data.message);
       } else if (data.type === 'EMAIL') {
-        const { emailService } = await import('./email.service');
+        const { emailService } = await import('../identity/services/email.service');
         await emailService.sendEmail(data.email || '', data.subject || 'T-Yap Notification', data.message);
       }
       return { status: 'sent', mode: 'sync' };

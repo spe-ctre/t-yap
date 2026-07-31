@@ -1,10 +1,10 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 
 import { AirtimeService } from '../services/airtime.service';
-import { createError } from '../middleware/error.middleware';
-import { getValidationErrorMessage } from '../utils/validation-error.util';
-import { airtimePurchaseSchema, airtimeHistorySchema, airtimeRequerySchema } from '../utils/validation';
+import { createError } from '../../shared/middleware/error.middleware';
+import { getValidationErrorMessage } from '../../shared/utils/validation-error.util';
+import { airtimePurchaseSchema, airtimeHistorySchema, airtimeRequerySchema } from '../../shared/utils/validation';
 
 export class AirtimeController {
   private service: AirtimeService;

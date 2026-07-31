@@ -1,15 +1,15 @@
 import { Router } from 'express';
-import { authenticateToken } from '../middleware/auth.middleware';
-import { PMAuthController } from '../controllers/park-management/pm-auth.controller';
-import { PMDashboardController } from '../controllers/park-management/pm-dashboard.controller';
-import { PMDriverController } from '../controllers/park-management/pm-driver.controller';
-import { PMVehicleController } from '../controllers/park-management/pm-vehicle.controller';
-import { PMPassengerController } from '../controllers/park-management/pm-passenger.controller';
-import { PMWalletController } from '../controllers/park-management/pm-wallet.controller';
-import { PMReportController } from '../controllers/park-management/pm-report.controller';
-import { PMSettingsController } from '../controllers/park-management/pm-settings.controller';
-import { PMBiometricController } from '../controllers/park-management/pm-biometric.controller';
-import { PMTripController } from '../controllers/park-management/pm-trip.controller';
+import { authenticateToken } from '../../shared/middleware/auth.middleware';
+import { PMAuthController } from '../controllers/pm-auth.controller';
+import { PMDashboardController } from '../controllers/pm-dashboard.controller';
+import { PMDriverController } from '../controllers/pm-driver.controller';
+import { PMVehicleController } from '../controllers/pm-vehicle.controller';
+import { PMPassengerController } from '../controllers/pm-passenger.controller';
+import { PMWalletController } from '../controllers/pm-wallet.controller';
+import { PMReportController } from '../controllers/pm-report.controller';
+import { PMSettingsController } from '../controllers/pm-settings.controller';
+import { PMBiometricController } from '../controllers/pm-biometric.controller';
+import { PMTripController } from '../controllers/pm-trip.controller';
 
 const router = Router();
 

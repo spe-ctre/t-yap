@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 import { TransportWalletController } from '../controllers/transport-wallet.controller';
 
 const router = Router();

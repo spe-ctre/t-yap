@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { prisma } from '../../config/database';
+import { prisma } from '../../../shared/config/database';
 
 /**
  * Python Analytics Service

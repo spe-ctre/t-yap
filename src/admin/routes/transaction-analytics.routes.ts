@@ -2,7 +2,7 @@
 
 import { Router } from 'express';
 import { TransactionAnalyticsController } from '../controllers/transaction-analytics.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 

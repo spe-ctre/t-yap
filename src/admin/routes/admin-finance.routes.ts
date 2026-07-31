@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AdminFinanceController } from '../controllers/admin-finance.controller';
-import { authenticateToken } from '../middleware/auth.middleware';
-import { hasRole } from '../middleware/role.middleware';
+import { authenticateToken } from '../../shared/middleware/auth.middleware';
+import { hasRole } from '../../shared/middleware/role.middleware';
 import { UserRole } from '@prisma/client';
 
 const router = Router();

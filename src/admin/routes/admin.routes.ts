@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { AdminController } from '../controllers/admin.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { requireClearance } from '../middleware/role.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { requireClearance } from '../../shared/middleware/role.middleware';
 
 const router = Router();
 

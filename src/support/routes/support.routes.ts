@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { SupportController } from '../controllers/support.controller';
 import { ChatbotController } from '../controllers/chatbot.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 const supportController = new SupportController();

@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 
 export type IdempotencyStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
 

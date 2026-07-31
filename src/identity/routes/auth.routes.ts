@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-import { extractDeviceInfo } from '../middleware/device.middleware';
-import { requireEmailVerification } from '../middleware/verification.middleware';
-import { requirePassenger } from '../middleware/role.middleware';
-import { requirePinExists } from '../middleware/pin.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
+import { extractDeviceInfo } from '../../shared/middleware/device.middleware';
+import { requireEmailVerification } from '../../shared/middleware/verification.middleware';
+import { requirePassenger } from '../../shared/middleware/role.middleware';
+import { requirePinExists } from '../../shared/middleware/pin.middleware';
 
 const router = Router();
 const authController = new AuthController();

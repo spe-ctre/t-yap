@@ -1,6 +1,6 @@
-/// <reference path="../../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response } from 'express';
-import { prisma } from '../../config/database';
+import { prisma } from '../../shared/config/database';
 import * as bcrypt from 'bcryptjs';
 
 export class PMSettingsController {

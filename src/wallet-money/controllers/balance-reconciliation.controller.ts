@@ -1,8 +1,8 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 
 import { BalanceReconciliationService } from '../services/balance-reconciliation.service';
-import { AppError } from '../utils/errors';
+import { AppError } from '../../shared/utils/errors';
 import { UserRole } from '@prisma/client';
 
 export class BalanceReconciliationController {

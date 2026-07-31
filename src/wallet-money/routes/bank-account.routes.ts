@@ -2,7 +2,7 @@
 
 import { Router } from 'express';
 import { BankAccountController } from '../controllers/bank-account.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 
 const router = Router();
 

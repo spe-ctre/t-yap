@@ -1,6 +1,6 @@
-/// <reference path="../../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response } from 'express';
-import { prisma } from '../../config/database';
+import { prisma } from '../../shared/config/database';
 import * as bcrypt from 'bcryptjs';
 
 export class PMWalletController {
@@ -159,7 +159,7 @@ export class PMWalletController {
       }
 
       // 1. Verify biometricToken with BiometricService (Java Bridge)
-      const biometricService = new (require('../../services/biometric.service').BiometricService)();
+      const biometricService = new (require('../../identity/services/biometric.service').BiometricService)();
       const isVerified = await biometricService.verifyBiometric(userId, biometricToken);
 
       if (!isVerified) {
@@ -183,7 +183,7 @@ export class PMWalletController {
       }
 
       // 3. Trigger Monnify Disbursement
-      const monnifyService = new (require('../../services/monnify.service').MonnifyService)();
+      const monnifyService = new (require('../../wallet-money/services/monnify.service').MonnifyService)();
       const transferResult = await monnifyService.initiateTransfer({
         amount: Number(settlement.driverPayout),
         reference: `SETTLE-${settlement.id}-${Date.now()}`,
@@ -222,7 +222,7 @@ export class PMWalletController {
         return res.status(400).json({ error: 'Account number and bank code required' });
       }
 
-      const monnifyService = new (require('../../services/monnify.service').MonnifyService)();
+      const monnifyService = new (require('../../wallet-money/services/monnify.service').MonnifyService)();
       const result = await monnifyService.verifyBankAccount(accountNumber, bankCode);
 
       return res.json({ 

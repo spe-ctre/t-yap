@@ -1,5 +1,5 @@
-import { prisma } from '../config/database';
-import { AppError } from '../utils/errors';
+import { prisma } from '../../shared/config/database';
+import { AppError } from '../../shared/utils/errors';
 import * as bcrypt from 'bcryptjs';
 
 export class TransportWalletService {

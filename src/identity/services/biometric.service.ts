@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { prisma } from '../config/database';
-import { createError } from '../middleware/error.middleware';
-import { encryptBiometricData, decryptBiometricData, serializeEncryptedData, deserializeEncryptedData } from '../utils/encryption.util';
+import { prisma } from '../../shared/config/database';
+import { createError } from '../../shared/middleware/error.middleware';
+import { encryptBiometricData, decryptBiometricData, serializeEncryptedData, deserializeEncryptedData } from '../../shared/utils/encryption.util';
 
 const BIOMETRIC_SERVICE_URL = process.env.BIOMETRIC_SERVICE_URL || 'http://localhost:8080';
 const MATCH_THRESHOLD = 60;

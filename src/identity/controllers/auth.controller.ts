@@ -1,10 +1,10 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
 
 import { AuthService } from '../services/auth.service';
-import { signupSchema, loginSchema, verifyCodeSchema, createPinSchema, changePasswordSchema, updatePinSchema, verifyPinSchema, resetPinSchema, forgotPasswordSchema, resetPasswordSchema, resendVerificationSchema } from '../utils/validation';
-import { createError } from '../middleware/error.middleware';
-import { getValidationErrorMessage } from '../utils/validation-error.util';
+import { signupSchema, loginSchema, verifyCodeSchema, createPinSchema, changePasswordSchema, updatePinSchema, verifyPinSchema, resetPinSchema, forgotPasswordSchema, resetPasswordSchema, resendVerificationSchema } from '../../shared/utils/validation';
+import { createError } from '../../shared/middleware/error.middleware';
+import { getValidationErrorMessage } from '../../shared/utils/validation-error.util';
 
 
 export class AuthController {

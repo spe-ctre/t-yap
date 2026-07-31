@@ -1,8 +1,8 @@
-import { prisma } from '../config/database';
-import { getCloudinary, isCloudinaryAvailable } from '../config/cloudinary';
-import { createError } from '../middleware/error.middleware';
-import { extractPublicIdFromUrl } from '../utils/file.util';
-import { appCache } from './cache.service';
+import { prisma } from '../../shared/config/database';
+import { getCloudinary, isCloudinaryAvailable } from '../../shared/config/cloudinary';
+import { createError } from '../../shared/middleware/error.middleware';
+import { extractPublicIdFromUrl } from '../../shared/utils/file.util';
+import { appCache } from '../../shared/cache.service';
 
 export class ProfileService {
   /**
@@ -327,7 +327,7 @@ export class ProfileService {
   }
 
   async deactivateAccount(userId: string, password: string) {
-    const { prisma } = require('../config/database');
+    const { prisma } = require('../../shared/config/database');
     const bcrypt = require('bcryptjs');
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw createError('User not found', 404);
@@ -341,7 +341,7 @@ export class ProfileService {
   }
 
   async deleteAccount(userId: string, password: string) {
-    const { prisma } = require('../config/database');
+    const { prisma } = require('../../shared/config/database');
     const bcrypt = require('bcryptjs');
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw createError('User not found', 404);

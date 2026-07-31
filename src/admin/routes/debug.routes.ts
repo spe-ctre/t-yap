@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { prisma } from '../config/database';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { prisma } from '../../shared/config/database';
+import { authMiddleware } from '../../shared/middleware/auth.middleware';
 import { BiometricDebugController } from '../controllers/debug/biometric-debug.controller';
 
 const router = Router();

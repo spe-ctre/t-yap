@@ -1,7 +1,7 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response } from 'express';
 
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import { logAction } from './auditLog.controller';
 import { PythonAnalyticsService } from '../services/admin/python-analytics.service';
 

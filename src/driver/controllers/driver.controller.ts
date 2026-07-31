@@ -1,9 +1,9 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response } from 'express';
 
-import { prisma } from '../config/database';
+import { prisma } from '../../shared/config/database';
 import * as bcrypt from 'bcryptjs';
-import { MonnifyService } from '../services/monnify.service';
+import { MonnifyService } from '../../wallet-money/services/monnify.service';
 
 const monnifyService = new MonnifyService();
 // ============================================

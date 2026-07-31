@@ -1,9 +1,9 @@
 import { Worker, Job } from 'bullmq';
-import { appCache } from '../services/cache.service';
-import { QueueName } from '../services/queue.service';
-import { smsService } from '../services/sms.service';
-import { emailService } from '../services/email.service';
-import { pushNotificationService } from '../services/push-notification.service';
+import { appCache } from '../cache.service';
+import { QueueName } from '../queue.service';
+import { smsService } from '../../identity/services/sms.service';
+import { emailService } from '../../identity/services/email.service';
+import { pushNotificationService } from '../../identity/services/push-notification.service';
 
 /**
  * T-Yap Notification Worker

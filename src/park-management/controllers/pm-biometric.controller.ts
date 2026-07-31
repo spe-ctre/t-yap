@@ -1,6 +1,6 @@
-/// <reference path="../../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response } from 'express';
-import { prisma } from '../../config/database';
+import { prisma } from '../../shared/config/database';
 
 export class PMBiometricController {
   static async enrollBiometric(req: Request, res: Response) {
@@ -30,7 +30,7 @@ export class PMBiometricController {
       if (!templateData) return res.status(400).json({ error: 'templateData is required' });
 
       // Using the new BiometricService for identification
-      const { BiometricService } = require('../../services/biometric.service');
+      const { BiometricService } = require('../../identity/services/biometric.service');
       const biometricService = new BiometricService();
       
       const passenger = await biometricService.identifyUser(templateData, 'PASSENGER');
@@ -66,7 +66,7 @@ export class PMBiometricController {
       const { templateData } = req.body;
       if (!templateData) return res.status(400).json({ error: 'templateData is required' });
 
-      const { BiometricService } = require('../../services/biometric.service');
+      const { BiometricService } = require('../../identity/services/biometric.service');
       const biometricService = new BiometricService();
       
       const driver = await biometricService.identifyUser(templateData, 'DRIVER');

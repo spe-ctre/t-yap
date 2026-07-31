@@ -1,5 +1,5 @@
 import { PrismaClient, TransactionType, TransactionCategory } from '@prisma/client';
-import { createError } from '../../middleware/error.middleware';
+import { createError } from '../../../shared/middleware/error.middleware';
 
 const prisma = new PrismaClient();
 

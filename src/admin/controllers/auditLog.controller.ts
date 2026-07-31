@@ -1,6 +1,6 @@
-/// <reference path="../types/express.d.ts" />
+/// <reference path="../../shared/types/express" />
 import { Request, Response, NextFunction } from 'express';
-import { prisma, prismaRead } from '../config/database';
+import { prisma, prismaRead } from '../../shared/config/database';
 
 export class AuditLogController {
   getAuditLogs = async (req: Request, res: Response, next: NextFunction) => {
