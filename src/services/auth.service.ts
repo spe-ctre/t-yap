@@ -19,27 +19,27 @@ export class AuthService {
     this.sessionService = new SessionService();
     this.smsService = new SMSService();
   }
-  
+
   async signup(data: { email: string; phoneNumber: string; password: string; role?: string }) {
     // Normalize phone number
     const normalizedPhone = normalizePhoneNumber(data.phoneNumber);
-    
+
     // Validate phone number
     if (!isValidNigerianPhone(data.phoneNumber)) {
       throw createError('Please provide a valid Nigerian phone number (e.g., 08012345678 or +2348012345678)', 400);
     }
-  
+
     const existingUser = await prisma.user.findFirst({
       where: { OR: [{ email: data.email }, { phoneNumber: normalizedPhone }] }
     });
-  
+
     if (existingUser) {
       throw createError('User already exists', 409);
     }
-  
+
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const role = (data.role || 'PASSENGER') as any;
-    
+
     // Create user with appropriate profile based on role
     const userData: any = {
       email: data.email,
@@ -47,7 +47,7 @@ export class AuthService {
       password: hashedPassword,
       role
     };
-  
+
     // Create role-specific profile
     if (role === 'PASSENGER') {
       userData.passenger = { create: {} };
@@ -58,14 +58,14 @@ export class AuthService {
     } else if (role === 'PARK_MANAGER') {
       userData.parkManager = { create: { firstName: '', lastName: '' } };
     }
-    
+
     const user = await prisma.user.create({
       data: userData,
       include: { passenger: true, driver: true, agent: true, parkManager: true }
     });
-  
+
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     await prisma.verificationCode.create({
       data: {
         userId: user.id,
@@ -74,7 +74,7 @@ export class AuthService {
         expiresAt: new Date(Date.now() + 3 * 60 * 1000) // 3 minutes
       }
     });
-  
+
     // Queue verification email — fall back to direct send if queue fails
     queueService.sendNotification({
       email: user.email,
@@ -93,7 +93,7 @@ export class AuthService {
         console.error('🔴 Direct email fallback also failed:', emailErr);
       }
     });
-    
+
     // No session created - user must verify email first
     return {
       user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
@@ -113,7 +113,7 @@ export class AuthService {
       where: { OR: [{ email: username }, { phoneNumber: username }] },
       include: { passenger: true }
     });
-    
+
     // Use bcrypt.compare to check hashed password
     if (!user || !(await bcrypt.compare(data.password, user.password))) {
       throw createError('Invalid credentials', 401);
@@ -137,7 +137,7 @@ export class AuthService {
       ipAddress: data.ipAddress,
       userAgent: data.userAgent
     }, user.role as any);
-    
+
     return {
       user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
       token: session.token,
@@ -188,13 +188,13 @@ export class AuthService {
 
     // Update verification status
     let token: string | undefined;
-    
+
     if (data.type === 'EMAIL_VERIFICATION') {
       await prisma.user.update({
         where: { id: user.id },
         data: { isEmailVerified: true }
       });
-      
+
       // Create session and return token after email verification
       const session = await this.sessionService.createSession(user.id, {
         deviceName: (data as any).deviceName,
@@ -203,7 +203,7 @@ export class AuthService {
         ipAddress: (data as any).ipAddress,
         userAgent: (data as any).userAgent
       }, user.role as any);
-      
+
       token = session.token;
     } else if (data.type === 'PHONE_VERIFICATION') {
       await prisma.user.update({
@@ -212,7 +212,7 @@ export class AuthService {
       });
     }
 
-    return { 
+    return {
       message: 'Verification successful',
       ...(token && { token })
     };
@@ -220,7 +220,7 @@ export class AuthService {
 
   async createTransactionPin(userId: string, pin: string) {
     const hashedPin = await bcrypt.hash(pin, 10);
-    
+
     await prisma.passenger.update({
       where: { userId },
       data: { transactionPin: hashedPin }
@@ -373,7 +373,7 @@ export class AuthService {
 
     // Generate reset code
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     await prisma.verificationCode.create({
       data: {
         userId: user.id,
@@ -402,7 +402,7 @@ export class AuthService {
       }
     });
 
-    return { 
+    return {
       message: 'PIN reset code sent to email',
       ...(process.env.NODE_ENV !== 'production' && { code: resetCode })
     };
@@ -432,7 +432,7 @@ export class AuthService {
 
     // Generate reset code
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     await prisma.verificationCode.create({
       data: {
         userId: user.id,
@@ -461,7 +461,7 @@ export class AuthService {
       }
     });
 
-    return { 
+    return {
       message: 'If an account exists with this email, a password reset code has been sent',
       ...(process.env.NODE_ENV !== 'production' && { code: resetCode })
     };
@@ -554,7 +554,7 @@ export class AuthService {
 
     // Generate new verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     await prisma.verificationCode.create({
       data: {
         userId: user.id,
@@ -591,7 +591,7 @@ export class AuthService {
       }).catch(err => console.error('🔴 Queue failed:', err));
     }
 
-    return { 
+    return {
       message: 'Verification code sent successfully',
       ...(process.env.NODE_ENV !== 'production' && { code: verificationCode })
     };

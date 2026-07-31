@@ -16,6 +16,7 @@ const router = Router();
 // ============================================
 // PART 1: AUTHENTICATION & ONBOARDING
 // ============================================
+router.post('/auth/login', PMAuthController.login);
 router.post('/auth/device-setup', PMAuthController.deviceSetup);
 router.post('/auth/send-otp', PMAuthController.sendRegistrationOTP);
 router.post('/auth/verify-otp', PMAuthController.verifyRegistrationOTP);

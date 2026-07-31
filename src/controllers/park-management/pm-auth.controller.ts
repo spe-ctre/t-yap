@@ -3,7 +3,75 @@ import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import * as bcrypt from 'bcryptjs';
 
+import { SessionService } from '../../services/session.service';
+
 export class PMAuthController {
+  static async login(req: Request, res: Response) {
+    try {
+      const { phone, phoneNumber, password, email } = req.body;
+      const phoneInput = phone || phoneNumber;
+
+      if ((!phoneInput && !email) || !password) {
+        return res.status(400).json({ error: 'Phone number/email and password are required' });
+      }
+
+      console.log('PM Login Attempt:', { phoneInput, email, hasPassword: !!password });
+
+      let formattedPhone = phoneInput ? phoneInput.trim() : '';
+      let altPhone = formattedPhone;
+      if (formattedPhone.startsWith('0')) {
+        altPhone = '+234' + formattedPhone.substring(1);
+      } else if (formattedPhone.startsWith('+234')) {
+        altPhone = '0' + formattedPhone.substring(4);
+      }
+
+      const user = await prisma.user.findFirst({
+        where: {
+          deletedAt: null,
+          OR: [
+            ...(formattedPhone ? [{ phoneNumber: formattedPhone }, { phoneNumber: altPhone }] : []),
+            ...(email ? [{ email }] : [])
+          ]
+        }
+      });
+
+      console.log('PM User found:', user ? { id: user.id, phone: user.phoneNumber, role: user.role } : null);
+
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const sessionService = new SessionService();
+      const { token } = await sessionService.createSession(user.id, req.deviceInfo, user.role as any);
+
+      // Fetch park manager profile separately
+      const parkManager = await prisma.parkManager.findUnique({
+        where: { userId: user.id },
+        include: { park: true },
+      });
+
+      return res.json({
+        message: 'Login successful',
+        token,
+        user: {
+          id: user.id,
+          phoneNumber: user.phoneNumber,
+          email: user.email,
+          role: user.role,
+          parkManager,
+        }
+      });
+    } catch (error) {
+      console.error('PM Login error:', error);
+      return res.status(500).json({ error: 'Failed to log in' });
+    }
+  }
+
   static async deviceSetup(req: Request, res: Response) {
     try {
       const { deviceId, deviceModel, osVersion } = req.body;
@@ -67,7 +135,8 @@ export class PMAuthController {
 
   static async verifyRegistrationOTP(req: Request, res: Response) {
     try {
-      const { phoneNumber, otp } = req.body;
+      const { phone, phoneNumber: phoneNumberBody, otp } = req.body;
+      const phoneNumber = phone || phoneNumberBody;
       if (!phoneNumber || !otp) return res.status(400).json({ error: 'Phone and OTP required' });
 
       const user = await prisma.user.findUnique({ where: { phoneNumber } });
@@ -95,7 +164,10 @@ export class PMAuthController {
         data: { isPhoneVerified: true },
       });
 
-      return res.json({ message: 'Phone verified successfully', userId: user.id });
+      const sessionService = new SessionService();
+      const { token } = await sessionService.createSession(user.id, req.deviceInfo, user.role as any);
+
+      return res.json({ message: 'Phone verified successfully', token, userId: user.id });
     } catch (error) {
       console.error('Verify OTP error:', error);
       return res.status(500).json({ error: 'Failed to verify OTP' });

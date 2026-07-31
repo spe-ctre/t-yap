@@ -199,6 +199,75 @@ async function main() {
 
   console.log(`✅ Created ${parks.length} motor parks`);
 
+  // Seed Test Park Manager
+  const bcrypt = require('bcryptjs');
+  const hashedPassword = await bcrypt.hash('password123', 10);
+
+  const managerUser = await prisma.user.upsert({
+    where: { phoneNumber: '0808009213' },
+    update: { password: hashedPassword, role: 'PARK_MANAGER' },
+    create: {
+      phoneNumber: '0808009213',
+      email: 'manager@tyap.com',
+      password: hashedPassword,
+      role: 'PARK_MANAGER',
+      isPhoneVerified: true,
+      isEmailVerified: true,
+    },
+  });
+
+  const ojotaPark = parks.find((p) => p.name === 'Ojota Motor Park') || parks[0];
+
+  const managerProfile = await prisma.parkManager.upsert({
+    where: { userId: managerUser.id },
+    update: { parkId: ojotaPark.id },
+    create: {
+      userId: managerUser.id,
+      firstName: 'Rufai',
+      lastName: 'Shittu',
+      parkId: ojotaPark.id,
+      commissionRate: 5.0,
+    },
+  });
+
+  // Seed Test Vehicle & Driver
+  const driverUser = await prisma.user.upsert({
+    where: { email: 'driver1@tyap.com' },
+    update: { role: 'DRIVER' },
+    create: {
+      phoneNumber: '08012345678',
+      email: 'driver1@tyap.com',
+      password: hashedPassword,
+      role: 'DRIVER',
+      isPhoneVerified: true,
+    },
+  });
+
+  await prisma.driver.create({
+    data: {
+      userId: driverUser.id,
+      firstName: 'Rufai',
+      lastName: 'Shittu',
+      licenseNumber: 'FK3243UH',
+      licenseExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      shiftStatus: 'ON_SHIFT',
+      vehicle: {
+        create: {
+          plateNumber: 'FKJ243UH',
+          make: 'Toyota',
+          model: 'HiAce',
+          capacity: 14,
+          currentParkId: ojotaPark.id,
+          isActive: true,
+          isAvailableForBoarding: true,
+          vehicleType: 'BUS',
+        },
+      },
+    },
+  });
+
+  console.log('✅ Created test Park Manager (0808009213 / password123) & Driver');
+
   // Seed FAQs
   const faqs = await Promise.all([
     // Account FAQs
