@@ -158,4 +158,92 @@ export class SecurityService {
 
     return true;
   }
+
+  /**
+   * Get public security questions by email or phone (unauthenticated for forgot password flow)
+   */
+  async getPublicSecurityQuestions(identifier: string) {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: identifier },
+          { phoneNumber: identifier }
+        ]
+      }
+    });
+
+    if (!user) {
+      throw createError('User not found', 404);
+    }
+
+    const securityQuestion = await prisma.securityQuestion.findUnique({
+      where: { userId: user.id }
+    });
+
+    if (!securityQuestion) {
+      throw createError('Security questions have not been set for this account', 404);
+    }
+
+    return {
+      question1: securityQuestion.question1,
+      question2: securityQuestion.question2,
+      question3: securityQuestion.question3
+    };
+  }
+
+  /**
+   * Reset password using security question answers (unauthenticated)
+   */
+  async resetPasswordWithSecurityQuestions(data: {
+    identifier: string;
+    answer1: string;
+    answer2: string;
+    answer3: string;
+    newPassword: string;
+  }) {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: data.identifier },
+          { phoneNumber: data.identifier }
+        ]
+      }
+    });
+
+    if (!user) {
+      throw createError('User not found', 404);
+    }
+
+    const securityQuestion = await prisma.securityQuestion.findUnique({
+      where: { userId: user.id }
+    });
+
+    if (!securityQuestion) {
+      throw createError('Security questions have not been set for this account', 404);
+    }
+
+    // Verify all 3 answers
+    const answer1Valid = await bcrypt.compare(data.answer1.toLowerCase().trim(), securityQuestion.answer1Hash);
+    const answer2Valid = await bcrypt.compare(data.answer2.toLowerCase().trim(), securityQuestion.answer2Hash);
+    const answer3Valid = await bcrypt.compare(data.answer3.toLowerCase().trim(), securityQuestion.answer3Hash);
+
+    if (!answer1Valid || !answer2Valid || !answer3Valid) {
+      throw createError('One or more security question answers are incorrect', 401);
+    }
+
+    // Hash and update new password
+    const hashedPassword = await bcrypt.hash(data.newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword }
+    });
+
+    // Revoke existing active sessions for security
+    await prisma.userSession.updateMany({
+      where: { userId: user.id, isActive: true },
+      data: { isActive: false }
+    });
+
+    return { message: 'Password reset successfully using security questions. Please log in with your new password.' };
+  }
 }

@@ -87,5 +87,46 @@ router.get('/questions', authMiddleware, securityController.getSecurityQuestions
  */
 router.post('/questions/verify', authMiddleware, securityController.verifySecurityQuestions);
 
+/**
+ * @swagger
+ * /api/security/questions/public:
+ *   get:
+ *     summary: Get user's security questions by email/phone (unauthenticated for forgot password)
+ *     tags: [Security]
+ *     parameters:
+ *       - in: query
+ *         name: identifier
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Questions retrieved
+ *       404:
+ *         description: User or security questions not found
+ */
+router.get('/questions/public', securityController.getPublicQuestions);
+
+/**
+ * @swagger
+ * /api/security/questions/reset-password:
+ *   post:
+ *     summary: Reset password using security questions (unauthenticated)
+ *     tags: [Security]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [identifier, answer1, answer2, answer3, newPassword]
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *       401:
+ *         description: Security answers incorrect
+ */
+router.post('/questions/reset-password', securityController.resetPasswordWithQuestions);
+
 export default router;
 

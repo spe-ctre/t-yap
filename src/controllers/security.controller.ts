@@ -80,5 +80,40 @@ export class SecurityController {
       next(error);
     }
   };
+
+  getPublicQuestions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const identifier = (req.query.identifier || req.query.email || req.query.phone) as string;
+      if (!identifier) {
+        throw createError('Email or phone number identifier is required', 400);
+      }
+
+      const result = await this.securityService.getPublicSecurityQuestions(identifier);
+      res.json({ success: true, statusCode: 200, data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPasswordWithQuestions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { identifier, answer1, answer2, answer3, newPassword } = req.body;
+      if (!identifier || !answer1 || !answer2 || !answer3 || !newPassword) {
+        throw createError('Identifier, answer1, answer2, answer3, and newPassword are required', 400);
+      }
+
+      const result = await this.securityService.resetPasswordWithSecurityQuestions({
+        identifier,
+        answer1,
+        answer2,
+        answer3,
+        newPassword
+      });
+      res.json({ success: true, statusCode: 200, message: result.message });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+
 
