@@ -8,10 +8,18 @@ export class ChatbotService {
     const query = message.toLowerCase();
     
     // 1. Basic Greetings
-    if (query.match(/hi|hello|hey|good morning|good afternoon|good evening/)) {
+    if (query.match(/\b(hi|hello|hey|good morning|good afternoon|good evening|sup|yo)\b/)) {
       return {
         message: "Hello! I'm Nick, your T-Yap assistant. How can I help you today?",
         suggestedActions: ["How to top up", "Check my balance", "Trip booking"]
+      };
+    }
+
+    // 1b. Thanks / Courtesy / Polite Endings
+    if (query.match(/\b(thanks|thank you|thx|ty|awesome|great|cool|perfect|ok|okay|bye|goodbye|see ya|no problem)\b/)) {
+      return {
+        message: "You're very welcome! 😊 Let me know if you need help with anything else on T-Yap.",
+        suggestedActions: ["Fund Wallet", "Book Ride", "Buy Airtime"]
       };
     }
 
@@ -35,15 +43,50 @@ export class ChatbotService {
       };
     }
 
-    // 3. Keyword-based intent detection (fallback when FAQ search returns 0 results)
-    if (/airtime|data|recharge/.test(query)) {
+    // 3. Keyword-based intent detection
+    if (/airtime|data|recharge|network|mtn|glo|airtel|9mobile/.test(query)) {
       return {
         message: "To buy airtime or data, go to the **Utilities** section on the home screen and tap **Airtime** or **Data**. Select your network, enter the phone number and amount, then confirm with your PIN. Airtime is delivered instantly!",
         suggestedActions: ["Buy Airtime", "Buy Data", "Contact Support"]
       };
     }
 
-    if (/ride|book|transport|park|terminal/.test(query)) {
+    if (/electricity|nepa|power|meter|phcn|light|bills/.test(query)) {
+      return {
+        message: "To pay electricity bills, go to **Utilities → Electricity**. Select your distribution company (EKEDC, IKEDC, AEDC, IBEDC, etc.), enter your Meter Number (Prepaid or Postpaid), specify the amount, and confirm with your PIN.",
+        suggestedActions: ["Pay Electricity", "Contact Support"]
+      };
+    }
+
+    if (/tv|cable|dstv|gotv|startimes|subscription/.test(query)) {
+      return {
+        message: "To renew your TV subscription, go to **Utilities → Cable TV**. Choose DStv, GOtv, or Startimes, enter your Smartcard/IUC number, pick your package, and confirm with your PIN.",
+        suggestedActions: ["Cable TV", "Contact Support"]
+      };
+    }
+
+    if (/withdraw|cashout|transfer to bank|bank account/.test(query)) {
+      return {
+        message: "To withdraw funds to your bank account, go to **Wallet → Withdraw**. Select or add a verified bank account, enter the amount, and authorize the withdrawal with your transaction PIN.",
+        suggestedActions: ["Withdraw Funds", "Link Bank Account"]
+      };
+    }
+
+    if (/refund|failed|debit|deducted|pending|issue|error/.test(query)) {
+      return {
+        message: "If a transaction failed but your account was debited, don't worry! Failed transactions are automatically reversed within **24 hours**. If it hasn't reflected after 24 hours, tap **Create Ticket** or reach out to our 24/7 support line.",
+        suggestedActions: ["Create Ticket", "Call Support"]
+      };
+    }
+
+    if (/kyc|bvn|nin|identity|verification|tier/.test(query)) {
+      return {
+        message: "To complete your KYC identity verification, go to **Profile → KYC Verification**. Submit your NIN or BVN along with an ID document to upgrade your wallet limits and unlock all app features.",
+        suggestedActions: ["Complete KYC", "View Limits"]
+      };
+    }
+
+    if (/ride|book|transport|park|terminal|bus|ticket/.test(query)) {
       return {
         message: "To book a ride with **T-Ride**, tap T-Ride on the home screen. Select your departure park and destination, choose available seats, and confirm your booking. Parks are available in Lagos, Abuja, Kano, Adamawa, Port Harcourt, Ibadan, Enugu, and Benin City.",
         suggestedActions: ["Find Nearby Parks", "View My Bookings", "Contact Support"]
