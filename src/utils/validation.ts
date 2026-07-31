@@ -121,7 +121,7 @@ export const resetPasswordSchema = Joi.object({
 export const resendVerificationSchema = Joi.object({
   email: Joi.string().email().optional(),
   phoneNumber: Joi.string().pattern(/^\+?[1-9]\d{1,14}$/).optional(),
-  type: Joi.string().valid('EMAIL_VERIFICATION', 'PHONE_VERIFICATION').required()
+  type: Joi.string().valid('EMAIL_VERIFICATION', 'PHONE_VERIFICATION', 'PASSWORD_RESET').required()
 }).or('email', 'phoneNumber');
 
 // Electricity payment schemas
