@@ -1,4 +1,4 @@
-/// <reference path="../../shared/types/express" />
+/// <reference path="../../shared/types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { ProfileService } from '../services/profile.service';
 import { updateProfileSchema, updateSettingsSchema } from '../../shared/utils/validation';

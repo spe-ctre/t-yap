@@ -1,4 +1,4 @@
-/// <reference path="../../shared/types/express" />
+/// <reference path="../../shared/types/express.d.ts" />
 import { Request, Response } from 'express';
 import { prisma } from '../../shared/config/database';
 import * as bcrypt from 'bcryptjs';

@@ -30,7 +30,12 @@ export class AuthService {
     }
 
     const existingUser = await prisma.user.findFirst({
-      where: { OR: [{ email: data.email }, { phoneNumber: normalizedPhone }] }
+      where: {
+        AND: [
+          { OR: [{ email: data.email }, { phoneNumber: normalizedPhone }] },
+          { deletedAt: null }
+        ]
+      }
     });
 
     if (existingUser) {
@@ -45,7 +50,8 @@ export class AuthService {
       email: data.email,
       phoneNumber: normalizedPhone, // Use normalized phone
       password: hashedPassword,
-      role
+      role,
+      acceptedTermsAt: new Date()
     };
 
     // Create role-specific profile

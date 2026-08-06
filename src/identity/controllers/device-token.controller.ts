@@ -1,4 +1,4 @@
-/// <reference path="../../shared/types/express" />
+/// <reference path="../../shared/types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { PushNotificationService } from '../services/push-notification.service';
 import { createError } from '../../shared/middleware/error.middleware';

@@ -75,13 +75,28 @@ export const authMiddleware = async (
       });
     }
 
-    // Attach user info to request (using global Express.Request augmentation)
+    // Find the session record matching this token, to support session-specific operations
+    const session = await prisma.userSession.findFirst({
+      where: { token, userId: decoded.userId, isActive: true }
+    });
+
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        message: 'Session not found or has been revoked'
+      });
+    }
+
+    // Attach user info to request
     req.user = {
       id: decoded.userId,
       role: decoded.role as UserRole,
       isEmailVerified: userExists.isEmailVerified,
       isPhoneVerified: userExists.isPhoneVerified
     };
+
+    // Attach sessionId so session-specific routes (e.g. revoke-others) can use it
+    (req as any).sessionId = session.id;
 
     next();
   } catch (error: any) {

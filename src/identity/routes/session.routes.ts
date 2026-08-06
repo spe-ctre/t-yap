@@ -32,28 +32,6 @@ router.get('/', authMiddleware, sessionController.getSessions);
 
 /**
  * @swagger
- * /api/sessions/{sessionId}:
- *   delete:
- *     summary: Revoke a specific session
- *     tags: [Sessions]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Session revoked successfully
- *       404:
- *         description: Session not found
- */
-router.delete('/:sessionId', authMiddleware, sessionController.revokeSession);
-
-/**
- * @swagger
  * /api/sessions/revoke-others:
  *   delete:
  *     summary: Revoke all other sessions (except current)
@@ -80,5 +58,26 @@ router.delete('/revoke-others', authMiddleware, sessionController.revokeAllOther
  */
 router.delete('/revoke-all', authMiddleware, sessionController.revokeAllSessions);
 
-export default router;
+/**
+ * @swagger
+ * /api/sessions/{sessionId}:
+ *   delete:
+ *     summary: Revoke a specific session
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Session revoked successfully
+ *       404:
+ *         description: Session not found
+ */
+router.delete('/:sessionId', authMiddleware, sessionController.revokeSession);
 
+export default router;

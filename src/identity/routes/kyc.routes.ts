@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../../shared/middleware/auth.middleware';
 import { KYCController } from '../controllers/kyc.controller';
+import { uploadSingle } from '../../shared/middleware/upload.middleware';
 
 const router = Router();
 
@@ -100,24 +101,30 @@ router.post('/address', KYCController.submitAddress);
  * @swagger
  * /api/kyc/face:
  *   post:
- *     summary: Submit face verification image
+ *     summary: Upload and submit face verification image
  *     tags: [KYC]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [faceImageUrl]
+ *             required: [picture]
  *             properties:
- *               faceImageUrl:
+ *               picture:
  *                 type: string
+ *                 format: binary
+ *                 description: Face image file (JPEG, PNG, or WebP)
  *     responses:
  *       200:
- *         description: Face image submitted
+ *         description: Face image uploaded and submitted for review
+ *       400:
+ *         description: Missing or invalid image file
+ *       503:
+ *         description: Upload service unavailable
  */
-router.post('/face', KYCController.submitFace);
+router.post('/face', authMiddleware, uploadSingle, KYCController.uploadFace);
 
 export default router;

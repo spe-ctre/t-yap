@@ -1,4 +1,4 @@
-/// <reference path="../../shared/types/express" />
+/// <reference path="../../shared/types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { FAQService } from '../services/faq.service';
 import { SupportTicketService } from '../services/support-ticket.service';

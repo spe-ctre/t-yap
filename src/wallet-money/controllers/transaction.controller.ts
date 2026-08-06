@@ -1,4 +1,4 @@
-/// <reference path="../../shared/types/express" />
+/// <reference path="../../shared/types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { TransactionService } from '../services/transaction.service';
 import { createError } from '../../shared/middleware/error.middleware';

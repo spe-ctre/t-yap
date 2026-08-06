@@ -1,6 +1,8 @@
 import { prisma } from '../../shared/config/database';
 import axios from 'axios';
 import { AppError } from '../../shared/utils/errors';
+import { getCloudinary, isCloudinaryAvailable } from '../../shared/config/cloudinary';
+
 
 export class KYCService {
   /**
@@ -177,6 +179,46 @@ export class KYCService {
       data: { addressProvided: true }
     };
   }
+
+/**
+ * Upload face image to Cloudinary for KYC verification
+ */
+static async uploadFaceImage(userId: string, file: Express.Multer.File): Promise<any> {
+  if (!isCloudinaryAvailable()) {
+    throw new AppError('Face image upload is not available. Cloudinary is not configured.', 503);
+  }
+  const cloudinary = getCloudinary();
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `tyap/kyc/face`,
+        public_id: userId,
+        overwrite: true,
+        resource_type: 'image'
+      },
+      async (error: any, result: any) => {
+        if (error) {
+          reject(new AppError('Failed to upload face image', 500));
+          return;
+        }
+        if (!result) {
+          reject(new AppError('Upload failed', 500));
+          return;
+        }
+        try {
+          const submitResult = await this.submitFaceImage(userId, result.secure_url);
+          resolve(submitResult);
+        } catch (err) {
+          if (isCloudinaryAvailable() && result?.public_id) {
+            await cloudinary.uploader.destroy(result.public_id).catch(() => {});
+          }
+          reject(err);
+        }
+      }
+    );
+    uploadStream.end(file.buffer);
+  });
+}
 
   /**
    * Submit face image for verification

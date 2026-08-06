@@ -1,4 +1,4 @@
-/// <reference path="../../shared/types/express" />
+/// <reference path="../../shared/types/express.d.ts" />
 import { MonnifyService } from '../services/monnify.service';
 import { prisma } from '../../shared/config/database';
 

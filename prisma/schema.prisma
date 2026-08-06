@@ -16,6 +16,7 @@ model User {
   isEmailVerified    Boolean            @default(false)
   isPhoneVerified    Boolean            @default(false)
   role               UserRole           @default(PASSENGER)
+  acceptedTermsAt    DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   walletBalance      Float              @default(0)

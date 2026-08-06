@@ -12,7 +12,11 @@ export const signupSchema = Joi.object({
   phoneNumber: Joi.string().pattern(NIGERIAN_PHONE_REGEX).required(),
   password: Joi.string().min(8).required(),
   confirmPassword: Joi.string().valid(Joi.ref('password')).required(),
-  role: Joi.string().valid('PASSENGER', 'DRIVER', 'AGENT', 'PARK_MANAGER').optional().default('PASSENGER')
+  role: Joi.string().valid('PASSENGER', 'DRIVER', 'AGENT', 'PARK_MANAGER').optional().default('PASSENGER'),
+  acceptedTerms: Joi.boolean().valid(true).required().messages({
+    'any.only': 'You must accept the Terms & Conditions and Privacy Policy to sign up',
+    'any.required': 'acceptedTerms is required'
+  })
 });
 
 export const loginSchema = Joi.object({

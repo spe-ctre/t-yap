@@ -1,6 +1,7 @@
-/// <reference path="../../shared/types/express" />
+/// <reference path="../../shared/types/express.d.ts" />
 import { Request, Response, NextFunction } from 'express';
 import { KYCService } from '../services/kyc.service';
+import { createError } from '../../shared/middleware/error.middleware';
 
 
 export class KYCController {
@@ -83,4 +84,19 @@ export class KYCController {
       next(error);
     }
   }
+
+  static async uploadFace(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) {
+      throw createError('Face image file is required', 400);
+    }
+    const result = await KYCService.uploadFaceImage(req.user!.id, req.file);
+    res.json({
+      statusCode: 200,
+      ...result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 }
