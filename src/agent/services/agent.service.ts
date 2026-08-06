@@ -5,11 +5,13 @@ import { SMSService } from '../../identity/services/sms.service';
 import { BiometricService } from '../../identity/services/biometric.service';
 import { MonnifyService } from '../../wallet-money/services/monnify.service';
 import { ProfileService } from '../../identity/services/profile.service';
+import { SessionService } from '../../identity/services/session.service';
 
 const smsService = new SMSService();
 const biometricService = new BiometricService();
 const monnifyService = new MonnifyService();
 const profileService = new ProfileService();
+const sessionService = new SessionService();
 
 export class AgentService {
   // ============================================
@@ -137,16 +139,22 @@ export class AgentService {
       data: { isPhoneVerified: true },
     });
 
-    const sessionToken = `SESSION-${Date.now()}-${user.id}`;
+    // Previously this hand-built a string like `SESSION-<timestamp>-<userId>`,
+    // which is not a JWT and has no matching UserSession row - authMiddleware
+    // requires both a valid jwt.verify() pass AND a UserSession record with
+    // that exact token, so the old value would fail every downstream
+    // authenticated request (e.g. /auth/complete-profile) with "Invalid token".
+    // createSession() issues a real signed JWT (userId + role) and persists
+    // the matching UserSession row, same as identity/auth.service.ts login().
+    const { token } = await sessionService.createSession(user.id, undefined, user.role as any);
 
-    return { userId: user.id, sessionToken, nextStep: 'complete-profile' };
+    return { userId: user.id, token, nextStep: 'complete-profile' };
   }
 
   async completeAgentProfile(userId: string, body: any) {
     const {
       step,
-      firstName,
-      lastName,
+      fullName,
       businessName,
       email,
       bvn,
@@ -169,14 +177,37 @@ export class AgentService {
     let agent = await prisma.agent.findUnique({ where: { userId } });
 
     if (step === 1) {
-      if (!firstName || !lastName) {
-        throw createError('First name and last name are required', 400);
+      // Figma step 1 collects a single "Full Legal Name" field plus a park
+      // dropdown, not separate firstName/lastName - split the name here so
+      // the rest of the app (Agent.firstName / Agent.lastName, both required
+      // non-null columns) is unaffected.
+      if (!fullName || !fullName.trim()) {
+        throw createError('Full legal name is required', 400);
+      }
+      if (!parkId) {
+        throw createError('Park is required', 400);
+      }
+
+      const nameParts = fullName.trim().split(/\s+/);
+      if (nameParts.length < 2) {
+        throw createError('Please provide both first and last name', 400);
+      }
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+
+      // parkId now arrives a full step earlier than before (step 1, not
+      // step 3) - validate it here using the same existence check switchPark
+      // already uses elsewhere in this file, so a bogus/typo'd parkId fails
+      // fast with a clear 404 instead of silently sitting on the agent row.
+      const park = await prisma.park.findUnique({ where: { id: parkId } });
+      if (!park) {
+        throw createError('Park not found', 404);
       }
 
       if (agent) {
         agent = await prisma.agent.update({
           where: { id: agent.id },
-          data: { firstName, lastName, businessName },
+          data: { firstName, lastName, businessName, parkId },
         });
       } else {
         const agentCode = `AGT-${Date.now().toString().slice(-6)}`;
@@ -186,6 +217,7 @@ export class AgentService {
             firstName,
             lastName,
             businessName,
+            parkId,
             agentCode,
             kycStatus: 'PENDING',
             isActive: false,
@@ -220,13 +252,15 @@ export class AgentService {
       if (!agent) {
         throw createError('Please complete previous steps first', 400);
       }
-      if (!residentialAddress || !state || !lga || !parkId) {
+      // parkId is no longer required/accepted here - it's collected in step 1
+      // now, alongside name and business, matching the Figma flow.
+      if (!residentialAddress || !state || !lga) {
         throw createError('All address fields are required', 400);
       }
 
       agent = await prisma.agent.update({
         where: { id: agent.id },
-        data: { residentialAddress, state, lga, parkId },
+        data: { residentialAddress, state, lga },
       });
 
       return { agent, nextStep: 'upload-documents' };
