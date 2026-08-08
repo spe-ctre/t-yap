@@ -127,4 +127,39 @@ router.post('/address', KYCController.submitAddress);
  */
 router.post('/face', authMiddleware, uploadSingle, KYCController.uploadFace);
 
+/**
+ * @swagger
+ * /api/kyc/document:
+ *   post:
+ *     summary: Upload and submit an ID document for KYC verification
+ *     tags: [KYC]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [picture, documentType]
+ *             properties:
+ *               picture:
+ *                 type: string
+ *                 format: binary
+ *                 description: ID document image file (JPEG, PNG, or WebP)
+ *               documentType:
+ *                 type: string
+ *                 example: "NIN"
+ *               documentNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Document uploaded and submitted for review
+ *       400:
+ *         description: Missing file or document type
+ *       503:
+ *         description: Upload service unavailable
+ */
+router.post('/document', authMiddleware, uploadSingle, KYCController.uploadDocument);
+
 export default router;

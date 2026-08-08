@@ -195,12 +195,96 @@ export class AdminController {
 
       const agent = await prisma.agent.update({
         where: { id: agentId },
-        data: { kycStatus: 'REJECTED' },
+        // isActive: false added explicitly - on a first-time review this is
+        // already the default, but if an agent was previously approved and
+        // is later re-reviewed and rejected, rejection should actually
+        // deactivate them, not just flip the status label.
+        data: { kycStatus: 'REJECTED', isActive: false },
       });
       await logAction(req.user!.id, 'REJECTED_KYC', `Agent ID: ${agentId} | Reason: ${reason}`);
       res.json({ success: true, data: agent });
     } catch (error) {
       console.error('Reject KYC error:', error);
+      res.status(500).json({ success: false, message: 'Failed to reject KYC' });
+    }
+  };
+
+  // ============================================
+  // USER-LEVEL KYC (passengers/drivers via the generic /api/kyc/* flow -
+  // separate from the agent-specific KYC above, which operates on the
+  // Agent table). Previously nothing in the codebase ever approved these -
+  // KYCService.verifyBVN/verifyNIN/uploadFaceImage/uploadDocument now
+  // auto-approve when everything checks out cleanly via Dojah, and this
+  // queue is the manual fallback for ambiguous (REVIEW) results, mirroring
+  // the agent KYC queue above.
+  // ============================================
+
+  static getPendingUserKYC = async (req: Request, res: Response) => {
+    try {
+      // Every user defaults to kycStatus 'PENDING' at signup, so filtering
+      // on that alone would surface everyone who's ever signed up, not just
+      // people actually awaiting review. Require both uploads to exist too
+      // - that's what "has actually submitted something to review" means.
+      const users = await prisma.user.findMany({
+        where: {
+          kycStatus: 'PENDING',
+          idDocumentUrl: { not: null },
+          faceImageUrl: { not: null },
+        },
+        select: {
+          id: true,
+          email: true,
+          phoneNumber: true,
+          role: true,
+          bvn: true,
+          nin: true,
+          idDocumentUrl: true,
+          faceImageUrl: true,
+          kycVerificationLog: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      await logAction(req.user!.id, 'VIEWED_PENDING_USER_KYC', `Pending: ${users.length}`);
+      res.json({ success: true, data: users });
+    } catch (error) {
+      console.error('Get pending user KYC error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch pending KYC' });
+    }
+  };
+
+  static approveUserKYC = async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { kycStatus: 'APPROVED' },
+      });
+      await logAction(req.user!.id, 'APPROVED_USER_KYC', `User ID: ${userId}`);
+      res.json({ success: true, data: user });
+    } catch (error) {
+      console.error('Approve user KYC error:', error);
+      res.status(500).json({ success: false, message: 'Failed to approve KYC' });
+    }
+  };
+
+  static rejectUserKYC = async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ success: false, message: 'Rejection reason is required' });
+      }
+
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { kycStatus: 'REJECTED' },
+      });
+      await logAction(req.user!.id, 'REJECTED_USER_KYC', `User ID: ${userId} | Reason: ${reason}`);
+      res.json({ success: true, data: user });
+    } catch (error) {
+      console.error('Reject user KYC error:', error);
       res.status(500).json({ success: false, message: 'Failed to reject KYC' });
     }
   };

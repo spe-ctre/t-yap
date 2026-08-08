@@ -23,6 +23,9 @@ router.patch('/tickets/:id/resolve', authMiddleware as any, requireClearance(2) 
 router.get('/kyc-pending', authMiddleware as any, requireClearance(3) as any, AdminController.getPendingKYC as any);
 router.patch('/kyc/:agentId/approve', authMiddleware as any, requireClearance(3) as any, AdminController.approveKYC as any);
 router.patch('/kyc/:agentId/reject', authMiddleware as any, requireClearance(3) as any, AdminController.rejectKYC as any);
+router.get('/kyc-pending-users', authMiddleware as any, requireClearance(3) as any, AdminController.getPendingUserKYC as any);
+router.patch('/kyc/users/:userId/approve', authMiddleware as any, requireClearance(3) as any, AdminController.approveUserKYC as any);
+router.patch('/kyc/users/:userId/reject', authMiddleware as any, requireClearance(3) as any, AdminController.rejectUserKYC as any);
 
 // Operations - Level 3 (Operations and above)
 router.get('/agents', authMiddleware as any, requireClearance(3) as any, AdminController.getAgentPerformance as any);

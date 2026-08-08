@@ -99,4 +99,23 @@ export class KYCController {
     next(error);
   }
 }
+
+  /**
+   * POST /api/kyc/document
+   */
+  static async uploadDocument(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) {
+        throw createError('ID document image file is required', 400);
+      }
+      const { documentType, documentNumber } = req.body;
+      const result = await KYCService.uploadDocument(req.user!.id, req.file, documentType, documentNumber);
+      res.json({
+        statusCode: 200,
+        ...result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

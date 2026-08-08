@@ -7,6 +7,7 @@ import { MonnifyService } from '../../wallet-money/services/monnify.service';
 import { ProfileService } from '../../identity/services/profile.service';
 import { SessionService } from '../../identity/services/session.service';
 import { getCloudinary, isCloudinaryAvailable } from '../../shared/config/cloudinary';
+import { dojahService } from '../../identity/services/dojah.service';
 
 const smsService = new SMSService();
 const biometricService = new BiometricService();
@@ -259,9 +260,82 @@ export class AgentService {
         throw createError('Document type is required', 400);
       }
 
+      // Automated BVN/NIN verification via Dojah - full replacement for a
+      // human manually eyeballing these numbers. A clear mismatch rejects
+      // immediately (agent must correct and resubmit); an ambiguous result
+      // (REVIEW) does NOT block progress - it just leaves kycStatus at its
+      // default PENDING, which is exactly what the existing admin queue
+      // (GET /api/admin/kyc-pending) already filters on, so ambiguous cases
+      // still get a human fallback without any new admin code.
+      const verificationLog: Record<string, any> = (agent as any).kycVerificationLog || {};
+      let governmentPhotoBase64: string | undefined;
+
+      if (bvn) {
+        const bvnResult = await dojahService.verifyBvn(bvn, agent.firstName, agent.lastName);
+        verificationLog.bvn = { ...bvnResult, checkedAt: new Date().toISOString() };
+        if (bvnResult.status === 'REJECTED') {
+          await prisma.agent.update({
+            where: { id: agent.id },
+            data: { kycStatus: 'REJECTED', kycVerificationLog: verificationLog },
+          });
+          throw createError(`BVN verification failed: ${bvnResult.reason}`, 400);
+        }
+        if (!governmentPhotoBase64 && bvnResult.governmentPhotoBase64) {
+          governmentPhotoBase64 = bvnResult.governmentPhotoBase64;
+        }
+      }
+
+      if (nin) {
+        const ninResult = await dojahService.verifyNin(nin, agent.firstName, agent.lastName);
+        verificationLog.nin = { ...ninResult, checkedAt: new Date().toISOString() };
+        if (ninResult.status === 'REJECTED') {
+          await prisma.agent.update({
+            where: { id: agent.id },
+            data: { kycStatus: 'REJECTED', kycVerificationLog: verificationLog },
+          });
+          throw createError(`NIN verification failed: ${ninResult.reason}`, 400);
+        }
+        // Prefer NIN's photo over BVN's if both happen to be present - NIN's
+        // image field is the more consistently documented of the two.
+        if (ninResult.governmentPhotoBase64) {
+          governmentPhotoBase64 = ninResult.governmentPhotoBase64;
+        }
+      }
+
+      // Document-to-record consistency check: compares the government's own
+      // photo on file (returned free by the BVN/NIN calls above) against the
+      // ID document image the agent is uploading right now. This replaces a
+      // live-selfie liveness check, which isn't practical on the POS
+      // hardware this flow actually runs on - it proves the uploaded ID
+      // belongs to the same person as the BVN/NIN, not that a live human is
+      // physically present.
+      const idImageBase64 = file.buffer.toString('base64');
+      if (governmentPhotoBase64) {
+        const photoResult = await dojahService.verifyPhotoId(governmentPhotoBase64, idImageBase64);
+        verificationLog.documentMatch = { ...photoResult, checkedAt: new Date().toISOString() };
+        if (photoResult.status === 'REJECTED') {
+          await prisma.agent.update({
+            where: { id: agent.id },
+            data: { kycStatus: 'REJECTED', kycVerificationLog: verificationLog },
+          });
+          throw createError(`ID document does not match BVN/NIN record: ${photoResult.reason}`, 400);
+        }
+      } else {
+        // Neither BVN nor NIN returned a photo to compare against (BVN's
+        // photo field is inconsistent across Dojah's own docs) - the
+        // document still gets uploaded and stored below, but there's
+        // nothing to auto-verify it against, so it rides along in the
+        // existing manual admin queue like before.
+        verificationLog.documentMatch = {
+          status: 'REVIEW',
+          reason: 'No government photo available from BVN/NIN response to cross-check against',
+          checkedAt: new Date().toISOString(),
+        };
+      }
+
       agent = await prisma.agent.update({
         where: { id: agent.id },
-        data: { bvn: bvn || agent.bvn, nin: nin || agent.nin },
+        data: { bvn: bvn || agent.bvn, nin: nin || agent.nin, kycVerificationLog: verificationLog },
       });
 
       // ID document upload is bundled into this same step 2 call, matching
@@ -368,12 +442,30 @@ export class AgentService {
 
     await biometricService.registerBiometric(userId, biometricData);
 
-    await prisma.agent.update({
-      where: { id: agent.id },
-      data: { kycStatus: 'APPROVED', isActive: true },
-    });
+    // Automated replacement for manual admin review: if every Dojah check
+    // recorded in step 2 came back APPROVED (no REVIEW/REJECTED entries -
+    // REJECTED would already have blocked the agent back in step 2), we
+    // trust that result and approve here, on biometric completion, since
+    // that's the natural end of onboarding. Any REVIEW result (ambiguous
+    // name match, or Dojah itself erroring) leaves kycStatus at its default
+    // PENDING, which the existing admin queue (GET /api/admin/kyc-pending,
+    // PATCH /api/admin/kyc/:agentId/approve|reject) already picks up - so
+    // the human fallback still works with zero new admin code.
+    const verificationLog: Record<string, any> = (agent as any).kycVerificationLog || {};
+    const checks = Object.values(verificationLog) as { status?: string }[];
+    const allChecksPassed = checks.length > 0 && checks.every((c) => c.status === 'APPROVED');
 
-    return { status: 'APPROVED', nextStep: 'dashboard' };
+    if (allChecksPassed) {
+      const updated = await prisma.agent.update({
+        where: { id: agent.id },
+        data: { kycStatus: 'APPROVED', isActive: true },
+      });
+      return { status: updated.kycStatus, nextStep: 'dashboard' };
+    }
+
+    // No automated checks passed cleanly (or none ran, e.g. neither bvn nor
+    // nin somehow reached step 2's checks) - stays PENDING, same as before.
+    return { status: agent.kycStatus, nextStep: 'pending-review' };
   }
 
   // ============================================

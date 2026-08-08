@@ -29,6 +29,10 @@ model User {
   idDocumentUrl      String?
   kycStatus          String?            @default("PENDING")
   nin                String?
+  // Stores each Dojah automated-KYC check's result (bvn/nin/documentMatch),
+  // mirroring Agent.kycVerificationLog - see that field's comment for the
+  // exact shape.
+  kycVerificationLog Json?
   agent              Agent?
   auditLogs          AuditLog[]
   balanceHistory     BalanceHistory[]
@@ -191,6 +195,12 @@ model Agent {
   residentialAddress  String?
   state               String?
   terminalId          String?     @unique
+  // Stores each Dojah automated-KYC check's result as it happens, e.g.
+  // { "bvn": { "status": "APPROVED", "reason": "...", "checkedAt": "..." },
+  //   "nin": {...}, "documentMatch": {...} } - lets the admin queue (and any
+  // future audit trail) see exactly why an agent landed in PENDING/REJECTED
+  // without needing a separate table.
+  kycVerificationLog  Json?
   onboardedPassengers Passenger[]
   park                Park?       @relation(fields: [parkId], references: [id])
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
