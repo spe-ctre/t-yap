@@ -1,38 +1,26 @@
 /// <reference path="../../shared/types/express.d.ts" />
 import { Request, Response } from 'express';
-import { prisma } from '../../shared/config/database';
+import { PMReportService } from '../services/pm-report.service';
+
+const handleError = (res: Response, error: any, fallbackMessage: string) => {
+  console.error(fallbackMessage + ':', error);
+  const statusCode = error.statusCode || 500;
+  return res.status(statusCode).json({ error: error.message || fallbackMessage });
+};
 
 export class PMReportController {
   static async getRevenueReport(req: Request, res: Response) {
     try {
       const userId = req.user!.id;
       const { startDate, endDate } = req.query;
-
-      const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
-      if (!parkManager) return res.status(404).json({ error: 'Park Manager not found' });
-
-      const where: any = {
-        category: 'FARE_PAYMENT',
-        status: 'SUCCESS',
-        vehicle: { currentParkId: parkManager.parkId },
-      };
-
-      if (startDate && endDate) {
-        where.createdAt = { gte: new Date(startDate as string), lte: new Date(endDate as string) };
-      }
-
-      const transactions = await prisma.transaction.findMany({
-        where,
-        select: { amount: true, createdAt: true },
-        orderBy: { createdAt: 'asc' },
-      });
-
-      const totalRevenue = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
-
-      return res.json({ totalRevenue, transactionCount: transactions.length, transactions });
-    } catch (error) {
-      console.error('Revenue report error:', error);
-      return res.status(500).json({ error: 'Failed to fetch revenue report' });
+      const report = await PMReportService.getRevenueReport(
+        userId,
+        startDate as string | undefined,
+        endDate as string | undefined
+      );
+      return res.json(report);
+    } catch (error: any) {
+      return handleError(res, error, 'Failed to fetch revenue report');
     }
   }
 
@@ -40,25 +28,14 @@ export class PMReportController {
     try {
       const userId = req.user!.id;
       const { startDate, endDate } = req.query;
-
-      const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
-      if (!parkManager) return res.status(404).json({ error: 'Park Manager not found' });
-
-      const where: any = { vehicle: { currentParkId: parkManager.parkId } };
-      if (startDate && endDate) {
-        where.createdAt = { gte: new Date(startDate as string), lte: new Date(endDate as string) };
-      }
-
-      const [totalTrips, completedTrips, cancelledTrips] = await Promise.all([
-        prisma.trip.count({ where }),
-        prisma.trip.count({ where: { ...where, status: 'COMPLETED' } }),
-        prisma.trip.count({ where: { ...where, status: 'CANCELLED' } }),
-      ]);
-
-      return res.json({ totalTrips, completedTrips, cancelledTrips, inProgressTrips: totalTrips - completedTrips - cancelledTrips });
-    } catch (error) {
-      console.error('Trip report error:', error);
-      return res.status(500).json({ error: 'Failed to fetch trip report' });
+      const report = await PMReportService.getTripReport(
+        userId,
+        startDate as string | undefined,
+        endDate as string | undefined
+      );
+      return res.json(report);
+    } catch (error: any) {
+      return handleError(res, error, 'Failed to fetch trip report');
     }
   }
 }
