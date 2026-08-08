@@ -1,5 +1,6 @@
 import { prisma } from '../../shared/config/database';
 import { createError } from '../../shared/middleware/error.middleware';
+import { getPaginationParams, buildPaginationMeta } from '../../shared/utils/pagination';
 
 interface TransactionFilters {
   driverId?: string;
@@ -20,7 +21,7 @@ export class PMTransactionService {
     const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
     if (!parkManager) throw createError('Park Manager not found', 404);
 
-    const skip = (page - 1) * limit;
+    const { skip } = getPaginationParams({ page, limit }, limit);
     const { driverId, routeId, status, startDate, endDate, search } = filters;
 
     const where: any = {
@@ -80,7 +81,7 @@ export class PMTransactionService {
 
     return {
       transactions: formattedTransactions,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      pagination: buildPaginationMeta(page, limit, total),
     };
   }
 }

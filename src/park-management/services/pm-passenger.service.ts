@@ -1,11 +1,12 @@
 import { prisma } from '../../shared/config/database';
 import { createError } from '../../shared/middleware/error.middleware';
+import { getPaginationParams, buildPaginationMeta } from '../../shared/utils/pagination';
 
 const FARE_REQUIRED = 250;
 
 export class PMPassengerService {
   static async getAllPassengers(page: number, limit: number, search?: string) {
-    const skip = (page - 1) * limit;
+    const { skip } = getPaginationParams({ page, limit }, limit);
 
     const where: any = {};
     if (search) {
@@ -28,7 +29,7 @@ export class PMPassengerService {
 
     return {
       passengers,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      pagination: buildPaginationMeta(page, limit, total),
     };
   }
 

@@ -1,6 +1,7 @@
 import { TransactionCategory, TransactionStatus, TransactionType, VASCategory, VASPurchaseStatus, UserRole } from '@prisma/client';
 import { prisma } from '../../shared/config/database';
 import { createError } from '../../shared/middleware/error.middleware';
+import { getPaginationParams, buildPaginationMeta } from '../../shared/utils/pagination';
 import { VTpassProviderService } from '../../wallet-money/services/vtpass-provider.service';
 import { IdempotencyService } from '../../wallet-money/services/idempotency.service';
 import { TransactionLogService } from '../../wallet-money/services/transaction-log.service';
@@ -371,9 +372,7 @@ export class DataService {
   }
 
   async getHistory(userId: string, params: { page?: number; limit?: number }) {
-    const page = params.page && params.page > 0 ? params.page : 1;
-    const limit = params.limit && params.limit > 0 ? params.limit : 10;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = getPaginationParams(params, 10);
 
     const [items, total] = await Promise.all([
       prisma.vASPurchase.findMany({
@@ -404,12 +403,7 @@ export class DataService {
 
     return {
       items,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
+      pagination: buildPaginationMeta(page, limit, total)
     };
   }
 
@@ -522,4 +516,3 @@ export class DataService {
     return names[serviceID.toLowerCase()] || serviceID.toUpperCase();
   }
 }
-

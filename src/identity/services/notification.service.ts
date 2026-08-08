@@ -1,15 +1,14 @@
 import { prisma } from '../../shared/config/database';
 import { NotificationType } from '@prisma/client';
 import { createError } from '../../shared/middleware/error.middleware';
+import { getPaginationParams, buildPaginationMeta } from '../../shared/utils/pagination';
 import { appCache } from '../../shared/cache.service';
 import { queueService } from '../../shared/queue.service';
 
 export class NotificationService {
   
   async getNotifications(userId: string, options: { page?: number; limit?: number; unreadOnly?: boolean; type?: string }) {
-    const page = options.page || 1;
-    const limit = options.limit || 20;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = getPaginationParams(options);
     const cacheKey = `notifications:${userId}:${page}:${limit}:${options.unreadOnly || false}:${options.type || 'all'}`;
 
     return appCache.getOrSet(
@@ -32,12 +31,7 @@ export class NotificationService {
 
         return {
           notifications,
-          pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit)
-          }
+          pagination: buildPaginationMeta(page, limit, total)
         };
       },
       15, // 15s TTL for high-frequency polling

@@ -2,6 +2,7 @@ import { prisma } from '../../shared/config/database';
 import * as bcrypt from 'bcryptjs';
 import { createError } from '../../shared/middleware/error.middleware';
 import { MonnifyService } from '../../wallet-money/services/monnify.service';
+import { getPaginationParams, buildPaginationMeta } from '../../shared/utils/pagination';
 
 const monnifyService = new MonnifyService();
 
@@ -378,10 +379,8 @@ export class DriverService {
   // ============================================
 
   async getTransactions(userId: string, query: { page?: string; limit?: string; search?: string; category?: string; status?: string }) {
-    const { page = '1', limit = '20', search, category, status } = query;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-    const skip = (pageNum - 1) * limitNum;
+    const { search, category, status } = query;
+    const { page: pageNum, limit: limitNum, skip } = getPaginationParams(query);
 
     const where: any = { userId };
     if (search) where.description = { contains: search as string, mode: 'insensitive' };
@@ -401,7 +400,7 @@ export class DriverService {
 
     return {
       transactions,
-      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
+      pagination: buildPaginationMeta(pageNum, limitNum, total),
     };
   }
 

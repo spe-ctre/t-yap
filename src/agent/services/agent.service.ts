@@ -1,6 +1,7 @@
 import { prisma } from '../../shared/config/database';
 import * as bcrypt from 'bcryptjs';
 import { createError } from '../../shared/middleware/error.middleware';
+import { getPaginationParams, buildPaginationMeta } from '../../shared/utils/pagination';
 import { SMSService } from '../../identity/services/sms.service';
 import { BiometricService } from '../../identity/services/biometric.service';
 import { MonnifyService } from '../../wallet-money/services/monnify.service';
@@ -1179,10 +1180,8 @@ export class AgentService {
   }
 
   async getTransactionHistory(userId: string, query: { page?: string; limit?: string; category?: string; status?: string }) {
-    const { page = '1', limit = '20', category, status } = query;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-    const skip = (pageNum - 1) * limitNum;
+    const { category, status } = query;
+    const { page: pageNum, limit: limitNum, skip } = getPaginationParams(query);
 
     const where: any = { userId };
     if (category) where.category = category;
@@ -1195,7 +1194,7 @@ export class AgentService {
 
     return {
       transactions,
-      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
+      pagination: buildPaginationMeta(pageNum, limitNum, total),
     };
   }
 
