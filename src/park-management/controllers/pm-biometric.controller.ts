@@ -63,19 +63,19 @@ export class PMBiometricController {
 
   static async driverCheckIn(req: Request, res: Response) {
     try {
-      const { templateData } = req.body;
+      const { templateData, deviceId } = req.body;
       if (!templateData) return res.status(400).json({ error: 'templateData is required' });
 
       const { BiometricService } = require('../../identity/services/biometric.service');
       const biometricService = new BiometricService();
-      
+
       const driver = await biometricService.identifyUser(templateData, 'DRIVER');
 
       if (!driver) {
-        return res.json({ 
-          success: true, 
-          verified: false, 
-          message: 'No matching driver fingerprint found' 
+        return res.json({
+          success: true,
+          verified: false,
+          message: 'No matching driver fingerprint found'
         });
       }
 
@@ -84,6 +84,20 @@ export class PMBiometricController {
         where: { id: driver.id },
         include: { vehicle: true }
       });
+
+      // Issue a real, driver-scoped session token on successful match - same
+      // convention as a normal login (SessionService.createSession), so the
+      // POS device can use this token as Authorization: Bearer for the rest
+      // of the driver's shift (start shift, dashboard, etc. under /api/driver/*).
+      // Without this, a successful fingerprint match had no way to actually
+      // authenticate as that driver for any subsequent action.
+      const { SessionService } = require('../../identity/services/session.service');
+      const sessionService = new SessionService();
+      const { token } = await sessionService.createSession(
+        driver.userId,
+        { deviceId: deviceId || undefined, deviceType: 'POS' },
+        'DRIVER'
+      );
 
       return res.json({
         success: true,
@@ -94,6 +108,7 @@ export class PMBiometricController {
           lastName: driver.lastName,
           vehicle: driverWithVehicle?.vehicle ? { plateNumber: driverWithVehicle.vehicle.plateNumber } : null,
         },
+        token,
         message: 'Driver checked in successfully',
       });
     } catch (error) {

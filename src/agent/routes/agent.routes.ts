@@ -55,6 +55,7 @@ import {
 
 import { authenticateToken } from '../../shared/middleware/auth.middleware';
 import { hasRole } from '../../shared/middleware/role.middleware';
+import { uploadSingle } from '../../shared/middleware/upload.middleware';
 
 const router = Router();
 
@@ -77,7 +78,7 @@ router.post('/auth/verify-otp', verifyAgentRegistrationOTP);
  * Complete Agent Profile (after OTP verification)
  * These routes require basic authentication but agent may not be fully set up
  */
-router.post('/auth/complete-profile', authenticateToken, hasRole('AGENT'), completeAgentProfile);
+router.post('/auth/complete-profile', authenticateToken, hasRole('AGENT'), uploadSingle, completeAgentProfile);
 router.post('/auth/upload-document', authenticateToken, hasRole('AGENT'), uploadAgentDocument);
 router.post('/auth/submit-biometric', authenticateToken, hasRole('AGENT'), submitAgentBiometric);
 

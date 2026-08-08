@@ -7,6 +7,7 @@ import { SessionService } from './session.service';
 import { SMSService } from './sms.service';
 import { prisma } from '../../shared/config/database';
 import { normalizePhoneNumber, isValidNigerianPhone } from '../../shared/utils/phone';
+import { isSyntheticEmail } from '../../shared/utils/synthetic-email.util';
 import { queueService } from '../../shared/queue.service';
 
 export class AuthService {
@@ -419,7 +420,13 @@ export class AuthService {
       where: { email }
     });
 
-    if (!user) {
+    // Accounts onboarded via phone/OTP flows (agents, park managers, and
+    // drivers/passengers onboarded by an agent) get a deterministic
+    // placeholder email like `${phoneNumber}@tyap.agent` that can never
+    // receive real mail. Treat them exactly like "no account found" -
+    // same generic response, and critically, no code is generated at all,
+    // so there is nothing for the non-production debug field to leak.
+    if (!user || isSyntheticEmail(user.email)) {
       // Don't reveal if user exists for security
       return { message: 'If an account exists with this email, a password reset code has been sent' };
     }
@@ -535,6 +542,16 @@ export class AuthService {
 
     if (!user) {
       // Don't reveal if user exists for security
+      return { message: 'If an account exists, a verification code has been sent' };
+    }
+
+    // Same synthetic-email gap as forgotPassword: an account onboarded via
+    // phone/OTP (agent, park manager, agent-onboarded driver/passenger) has
+    // a placeholder email that can never receive mail. Requesting an EMAIL
+    // verification resend against it would still generate a real code and,
+    // in non-production, echo it straight back in the response - so treat
+    // this exactly like "account not found" instead of proceeding.
+    if (data.type === 'EMAIL_VERIFICATION' && isSyntheticEmail(user.email)) {
       return { message: 'If an account exists, a verification code has been sent' };
     }
 

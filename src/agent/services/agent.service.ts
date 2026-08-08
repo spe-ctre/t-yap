@@ -6,6 +6,7 @@ import { BiometricService } from '../../identity/services/biometric.service';
 import { MonnifyService } from '../../wallet-money/services/monnify.service';
 import { ProfileService } from '../../identity/services/profile.service';
 import { SessionService } from '../../identity/services/session.service';
+import { getCloudinary, isCloudinaryAvailable } from '../../shared/config/cloudinary';
 
 const smsService = new SMSService();
 const biometricService = new BiometricService();
@@ -151,7 +152,7 @@ export class AgentService {
     return { userId: user.id, token, nextStep: 'complete-profile' };
   }
 
-  async completeAgentProfile(userId: string, body: any) {
+  async completeAgentProfile(userId: string, body: any, file?: Express.Multer.File) {
     const {
       step,
       fullName,
@@ -159,6 +160,8 @@ export class AgentService {
       email,
       bvn,
       nin,
+      documentType,
+      documentNumber,
       residentialAddress,
       state,
       lga,
@@ -169,6 +172,13 @@ export class AgentService {
       throw createError('Step number is required', 400);
     }
 
+    // Step 2 now optionally arrives as multipart/form-data (to carry the ID
+    // document file alongside bvn/nin), which sends every field as a string
+    // - e.g. step: "2" instead of step: 2. Steps 1 and 3 still arrive as
+    // plain JSON with a real number. Coerce once here so every `=== ` check
+    // below works regardless of which transport this request used.
+    const stepNumber = Number(step);
+
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw createError('User not found', 404);
@@ -176,7 +186,7 @@ export class AgentService {
 
     let agent = await prisma.agent.findUnique({ where: { userId } });
 
-    if (step === 1) {
+    if (stepNumber === 1) {
       // Figma step 1 collects a single "Full Legal Name" field plus a park
       // dropdown, not separate firstName/lastName - split the name here so
       // the rest of the app (Agent.firstName / Agent.lastName, both required
@@ -232,12 +242,21 @@ export class AgentService {
       return { agent, nextStep: 2 };
     }
 
-    if (step === 2) {
+    if (stepNumber === 2) {
       if (!agent) {
         throw createError('Please complete step 1 first', 400);
       }
       if (!bvn && !nin) {
         throw createError('Either BVN or NIN is required', 400);
+      }
+      // Document upload is now mandatory here, not optional - this is the
+      // only step that accepts a file at all, and a profile isn't actually
+      // complete without a verifiable ID on record.
+      if (!file) {
+        throw createError('ID document image is required', 400);
+      }
+      if (!documentType) {
+        throw createError('Document type is required', 400);
       }
 
       agent = await prisma.agent.update({
@@ -245,10 +264,27 @@ export class AgentService {
         data: { bvn: bvn || agent.bvn, nin: nin || agent.nin },
       });
 
-      return { agent, nextStep: 3 };
+      // ID document upload is bundled into this same step 2 call, matching
+      // the Figma screen (BVN, NIN, and "Upload Valid ID" all on one screen).
+      // The file arrives as a 'picture' field via the uploadSingle multer
+      // middleware on this route. The legacy standalone
+      // /auth/upload-document endpoint still exists untouched for now as a
+      // fallback / until we decide whether to retire it.
+      const documentUrl = await this.uploadDocumentFile(file, userId);
+
+      const document = await prisma.document.create({
+        data: { userId, documentType, url: documentUrl, documentNumber, status: 'PENDING' },
+      });
+
+      agent = await prisma.agent.update({
+        where: { id: agent.id },
+        data: { idDocumentUrl: documentUrl },
+      });
+
+      return { agent, document, nextStep: 3 };
     }
 
-    if (step === 3) {
+    if (stepNumber === 3) {
       if (!agent) {
         throw createError('Please complete previous steps first', 400);
       }
@@ -263,10 +299,39 @@ export class AgentService {
         data: { residentialAddress, state, lga },
       });
 
-      return { agent, nextStep: 'upload-documents' };
+      return { agent, nextStep: 'submit-biometric' };
     }
 
     throw createError('Invalid step number', 400);
+  }
+
+  // Uploads a raw file buffer (from multer memory storage) to Cloudinary
+  // and returns the hosted URL. Mirrors the pattern already used in
+  // identity/services/kyc.service.ts's uploadFaceImage, so both file-upload
+  // paths in the app behave consistently.
+  private async uploadDocumentFile(file: Express.Multer.File, userId: string): Promise<string> {
+    if (!isCloudinaryAvailable()) {
+      throw createError('Document upload is not available. Cloudinary is not configured.', 503);
+    }
+    const cloudinary = getCloudinary();
+
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'tyap/agent/documents',
+          public_id: `${userId}-${Date.now()}`,
+          resource_type: 'image',
+        },
+        (error: any, result: any) => {
+          if (error || !result) {
+            reject(createError('Failed to upload document image', 500));
+            return;
+          }
+          resolve(result.secure_url);
+        }
+      );
+      uploadStream.end(file.buffer);
+    });
   }
 
   async uploadAgentDocument(userId: string, documentType: string, documentUrl: string, documentNumber?: string) {

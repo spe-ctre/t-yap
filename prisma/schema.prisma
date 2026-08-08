@@ -251,7 +251,7 @@ model Transaction {
   description   String?
   reference     String              @unique
   metadata      Json?
-  tripId        String?             @unique
+  tripId        String?
   vasPurchaseId String?             @unique
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
@@ -492,7 +492,7 @@ model Trip {
   passengerDetails PassengerDetails[]
   settlements      Settlement?
   tripPassengers   TripPassenger[]
-  transaction      Transaction?
+  transactions     Transaction[]
   driver           Driver             @relation("TripDriver", fields: [driverId], references: [id])
   user             User               @relation(fields: [passengerId], references: [id])
   route            Route              @relation(fields: [routeId], references: [id])

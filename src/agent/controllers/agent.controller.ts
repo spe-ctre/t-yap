@@ -47,11 +47,20 @@ export const verifyAgentRegistrationOTP = async (req: Request, res: Response) =>
 export const completeAgentProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const result = await agentService.completeAgentProfile(userId, req.body);
+    // req.file is only populated when the request was multipart/form-data
+    // with a 'picture' field (step 2, now bundled with document upload).
+    // Steps 1 and 3 are still plain JSON, so req.file is simply undefined
+    // for them - uploadSingle skips parsing entirely for non-multipart
+    // requests and leaves req.body untouched.
+    const result = await agentService.completeAgentProfile(userId, req.body, req.file);
+    // req.body.step arrives as a string when the request was multipart
+    // (step 2 with a file attached) and as a number for plain-JSON steps
+    // 1 and 3 - coerce so this comparison works either way.
+    const stepNumber = Number(req.body.step);
     const message =
-      req.body.step === 1
+      stepNumber === 1
         ? 'Personal information saved'
-        : req.body.step === 2
+        : stepNumber === 2
         ? 'KYC information saved'
         : 'Profile completed successfully';
     return res.json({ message, ...result });
