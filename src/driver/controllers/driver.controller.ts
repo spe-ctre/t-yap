@@ -135,7 +135,7 @@ export const withdrawFunds = async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const { amount, bankAccountId, pin } = req.body;
     const result = await driverService.withdrawFunds(userId, amount, bankAccountId, pin);
-    return res.json({ message: 'Withdrawal initiated successfully', ...result });
+    return res.json({ message: 'Withdrawal initiated successfully', result });
   } catch (error: any) {
     return handleError(res, error, 'Withdrawal failed');
   }

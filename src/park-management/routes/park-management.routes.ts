@@ -26,19 +26,19 @@ router.post('/auth/upload-document', authenticateToken, hasRole('PARK_MANAGER'),
 router.post('/auth/submit-biometric', authenticateToken, hasRole('PARK_MANAGER'), PMAuthController.submitBiometric);
 
 // ============================================
-// PART 2: DASHBOARD & SHIFT MANAGEMENT
+// PART 2: DASHBOARD
 // ============================================
 router.get('/dashboard', authenticateToken, hasRole('PARK_MANAGER'), PMDashboardController.getDashboard);
-router.post('/shift/start', authenticateToken, hasRole('PARK_MANAGER'), PMDashboardController.startShift);
-router.post('/shift/end', authenticateToken, hasRole('PARK_MANAGER'), PMDashboardController.endShift);
 
 // ============================================
-// PART 3: DRIVER MANAGEMENT
+// PART 3: DRIVER MANAGEMENT & SHIFT PIPELINE
 // ============================================
 router.get('/drivers', authenticateToken, hasRole('PARK_MANAGER'), PMDriverController.getAllDrivers);
 router.get('/drivers/:driverId', authenticateToken, hasRole('PARK_MANAGER'), PMDriverController.getDriverDetails);
 router.post('/drivers/:driverId/activate', authenticateToken, hasRole('PARK_MANAGER'), PMDriverController.activateDriver);
 router.post('/drivers/:driverId/deactivate', authenticateToken, hasRole('PARK_MANAGER'), PMDriverController.deactivateDriver);
+router.post('/drivers/:driverId/shift/start', authenticateToken, hasRole('PARK_MANAGER'), PMDriverController.startShift);
+router.post('/drivers/:driverId/shift/end', authenticateToken, hasRole('PARK_MANAGER'), PMDriverController.endShift);
 router.post('/drivers/:driverId/assign-route', authenticateToken, hasRole('PARK_MANAGER'), PMDriverController.assignRoute);
 
 // ============================================

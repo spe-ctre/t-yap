@@ -99,21 +99,4 @@ export class PMDashboardService {
       recentTransactions: formattedTransactions,
     };
   }
-
-  static async startShift(userId: string, biometricData: string) {
-    const parkManager = await prisma.parkManager.findUnique({ where: { userId } });
-    if (!parkManager) throw createError('Park Manager not found', 404);
-
-    if (parkManager.biometricData !== biometricData) {
-      throw createError('Biometric verification failed', 401);
-    }
-
-    // NOTE: preserved as-is from original — does not persist shift state to the database.
-    return { shiftStart: new Date() };
-  }
-
-  static async endShift() {
-    // NOTE: preserved as-is from original — no auth/biometric check, no database update.
-    return { shiftEnd: new Date() };
-  }
 }

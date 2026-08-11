@@ -50,11 +50,11 @@ export class PMTripService {
       const trip = await tx.trip.findUnique({ where: { id: tripId }, include: { route: true } });
       if (!trip) throw new Error('Trip not found');
 
-      // Logic from UI: Total = Fare + Transaction Fee (10 NGN)
+      // T-Yap biometric fingerprint check-in: 50 NGN fee
       const fare = Number(trip.route.baseFare) || 4500;
-      const transactionFee = 10;
+      const transactionFee = 50;
       const totalDeduction = fare + transactionFee;
-      const currentBalance = Number(passenger.transportWalletBalance); // Using transportWalletBalance from Passenger model
+      const currentBalance = Number(passenger.transportWalletBalance); // Using transportWalletBalance alone
 
       if (currentBalance < totalDeduction) throw new Error('Insufficient balance');
 
@@ -109,25 +109,5 @@ export class PMTripService {
         transactionFee,
       };
     });
-  }
-
-  static async startTrip(tripId: string) {
-    const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { driver: true, vehicle: true } });
-    if (!trip) throw createError('Trip not found', 404);
-
-    await prisma.$transaction([
-      prisma.trip.update({ where: { id: tripId }, data: { status: 'IN_PROGRESS' } }),
-      prisma.driver.update({ where: { id: trip.driverId }, data: { shiftStatus: 'ON_SHIFT' } }),
-    ]);
-  }
-
-  static async endTrip(tripId: string) {
-    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
-    if (!trip) throw createError('Trip not found', 404);
-
-    await prisma.$transaction([
-      prisma.trip.update({ where: { id: tripId }, data: { status: 'COMPLETED' } }),
-      prisma.driver.update({ where: { id: trip.driverId }, data: { shiftStatus: 'ON_QUEUE' } }),
-    ]);
   }
 }

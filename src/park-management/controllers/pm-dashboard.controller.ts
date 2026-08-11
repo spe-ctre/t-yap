@@ -18,27 +18,4 @@ export class PMDashboardController {
       return handleError(res, error, 'Failed to fetch dashboard');
     }
   }
-
-  static async startShift(req: Request, res: Response) {
-    try {
-      const userId = req.user!.id;
-      const { biometricData } = req.body;
-
-      if (!biometricData) return res.status(400).json({ error: 'Biometric verification required' });
-
-      const result = await PMDashboardService.startShift(userId, biometricData);
-      return res.json({ message: 'Shift started successfully', ...result });
-    } catch (error: any) {
-      return handleError(res, error, 'Failed to start shift');
-    }
-  }
-
-  static async endShift(req: Request, res: Response) {
-    try {
-      const result = await PMDashboardService.endShift();
-      return res.json({ message: 'Shift ended successfully', ...result });
-    } catch (error: any) {
-      return handleError(res, error, 'Failed to end shift');
-    }
-  }
 }

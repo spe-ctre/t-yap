@@ -72,6 +72,9 @@ export class PMBiometricService {
   }
 
   static async enrollDriverBiometric(driverId: string, templateData: string) {
+    const driver = await prisma.driver.findUnique({ where: { id: driverId } });
+    if (!driver) throw new Error('Driver not found');
+
     const biometric = await prisma.biometricData.create({
       data: { userId: driverId, userType: 'DRIVER', templateData },
     });
@@ -79,28 +82,23 @@ export class PMBiometricService {
   }
 
   static async enrollAgentBiometric(agentId: string, templateData: string) {
+    const agent = await prisma.agent.findUnique({ where: { id: agentId } });
+    if (!agent) throw new Error('Agent not found');
+
     const biometric = await prisma.biometricData.create({
       data: { userId: agentId, userType: 'AGENT', templateData },
     });
     return biometric.id;
   }
 
-  static async verifyAgentBiometric() {
-    const agentBiometric = await prisma.biometricData.findFirst({
-      where: { userType: 'AGENT', isActive: true },
-    });
+  static async verifyAgentBiometric(templateData: string) {
+    const { BiometricService } = require('../../identity/services/biometric.service');
+    const biometricService = new BiometricService();
 
-    if (!agentBiometric) {
-      return { verified: false, message: 'No agent fingerprints found' } as const;
-    }
-
-    const agent = await prisma.agent.findUnique({
-      where: { id: agentBiometric.userId },
-      include: { user: true },
-    });
+    const agent = await biometricService.identifyUser(templateData, 'AGENT');
 
     if (!agent) {
-      return { verified: false, message: 'Agent not found' } as const;
+      return { verified: false, message: 'No matching agent fingerprint found' } as const;
     }
 
     return {

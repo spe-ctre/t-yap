@@ -75,28 +75,35 @@ export class PMBiometricController {
   static async enrollDriverBiometric(req: Request, res: Response) {
     try {
       const { driverId, templateData } = req.body;
+      if (!driverId || !templateData) return res.status(400).json({ error: 'driverId and templateData are required' });
+
       const biometricId = await PMBiometricService.enrollDriverBiometric(driverId, templateData);
       return res.json({ success: true, message: 'Driver fingerprint enrolled successfully', biometricId });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Enroll driver biometric error:', error);
-      return res.status(500).json({ error: 'Failed to enroll driver biometric' });
+      return res.status(error.message === 'Driver not found' ? 404 : 500).json({ error: error.message || 'Failed to enroll driver biometric' });
     }
   }
 
   static async enrollAgentBiometric(req: Request, res: Response) {
     try {
       const { agentId, templateData } = req.body;
+      if (!agentId || !templateData) return res.status(400).json({ error: 'agentId and templateData are required' });
+
       const biometricId = await PMBiometricService.enrollAgentBiometric(agentId, templateData);
       return res.json({ success: true, message: 'Agent fingerprint enrolled successfully', biometricId });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Enroll agent biometric error:', error);
-      return res.status(500).json({ error: 'Failed to enroll agent biometric' });
+      return res.status(error.message === 'Agent not found' ? 404 : 500).json({ error: error.message || 'Failed to enroll agent biometric' });
     }
   }
 
   static async verifyAgentBiometric(req: Request, res: Response) {
     try {
-      const result = await PMBiometricService.verifyAgentBiometric();
+      const { templateData } = req.body;
+      if (!templateData) return res.status(400).json({ error: 'templateData is required' });
+
+      const result = await PMBiometricService.verifyAgentBiometric(templateData);
 
       if (!result.verified) {
         return res.json({ success: true, verified: false, message: result.message });

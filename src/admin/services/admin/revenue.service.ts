@@ -95,15 +95,9 @@ export class RevenueService {
   }
 
   private static async handleTripRevenue(tx: any, split: RevenueSplit, metadata: any) {
-    const { driverId, pmId } = metadata;
-    
-    // Update Driver Earnings (Withdrawable)
-    await (tx.driver as any).update({
-      where: { id: driverId },
-      data: { walletBalance: { increment: split.driverFare } }
-    });
+    const { pmId } = metadata;
 
-    // Update PM Locked Balance (For monthly payout)
+    // Update PM Locked Balance (For settlement payout)
     await (tx.parkManager as any).update({
       where: { id: pmId },
       data: { lockedBalance: { increment: split.pmCut } }

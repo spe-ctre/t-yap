@@ -2,6 +2,7 @@ import { prisma } from '../../shared/config/database';
 import { createError } from '../../shared/middleware/error.middleware';
 import * as bcrypt from 'bcryptjs';
 import { SessionService } from '../../identity/services/session.service';
+import { smsService } from '../../identity/services/sms.service';
 
 export class PMAuthService {
   static async login(phoneInput: string, email: string, password: string, deviceInfo: any) {
@@ -99,12 +100,9 @@ export class PMAuthService {
       data: { userId: user.id, code: otpCode, type: 'PHONE_VERIFICATION', expiresAt },
     });
 
-    // NOTE: preserved as-is from original — OTP is logged and returned directly
-    // in the response rather than sent via SMS. Flagged separately as a
-    // security concern; not changed here to keep this pass behavior-preserving.
-    console.log(`Park Manager OTP for ${phoneNumber}: ${otpCode}`);
+    await smsService.sendVerificationSMS(phoneNumber, otpCode);
 
-    return otpCode;
+    return { phoneNumber };
   }
 
   static async verifyRegistrationOTP(phoneNumber: string, otp: string, deviceInfo: any) {

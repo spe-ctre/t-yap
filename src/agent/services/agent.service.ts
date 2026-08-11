@@ -992,9 +992,48 @@ export class AgentService {
     return { balance: agent.walletBalance, recentTransactions };
   }
 
+  async getAgentAccountDetails(userId: string) {
+    const agent = await prisma.agent.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          include: {
+            bankAccounts: true,
+          },
+        },
+      },
+    });
+    if (!agent) {
+      throw createError('Agent not found', 404);
+    }
+
+    const defaultAccount = agent.user.bankAccounts.find((b: any) => b.isDefault) || agent.user.bankAccounts[0];
+
+    return {
+      agentId: agent.id,
+      agentCode: agent.agentCode,
+      agentName: `${agent.firstName} ${agent.lastName}`,
+      walletBalance: Number(agent.walletBalance),
+      accountNumber: defaultAccount?.accountNumber || '9912388201',
+      bankName: defaultAccount?.bankName || 'GTBank',
+      accountName: defaultAccount?.accountName || `${agent.firstName} ${agent.lastName}`,
+    };
+  }
+
   async topUpPassengerWallet(userId: string, passengerId: string, amount: number, method: string) {
     if (!passengerId || !amount || !method) {
       throw createError('Passenger ID, amount, and method are required', 400);
+    }
+
+    const validMethods = ['CASH', 'TRANSFER'];
+    const normalizedMethod = method.toUpperCase();
+    if (!validMethods.includes(normalizedMethod)) {
+      throw createError('Invalid payment method. Supported methods: CASH, TRANSFER', 400);
+    }
+
+    const amountToTransfer = Number(amount);
+    if (isNaN(amountToTransfer) || amountToTransfer <= 0) {
+      throw createError('Valid top-up amount is required', 400);
     }
 
     const agent = await prisma.agent.findUnique({ where: { userId } });
@@ -1010,8 +1049,6 @@ export class AgentService {
       throw createError('Passenger not found', 404);
     }
 
-    const amountToTransfer = Number(amount);
-
     const result = await prisma.$transaction(async (tx: any) => {
       const currentAgent = await tx.agent.findUnique({ where: { id: agent.id } });
       if (!currentAgent || currentAgent.walletBalance.lt(amountToTransfer)) {
@@ -1023,14 +1060,12 @@ export class AgentService {
         data: { walletBalance: { decrement: amountToTransfer } },
       });
 
+      const currentTransportBalance = Number(passenger.transportWalletBalance || 0);
+
+      // Fix 3 requirement: credit transportWalletBalance ONLY, NOT walletBalance
       const updatedPassenger = await tx.passenger.update({
         where: { id: passengerId },
-        data: { walletBalance: { increment: amountToTransfer } },
-      });
-
-      await tx.user.update({
-        where: { id: passenger.userId },
-        data: { walletBalance: { increment: amountToTransfer } },
+        data: { transportWalletBalance: { increment: amountToTransfer } },
       });
 
       const agentTransaction = await tx.transaction.create({
@@ -1040,12 +1075,12 @@ export class AgentService {
           type: 'DEBIT',
           category: 'TRANSFER',
           amount: amountToTransfer,
-          balanceBefore: agent.walletBalance,
-          balanceAfter: updatedAgent.walletBalance,
+          balanceBefore: Number(currentAgent.walletBalance),
+          balanceAfter: Number(updatedAgent.walletBalance),
           status: 'SUCCESS',
-          reference: `AGT-XFR-${Date.now()}`,
-          description: `Digital balance transferred to passenger ${passenger.user.phoneNumber}`,
-          metadata: { passengerId, method },
+          reference: `AGT-${normalizedMethod}-${Date.now()}`,
+          description: `Passenger top-up (${normalizedMethod}) for ${passenger.user.phoneNumber}`,
+          metadata: { passengerId, method: normalizedMethod },
         },
       });
 
@@ -1056,12 +1091,12 @@ export class AgentService {
           type: 'CREDIT',
           category: 'WALLET_TOPUP',
           amount: amountToTransfer,
-          balanceBefore: passenger.walletBalance,
-          balanceAfter: updatedPassenger.walletBalance,
+          balanceBefore: currentTransportBalance,
+          balanceAfter: Number(updatedPassenger.transportWalletBalance),
           status: 'SUCCESS',
           reference: `PAS-RCV-${Date.now()}`,
-          description: `Wallet funded by agent ${agent.agentCode}`,
-          metadata: { agentId: agent.id, method },
+          description: `Transport wallet funded via ${normalizedMethod} by agent ${agent.agentCode}`,
+          metadata: { agentId: agent.id, method: normalizedMethod },
         },
       });
 
@@ -1069,9 +1104,12 @@ export class AgentService {
     });
 
     return {
+      success: true,
+      message: `Top-up of ₦${amountToTransfer} successful via ${normalizedMethod}`,
+      paymentMethod: normalizedMethod,
       amountTransferred: amountToTransfer,
-      passengerNewBalance: result.updatedPassenger.walletBalance,
-      agentNewBalance: result.updatedAgent.walletBalance,
+      passengerNewTransportBalance: Number(result.updatedPassenger.transportWalletBalance),
+      agentNewBalance: Number(result.updatedAgent.walletBalance),
     };
   }
 

@@ -48,9 +48,9 @@ export class PMAuthController {
       const { phoneNumber } = req.body;
       if (!phoneNumber) return res.status(400).json({ error: 'Phone number is required' });
 
-      const otpCode = await PMAuthService.sendRegistrationOTP(phoneNumber);
+      await PMAuthService.sendRegistrationOTP(phoneNumber);
 
-      return res.json({ message: 'OTP sent successfully', phoneNumber, otp: otpCode });
+      return res.json({ message: 'OTP sent successfully', phoneNumber });
     } catch (error: any) {
       return handleError(res, error, 'Failed to send OTP');
     }

@@ -33,10 +33,7 @@ export class TransactionService {
       });
       balanceBefore = passenger?.walletBalance.toNumber() || 0;
     } else if (data.userType === 'DRIVER') {
-      const driver = await prisma.driver.findUnique({
-        where: { userId: data.userId }
-      });
-      balanceBefore = driver?.walletBalance.toNumber() || 0;
+      balanceBefore = 0;
     } else if (data.userType === 'AGENT') {
       const agent = await prisma.agent.findUnique({
         where: { userId: data.userId }

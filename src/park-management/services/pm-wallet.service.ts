@@ -16,6 +16,44 @@ export class PMWalletService {
    * credit or debit. totalParkRevenue/commissionRate are kept as separate
    * informational stats, not conflated with "balance".
    */
+  static async checkAndReleaseLockedCommissions(parkManagerId: string) {
+    const pm = await prisma.parkManager.findUnique({ where: { id: parkManagerId } });
+    if (!pm) return;
+
+    const startDate = pm.commissionCycleStartDate || pm.createdAt;
+    const now = new Date();
+    const diffMs = now.getTime() - new Date(startDate).getTime();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+    if (diffMs >= thirtyDaysMs && Number(pm.lockedBalance) > 0) {
+      const amountToDisburse = Number(pm.lockedBalance);
+      await prisma.$transaction([
+        prisma.parkManager.update({
+          where: { id: parkManagerId },
+          data: {
+            walletBalance: { increment: amountToDisburse },
+            lockedBalance: 0,
+            commissionCycleStartDate: now,
+          },
+        }),
+        prisma.transaction.create({
+          data: {
+            userId: pm.userId,
+            userType: 'PARK_MANAGER',
+            type: 'CREDIT',
+            category: 'COMMISSION_DISBURSEMENT',
+            amount: amountToDisburse,
+            status: 'SUCCESS',
+            description: '30-Day Automated Commission Disbursement to Wallet',
+            reference: `COMM-DISBURSE-${Date.now()}`,
+            balanceBefore: Number(pm.walletBalance),
+            balanceAfter: Number(pm.walletBalance) + amountToDisburse,
+          },
+        }),
+      ]);
+    }
+  }
+
   static async getWallet(userId: string) {
     const parkManager = await prisma.parkManager.findUnique({
       where: { userId },
@@ -25,6 +63,13 @@ export class PMWalletService {
     if (!parkManager || !parkManager.parkId) {
       throw createError('Park Manager or assigned park not found', 404);
     }
+
+    await PMWalletService.checkAndReleaseLockedCommissions(parkManager.id);
+
+    const updatedPM = await prisma.parkManager.findUnique({
+      where: { id: parkManager.id },
+      include: { park: true },
+    });
 
     const parkTrips = await prisma.trip.findMany({
       where: { route: { originParkId: parkManager.parkId } },
@@ -41,13 +86,13 @@ export class PMWalletService {
       _sum: { amount: true },
     });
 
-    const commissionRate = Number(parkManager.commissionRate || 5);
+    const commissionRate = Number(updatedPM?.commissionRate || 5);
 
     return {
-      balance: Number(parkManager.walletBalance),
-      lockedBalance: Number(parkManager.lockedBalance),
+      balance: Number(updatedPM?.walletBalance || 0),
+      lockedBalance: Number(updatedPM?.lockedBalance || 0),
       commissionRate,
-      parkName: parkManager.park?.name,
+      parkName: updatedPM?.park?.name,
       totalParkRevenue: Number(parkRevenue._sum.amount || 0),
     };
   }
@@ -94,8 +139,11 @@ export class PMWalletService {
 
     const settlements = await prisma.settlement.findMany({
       where: {
-        approvedBy: parkManager.id,
-        status: 'PENDING',
+        status: { in: ['PENDING', 'APPROVED'] },
+        OR: [
+          { approvedBy: parkManager.id },
+          { approvedBy: null, trip: { driver: { vehicle: { currentParkId: parkManager.parkId } } } },
+        ],
       },
       include: {
         trip: {
@@ -116,27 +164,36 @@ export class PMWalletService {
     }));
   }
 
-  /**
-   * FIXED: this used to recompute the split with its own hardcoded
-   * percentages (10% system fee / 5% park commission) - but the cron job
-   * that actually creates Settlement rows (shared/jobs/cron-jobs.ts) uses
-   * the OPPOSITE split (10% park commission / 5% tyap fee) when writing
-   * totalAmount/driverPayout/parkCommission/tyapFee to the row. A park
-   * manager previewing a settlement here would have seen numbers that do
-   * not match what the system actually stored and will actually pay out.
-   * Now this just reads back the settlement's own stored, trustworthy
-   * values instead of recalculating them with different math.
-   */
   static async calculateSettlementSplit(settlementId: string) {
     const settlement = await prisma.settlement.findUnique({ where: { id: settlementId } });
     if (!settlement) throw createError('Settlement not found', 404);
 
+    let totalFares = Number(settlement.totalAmount);
+    let tyapFee = Number(settlement.tyapFee);
+    let parkCommission = Number(settlement.parkCommission);
+    let driverPayout = Number(settlement.driverPayout);
+
+    if (driverPayout === 0 && parkCommission === 0 && totalFares > 0) {
+      tyapFee = totalFares * 0.05;
+      parkCommission = totalFares * 0.10;
+      driverPayout = totalFares - tyapFee - parkCommission;
+
+      await prisma.settlement.update({
+        where: { id: settlementId },
+        data: {
+          tyapFee,
+          parkCommission,
+          driverPayout,
+        },
+      });
+    }
+
     return {
-      totalFares: Number(settlement.totalAmount),
+      totalFares,
       splits: {
-        driverPayout: Number(settlement.driverPayout),
-        parkCommission: Number(settlement.parkCommission),
-        systemFee: Number(settlement.tyapFee),
+        driverPayout,
+        parkCommission,
+        systemFee: tyapFee,
       },
     };
   }
@@ -161,43 +218,52 @@ export class PMWalletService {
       throw createError('Settlement ID and biometric approval required', 400);
     }
 
-    const isVerified = await biometricService.verifyBiometric(userId, biometricToken);
-    if (!isVerified) {
-      throw createError('Biometric verification failed', 401);
-    }
-
     const settlement = await prisma.settlement.findUnique({
       where: { id: settlementId },
       include: { trip: { include: { driver: { include: { user: { include: { bankAccounts: true } } } } } } },
     });
 
     if (!settlement) throw createError('Settlement not found', 404);
-    if (settlement.status !== 'PENDING') {
+    if (settlement.status !== 'PENDING' && settlement.status !== 'APPROVED') {
       throw createError(
         settlement.status === 'COMPLETED' ? 'Settlement already processed' : 'Settlement is already being processed',
         400
       );
     }
 
-    // Atomically claim it - only succeeds if it's still PENDING right now.
-    // If a second request already claimed it a moment ago, count will be 0
-    // and we reject cleanly instead of racing into a double payout.
+    const driver = settlement.trip.driver;
+    const isVerified =
+      (await biometricService.verifyBiometric(driver.userId, biometricToken)) ||
+      (await biometricService.verifyBiometric(driver.id, biometricToken));
+
+    if (!isVerified) {
+      throw createError('Driver biometric verification failed. Driver consent is required to release settlement.', 401);
+    }
+
+    const initialStatus = settlement.status;
+
+    // Atomically claim it - only succeeds if it's still PENDING or APPROVED right now.
     const claim = await prisma.settlement.updateMany({
-      where: { id: settlementId, status: 'PENDING' },
+      where: { id: settlementId, status: { in: ['PENDING', 'APPROVED'] } },
       data: { status: 'PROCESSING' },
     });
     if (claim.count !== 1) {
       throw createError('Settlement is already being processed', 409);
     }
 
-    const driver = settlement.trip.driver;
     const bankAccount = driver.user.bankAccounts.find((b: any) => b.isDefault) || driver.user.bankAccounts[0];
 
     if (!bankAccount) {
       // Release the claim - nothing was sent, safe to let this be retried
-      // once a bank account is registered.
-      await prisma.settlement.update({ where: { id: settlementId }, data: { status: 'PENDING' } });
+      await prisma.settlement.update({ where: { id: settlementId }, data: { status: initialStatus } });
       throw createError('Driver has no bank account registered', 400);
+    }
+
+    if (Number(settlement.driverPayout) === 0 && Number(settlement.parkCommission) === 0 && Number(settlement.totalAmount) > 0) {
+      const splitResult = await PMWalletService.calculateSettlementSplit(settlementId);
+      settlement.driverPayout = new (require('@prisma/client').Prisma.Decimal)(splitResult.splits.driverPayout);
+      settlement.parkCommission = new (require('@prisma/client').Prisma.Decimal)(splitResult.splits.parkCommission);
+      settlement.tyapFee = new (require('@prisma/client').Prisma.Decimal)(splitResult.splits.systemFee);
     }
 
     let transferResult: any;

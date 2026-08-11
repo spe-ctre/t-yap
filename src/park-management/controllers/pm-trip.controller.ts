@@ -35,28 +35,4 @@ export class PMTripController {
       return res.status(500).json({ error: error.message || 'Failed to process check-in and payment' });
     }
   }
-
-  static async startTrip(req: Request, res: Response) {
-    try {
-      const { tripId } = req.params;
-      if (!tripId) return res.status(400).json({ error: 'Trip ID is required' });
-
-      await PMTripService.startTrip(tripId);
-      return res.json({ success: true, message: 'Trip started successfully. Driver is now on-route.' });
-    } catch (error: any) {
-      return handleError(res, error, 'Failed to start trip');
-    }
-  }
-
-  static async endTrip(req: Request, res: Response) {
-    try {
-      const { tripId } = req.params;
-      if (!tripId) return res.status(400).json({ error: 'Trip ID is required' });
-
-      await PMTripService.endTrip(tripId);
-      return res.json({ success: true, message: 'Trip completed. Driver returned to queue.' });
-    } catch (error: any) {
-      return handleError(res, error, 'Failed to end trip');
-    }
-  }
 }

@@ -38,7 +38,7 @@ export class PMDriverController {
   static async activateDriver(req: Request, res: Response) {
     try {
       const { driverId } = req.params;
-      await PMDriverService.activateDriver(driverId);
+      await PMDriverService.activateDriver(driverId, req.user!.id);
       return res.json({ message: 'Driver activated and placed on queue successfully' });
     } catch (error: any) {
       return handleError(res, error, 'Failed to activate driver');
@@ -58,8 +58,8 @@ export class PMDriverController {
   static async startShift(req: Request, res: Response) {
     try {
       const { driverId } = req.params;
-      await PMDriverService.startShift(driverId);
-      return res.json({ message: 'Driver shift started successfully' });
+      const result = await PMDriverService.startShift(driverId, req.user!.id);
+      return res.json({ message: 'Driver shift started successfully', ...result });
     } catch (error: any) {
       return handleError(res, error, 'Failed to start shift');
     }
@@ -68,8 +68,8 @@ export class PMDriverController {
   static async endShift(req: Request, res: Response) {
     try {
       const { driverId } = req.params;
-      await PMDriverService.endShift(driverId);
-      return res.json({ message: 'Driver shift ended successfully' });
+      const result = await PMDriverService.endShift(driverId, req.user!.id);
+      return res.json({ message: 'Driver shift ended successfully', ...result });
     } catch (error: any) {
       return handleError(res, error, 'Failed to end shift');
     }

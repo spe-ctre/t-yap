@@ -61,8 +61,8 @@ export class DriverService {
         profilePicture: driver.profilePicture,
       },
       wallet: {
-        balance: driver.walletBalance,
-        availableBalance: driver.user.walletBalance,
+        balance: 0,
+        availableBalance: 0,
       },
       currentPark: driver.vehicle?.park || null,
       assignedRoute: driver.assignedRoute,
@@ -290,17 +290,6 @@ export class DriverService {
         },
       });
 
-      // Credit driver: fare minus the park's commission cut, not the full fare.
-      const updatedDriver = await tx.driver.update({
-        where: { id: driver.id },
-        data: { walletBalance: { increment: driverPayout } },
-      });
-
-      await tx.user.update({
-        where: { id: driver.userId },
-        data: { walletBalance: { increment: driverPayout } },
-      });
-
       const driverTransaction = await tx.transaction.create({
         data: {
           userId: driver.userId,
@@ -308,8 +297,8 @@ export class DriverService {
           type: 'CREDIT',
           category: 'FARE_PAYMENT',
           amount: driverPayout,
-          balanceBefore: driver.walletBalance,
-          balanceAfter: Number(driver.walletBalance) + driverPayout,
+          balanceBefore: 0,
+          balanceAfter: 0,
           status: 'SUCCESS',
           reference: `FARE-IN-${Date.now()}`,
           description: `Fare received for trip ${tripId} (after ${commissionRate}% park commission)`,
@@ -421,8 +410,8 @@ export class DriverService {
     });
 
     return {
-      balance: driver.walletBalance,
-      availableBalance: driver.user.walletBalance,
+      balance: 0,
+      availableBalance: 0,
       recentTransactions,
     };
   }
@@ -457,103 +446,7 @@ export class DriverService {
   }
 
   async withdrawFunds(userId: string, amount: number, bankAccountId: string, pin: string) {
-    if (!amount || !bankAccountId || !pin) {
-      throw createError('Amount, bank account, and PIN are required', 400);
-    }
-
-    const driver = await prisma.driver.findUnique({ where: { userId }, include: { user: true } });
-    if (!driver) {
-      throw createError('Driver not found', 404);
-    }
-
-    if (!driver.transactionPin) {
-      throw createError('Please set up your transaction PIN first', 400);
-    }
-
-    const isPinValid = await bcrypt.compare(pin, driver.transactionPin);
-    if (!isPinValid) {
-      throw createError('Invalid PIN', 401);
-    }
-
-    if (driver.walletBalance.lt(amount)) {
-      throw createError('Insufficient balance', 400);
-    }
-
-    const bankAccount = await prisma.bankAccount.findUnique({ where: { id: bankAccountId } });
-    if (!bankAccount || bankAccount.userId !== userId) {
-      throw createError('Bank account not found', 404);
-    }
-
-    const transaction = await prisma.transaction.create({
-      data: {
-        userId,
-        userType: 'DRIVER',
-        type: 'DEBIT',
-        category: 'TRANSFER',
-        amount: Number(amount),
-        balanceBefore: driver.walletBalance,
-        balanceAfter: driver.walletBalance.sub(amount),
-        status: 'PROCESSING',
-        reference: `WD-${Date.now()}`,
-        description: `Withdrawal to ${bankAccount.bankName} (${bankAccount.accountNumber})`,
-        metadata: {
-          bankAccountId,
-          accountNumber: bankAccount.accountNumber,
-          bankName: bankAccount.bankName,
-        },
-      },
-    });
-
-    await prisma.driver.update({
-      where: { id: driver.id },
-      data: { walletBalance: { decrement: amount } },
-    });
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { walletBalance: { decrement: Number(amount) } },
-    });
-
-    try {
-      const transferResponse = await monnifyService.initiateTransfer({
-        amount: Number(amount),
-        reference: transaction.reference,
-        narration: `T-YAP Driver Withdrawal: ${driver.firstName || ''} ${driver.lastName || ''}`.trim(),
-        destinationAccountNumber: bankAccount.accountNumber,
-        destinationBankCode: bankAccount.bankCode || '',
-        destinationAccountName: bankAccount.accountName,
-        destinationEmail: driver.user.email,
-      });
-
-      await prisma.transaction.update({
-        where: { id: transaction.id },
-        data: {
-          status: transferResponse.status === 'SUCCESS' ? 'SUCCESS' : 'PROCESSING',
-          metadata: {
-            ...((transaction.metadata as object) || {}),
-            monnifyResponse: transferResponse,
-          },
-        },
-      });
-
-      return {
-        transaction: {
-          ...transaction,
-          status: transferResponse.status === 'SUCCESS' ? 'SUCCESS' : 'PROCESSING',
-        },
-        providerResponse: transferResponse,
-      };
-    } catch (providerError: any) {
-      console.error('Monnify transfer initiation failed:', providerError);
-
-      await prisma.$transaction([
-        prisma.driver.update({ where: { id: driver.id }, data: { walletBalance: { increment: amount } } }),
-        prisma.user.update({ where: { id: userId }, data: { walletBalance: { increment: Number(amount) } } }),
-        prisma.transaction.update({ where: { id: transaction.id }, data: { status: 'FAILED' } }),
-      ]);
-
-      throw createError('Failed to initiate transfer with payment provider. Funds have been refunded.', 502);
-    }
+    throw createError('Drivers do not maintain in-app wallets. Payouts are transferred directly to your bank account upon shift settlement.', 400);
   }
 
   // ============================================
@@ -635,7 +528,6 @@ export class DriverService {
       isAvailableToday: driver.isAvailableToday,
       tier: driver.tier,
       profilePicture: driver.profilePicture,
-      walletBalance: driver.walletBalance,
       vehicle: driver.vehicle,
       assignedRoute: driver.assignedRoute,
       lastCheckInDate: driver.lastCheckInDate,

@@ -149,7 +149,6 @@ model Driver {
   licenseNumber    String       @unique
   licenseExpiry    DateTime
   isVerified       Boolean      @default(false)
-  walletBalance    Decimal      @default(0) @db.Decimal(10, 2)
   profilePicture   String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -222,8 +221,9 @@ model ParkManager {
   updatedAt      DateTime     @updatedAt
   biometricData  String?
   transactionPin String?
-  walletBalance  Decimal      @default(0) @db.Decimal(10, 2)
-  lockedBalance  Decimal      @default(0) @db.Decimal(10, 2)
+  walletBalance            Decimal      @default(0) @db.Decimal(10, 2)
+  lockedBalance            Decimal      @default(0) @db.Decimal(10, 2)
+  commissionCycleStartDate DateTime?    @default(now())
   commissionRate Decimal?     @db.Decimal(5, 2)
   settlements    Settlement[]
   park           Park?        @relation(fields: [parkId], references: [id])

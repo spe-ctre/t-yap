@@ -241,12 +241,22 @@ export const getWalletBalance = async (req: Request, res: Response) => {
   }
 };
 
+export const getAgentAccountDetails = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const result = await agentService.getAgentAccountDetails(userId);
+    return res.json(result);
+  } catch (error: any) {
+    return handleError(res, error, 'Failed to fetch agent account details');
+  }
+};
+
 export const topUpPassengerWallet = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
     const { passengerId, amount, method } = req.body;
     const result = await agentService.topUpPassengerWallet(userId, passengerId, amount, method);
-    return res.json({ message: 'Transfer successful', ...result });
+    return res.json(result);
   } catch (error: any) {
     return handleError(res, error, 'Top-up failed');
   }

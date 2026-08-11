@@ -28,6 +28,7 @@ import {
   
   // Wallet & Transactions
   getWalletBalance,
+  getAgentAccountDetails,
   topUpPassengerWallet,
   withdrawEarnings,
   getTransactionHistory,
@@ -114,6 +115,7 @@ router.get('/parks', authenticateToken, hasRole('AGENT'), getAvailableParks);
  * Wallet & Transactions
  */
 router.get('/wallet', authenticateToken, hasRole('AGENT'), getWalletBalance);
+router.get('/wallet/details', authenticateToken, hasRole('AGENT'), getAgentAccountDetails);
 router.post('/wallet/topup', authenticateToken, hasRole('AGENT'), topUpPassengerWallet);
 router.post('/wallet/withdraw', authenticateToken, hasRole('AGENT'), withdrawEarnings);
 router.post('/wallet/cashout', authenticateToken, hasRole('AGENT'), cashOut);
