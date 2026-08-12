@@ -60,6 +60,7 @@
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
     "typescript": "5.4.5",
+    "ua-parser-js": "^2.0.10",
     "uuid": "^14.0.0"
   },
   "devDependencies": {

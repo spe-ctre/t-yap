@@ -1,9 +1,21 @@
 import jwt from 'jsonwebtoken';
+import { UAParser } from 'ua-parser-js';
 import { prisma } from '../../shared/config/database';
 import { createError } from '../../shared/middleware/error.middleware';
 import { UserRole } from '../../shared/middleware/auth.middleware';
 
+
 export class SessionService {
+  private parseDeviceName(userAgent?: string): string {
+    if (!userAgent) return 'Unknown Device';
+    const { browser, os, device } = new UAParser(userAgent).getResult();
+    const platform = os.name ? `${os.name}${os.version ? ` ${os.version}` : ''}` : undefined;
+    if (device.vendor || device.model) {
+      return [device.vendor, device.model].filter(Boolean).join(' ') || platform || 'Unknown Device';
+    }
+    if (browser.name && platform) return `${browser.name} on ${platform}`;
+    return platform || browser.name || 'Unknown Device';
+  }
   /**
    * Create a new session
    */
@@ -16,6 +28,8 @@ export class SessionService {
   }, role?: UserRole) {
     const token = this.generateToken(userId, role);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const resolvedDeviceName = deviceInfo?.deviceName || this.parseDeviceName(deviceInfo?.userAgent);
+
 
     const session = await prisma.userSession.create({
       data: {
